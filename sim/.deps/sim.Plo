@@ -1,0 +1,92 @@
+sim.lo: sim.c c:\mingw\include\stdio.h c:\mingw\include\_mingw.h \
+ c:\mingw\include\msvcrtver.h c:\mingw\include\w32api.h \
+ c:\mingw\include\sdkddkver.h \
+ c:\mingw\lib\gcc\mingw32\4.9.3\include\stddef.h \
+ c:\mingw\include\sys/types.h \
+ c:\mingw\lib\gcc\mingw32\4.9.3\include\stdarg.h \
+ c:\mingw\include\stdlib.h c:\mingw\include\string.h \
+ c:\mingw\include\strings.h c:\mingw\include\wchar.h \
+ c:\mingw\include\ctype.h c:\mingw\include\wctype.h \
+ c:\mingw\include\math.h c:\mingw\include\assert.h delays.h sim.h \
+ modiface.h hungtype.h lexfn.h lex.h list.h matutil.h random.h yourcode.h \
+ getopt.h mh.h c:\mingw\lib\gcc\mingw32\4.9.3\include\float.h \
+ c:\mingw\include\float.h ../config.h optdsign.h lexerr.h lsodes.h simi.h \
+ strutil.h siminit.h simo.h simmonte.h
+
+c:\mingw\include\stdio.h:
+
+c:\mingw\include\_mingw.h:
+
+c:\mingw\include\msvcrtver.h:
+
+c:\mingw\include\w32api.h:
+
+c:\mingw\include\sdkddkver.h:
+
+c:\mingw\lib\gcc\mingw32\4.9.3\include\stddef.h:
+
+c:\mingw\include\sys/types.h:
+
+c:\mingw\lib\gcc\mingw32\4.9.3\include\stdarg.h:
+
+c:\mingw\include\stdlib.h:
+
+c:\mingw\include\string.h:
+
+c:\mingw\include\strings.h:
+
+c:\mingw\include\wchar.h:
+
+c:\mingw\include\ctype.h:
+
+c:\mingw\include\wctype.h:
+
+c:\mingw\include\math.h:
+
+c:\mingw\include\assert.h:
+
+delays.h:
+
+sim.h:
+
+modiface.h:
+
+hungtype.h:
+
+lexfn.h:
+
+lex.h:
+
+list.h:
+
+matutil.h:
+
+random.h:
+
+yourcode.h:
+
+getopt.h:
+
+mh.h:
+
+c:\mingw\lib\gcc\mingw32\4.9.3\include\float.h:
+
+c:\mingw\include\float.h:
+
+../config.h:
+
+optdsign.h:
+
+lexerr.h:
+
+lsodes.h:
+
+simi.h:
+
+strutil.h:
+
+siminit.h:
+
+simo.h:
+
+simmonte.h:
