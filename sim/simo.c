@@ -1,6 +1,6 @@
 /* simo.c
 
-   Copyright (c) 1991-2008 Free Software Foundation, Inc.
+   Copyright (c) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -17,16 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
    Output routines for the simulation
-
 */
 
 #include <math.h>
@@ -202,10 +193,13 @@ int OpenMCFiles (PANALYSIS panal)
   PMONTECARLO pmc = &panal->mc;
 
   /* Use command line spec if given */
-  if (panal->bCommandLineSpec)
+  if (panal->bCommandLineSpec) {
+    free (pmc->szMCOutfilename);
+    panal->bAllocatedFileName = FALSE;
     pmc->szMCOutfilename = panal->szOutfilename;
+  }
   else 
-    if (!(pmc->szMCOutfilename))  /* Default if none given */
+    if (!(pmc->szMCOutfilename)) /* Default if none given */
       pmc->szMCOutfilename = vszDefMCOutFilename;
 
   if (!pmc->pfileMCOut
@@ -284,7 +278,7 @@ void WriteNormalOutput (PANALYSIS panal, PEXPERIMENT pexp)
 
   if (!panal->szOutfilename)
     panal->szOutfilename = vszDefOutFilename;
-
+  
   if (!(panal->pfileOut))
     if (!(panal->pfileOut = fopen (panal->szOutfilename, "w")))
       ReportError (NULL, RE_CANNOTOPEN | RE_FATAL, panal->szOutfilename, NULL);

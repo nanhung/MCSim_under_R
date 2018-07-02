@@ -2,7 +2,7 @@
 
    Originally written by Frederic Bois
    
-   Copyright (c) 2015 Free Software Foundation, Inc.
+   Copyright (c) 2015-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -18,14 +18,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Header file for the "delays.c" file, dealing with delay differential eqns.
 */

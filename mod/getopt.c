@@ -17,14 +17,6 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
 */
 #include <stdio.h>
 #include <stdlib.h>

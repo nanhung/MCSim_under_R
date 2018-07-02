@@ -2,7 +2,7 @@
 
    Originally written by Don Maszle
 
-   Copyright (c) 1993-2015 Free Software Foundation, Inc.
+   Copyright (c) 1993-2018. Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -18,14 +18,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Header file for simulation
 
@@ -50,21 +42,21 @@
 */
 
 /* Version and copyright */
-#define VSZ_VERSION "v5.6.5"
-#define VSZ_COPYRIGHT "Copyright (c) 1993-2015 Free Software Foundation, Inc."
+#define VSZ_VERSION "v6.0.1"
+#define VSZ_COPYRIGHT "Copyright (c) 1993-2018 Free Software Foundation, Inc."
 
 /* These are potential array size problems.
    Other maximum sizes are MAX_EQN and MAX_LEX in lex.h */
 
-#define MAX_LEVELS            10   /* for now; actual possible is 255 */
-#define MAX_INSTANCES         200  /* allowable instances of `Level' at any
-                                      depth and max number of experiments */
-#define LSODES_IWORKSIZE      300  /* Lsodes tells if this is not big enough */
-#define LSODES_RWORKSIZE      6000 /* Idem */
-#define ARGS_MAX              8    /* Maximum number of args to lex */
-                                   /* Used in allocating argument strings */
-#define MAX_PRINT_VARS        10   /* Arbitrary */
-#define MAX_FILENAMESIZE      80   /* Arbitrary */
+#define MAX_LEVELS            10    /* for now; actual possible is 255 */
+#define MAX_INSTANCES         20000 /* allowable instances of `Level' at any
+                                       depth and max number of experiments */
+#define LSODES_IWORKSIZE      1000  /* Lsodes tells if it needs more */
+#define LSODES_RWORKSIZE      60000 /* Idem */
+#define ARGS_MAX              8     /* Maximum number of args to lex */
+                                    /* Used in allocating argument strings */
+#define MAX_PRINT_VARS        200   /* Arbitrary */
+#define MAX_FILENAMESIZE      200   /* Arbitrary */
 
 /* Keyword Map constants */
 
@@ -120,11 +112,14 @@
 #define KM_STUDENTT        232
 #define KM_CAUCHY          233
 #define KM_HALFCAUCHY      234
+#define KM_NORMALCV        235
+#define KM_TRUNCNORMALCV   236
 
 #define KM_PREDICTION      300
 
 #define KM_LSODES          600
-#define KM_EULER           601
+#define KM_CVODES          601
+#define KM_EULER           602
 
 #define KM_FORWARD         700
 #define KM_BACKWARD        701
@@ -180,11 +175,14 @@
 #define MCV_STUDENTT        22
 #define MCV_CAUCHY          23
 #define MCV_HALFCAUCHY      24
+#define MCV_NORMALCV        25
+#define MCV_TRUNCNORMALCV   26
 
 /* Integration Method types */
 
-#define IAL_EULER  2  /* Euler algorithm */
+#define IAL_EULER  2  /* Euler  algorithm */
 #define IAL_LSODES 3  /* lsodes algorithm */
+#define IAL_CVODES 4  /* cvodes algorithm */
 
 /* Integrator spec defaults */
 
@@ -337,28 +335,26 @@ typedef struct tagMCVAR {
 
 
 typedef struct tagGIBBSDATA {
-  long nMaxIter;             /* Number of iterations */
-  long nSimTypeFlag;         /* Number of iterations before vector sampling */
-  long nPrintFreq;           /* requests output every nPrintFreq iterations */
-  long nPrintIter;           /* Number of final iterations to print */
+  long    nMaxIter;          /* Number of iterations */
+  long    nSimTypeFlag;      /* Number of iterations before vector sampling */
+  long    nPrintFreq;        /* requests output every nPrintFreq iterations */
+  long    nPrintIter;        /* Number of final iterations to print */
 
-  PSTR szGout;               /* Filename for output */
-  PFILE pfileOut;            /* File pointer for output */
+  PSTR    szGout;            /* Filename for output */
+  PFILE   pfileOut;          /* File pointer for output */
 
-  PSTR szGrestart;           /* Filename for restart parameter vectors */
-  PFILE pfileRestart;        /* File pointer for restart */
+  PSTR    szGrestart;        /* Filename for restart parameter vectors */
+  PFILE   pfileRestart;      /* File pointer for restart */
 
-  PSTR szGdata;              /* Filename for input data */
+  PSTR    szGdata;           /* Filename for input data */
 
-  int nInvTemperatures;      /* n inverse temperatures for tempered MCMC */
+  int     nInvTemperatures;  /* n inverse temperatures for tempered MCMC */
   PDOUBLE rgInvTemperatures; /* Array of inverse temperatures */
-  long indexT;               /* hot */
-  long attemptedTempe;       /* attempted temperature jumps */
+  long    indexT;            /* hot */
   PDOUBLE rgdlnPi;
-  PLONG rglTemp;             /* n vectors at a given temperature */
-  double dCZero;
-  double dNZero;
-
+  PLONG   rglTemp;           /* n vectors at a given temperature */
+  double  dCZero;
+  double  dNZero;
 
 } GIBBSDATA, *PGIBBSDATA; /* tagGIBBSDATA */
 
@@ -464,17 +460,17 @@ typedef struct tagANALYSIS {
   BOOL bParams;		    /* Debug flag for printing params of MC vars */
   BOOL bPrintIter;	    /* Debug flag for printing iteration numbers */
 
-  int iType;            /* Type of analysis. One of AT_ types */
+  int  iType;               /* Type of analysis. One of AT_ types */
 
-  WORD wContext;        /* Context flag used during input processing */
-  double dSeed;         /* Random seed used for all analyses */
+  WORD      wContext;       /* Context flag used during input processing */
+  double    dSeed;          /* Random seed used for all analyses */
 
-  MODELINFO   modelinfo;/* The model we are using */
+  MODELINFO modelinfo;      /* The model we are using */
 
-  int iDepth;		        /* Depth of levels */
+  int iDepth;		    /* Depth of levels */
   int iCurrentDepth;
-  int iInstances;       /* Number of instances of level 1 */
-  int iExpts;           /* Total number of experiments at all levels */
+  int iInstances;           /* Number of instances of level 1 */
+  int iExpts;               /* Total number of experiments at all levels */
 
   PLEVEL pLevels[MAX_INSTANCES];    /* Pointer to level 1 structures */
   PLEVEL pCurrentLevel[MAX_LEVELS]; /* Pointers to currently nested structs */
@@ -483,9 +479,10 @@ typedef struct tagANALYSIS {
 
   EXPERIMENT  expGlobal;            /* Global experiment settings */
 
-  PSTR  szOutfilename;      /* Name of file for regular output */
-  PFILE pfileOut;           /* Pointer to file */
-  BOOL  bCommandLineSpec;   /* Output file specified on command line */
+  PSTR  szOutfilename;              /* Name of file for regular output */
+  PFILE pfileOut;                   /* Pointer to file */
+  BOOL  bCommandLineSpec;           /* Output file specified on command line */
+  BOOL  bAllocatedFileName;         /* Output file name should be freed */
 
   PEXPERIMENT rgpExps[MAX_INSTANCES];  /* List of pointer to experiments */
   PEXPERIMENT pexpCurrent;             /* Experiment being currently defined */

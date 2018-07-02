@@ -3,7 +3,7 @@
    Written by Don Maszle
    7 October 1991
 
-   Copyright (c) 1991-2008 Free Software Foundation, Inc.
+   Copyright (c) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -20,20 +20,11 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
    Model utilities include file.
 
    Utility prototypes and structures used by the generated model
    file.  The model typedefs need to be defined here so that
    'modelu.c' can use them.
-
 */
 
 #ifndef MODELU_H_DEFINED

@@ -1,6 +1,6 @@
 /* lsodes.h
 
-   Copyright (c) 1993-2008 Free Software Foundation, Inc.
+   Copyright (c) 1993-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -17,24 +17,15 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
-lsodes.c was translated from lsodes.f by the utility f2c in bea.
-To make lsodes.c a stand alone C routine, the following modifications were
-made:
+   lsodes.c was translated from lsodes.f by the utility f2c in bea.
+   To make lsodes.c a stand alone C routine, the following modifications were
+   made:
     1. the options -lF77 -lI77 were removed from the link command line
     2. a function d_sign was written and added at the beginning of
        the function body
-    3. lsodes was cut in two pieces
+    3. lsodes was split into two files
 
-This is the header file for the two parts
-
+    This is the header file for the two parts
 */
 
 /* ----------------------------------------------------------------------------

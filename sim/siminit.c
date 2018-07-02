@@ -1,6 +1,6 @@
 /* siminit.c
 
-   Copyright (c) 1991-2008 Free Software Foundation, Inc.
+   Copyright (c) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,14 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Contains initialization routines for the simulation
 */
@@ -54,6 +46,10 @@ void GetModelInfo (PMODELINFO pmi)
 
     GetStateHandles (pmi->pStateHvar);
   }
+  else {
+    pmi->pStateHvar = NULL;
+  }
+  
 } /* GetModelInfo */
 
 
@@ -68,7 +64,7 @@ void InitIntegratorSpec (PINTSPEC pis)
   pis->itask = ITASK_DEFAULT;
   pis->itol  = ITOL_DEFAULT;
   pis->dRtol = RTOL_DEFAULT;
-  pis->dAtol = RTOL_DEFAULT;
+  pis->dAtol = ATOL_DEFAULT;
   pis->iMf   = IMF_DEFAULT;
   pis->liw   = LSODES_IWORKSIZE;
   pis->lrw   = LSODES_RWORKSIZE;
@@ -152,6 +148,9 @@ void InitMonteCarlo (PMONTECARLO pmc)
   pmc->pfileSetPoints = NULL;
 
   pmc->plistMCVars   = NULL;
+  pmc->rgdParms = NULL;
+  pmc->rghvar = NULL;
+  pmc->rgpMCVar = NULL;
 
 } /* InitMonteCarlo */
 
@@ -178,9 +177,8 @@ void InitGibbs (PGIBBSDATA pgd)
   /* for tempered MCMC */
   pgd->nInvTemperatures = 0; /* n (inverse) temperatures */
   pgd->indexT = 0;           /* start at hot temperature */
-  pgd->attemptedTempe = 0;   /* attempted temperature jumps */
-  pgd->dCZero = 10;
-  pgd->dNZero = 50;
+  pgd->dCZero = 200;
+  pgd->dNZero = 1000;        /* must be > 0 */
 
 } /* InitGibbs */
 
@@ -213,9 +211,10 @@ void InitAnalysis (PANALYSIS panal)
   /* Global experiment settings */
   InitExperiment (&panal->expGlobal, &panal->modelinfo);
 
-  panal->szOutfilename    = NULL;
-  panal->pfileOut         = NULL;
-  panal->bCommandLineSpec = FALSE;
+  panal->szOutfilename      = NULL;
+  panal->pfileOut           = NULL;
+  panal->bCommandLineSpec   = FALSE;
+  panal->bAllocatedFileName = FALSE;
 
   /* Init all experiments NULL */
   panal->iExpts = 0;
@@ -422,8 +421,6 @@ BOOL PrepareOutSpec (PEXPERIMENT pexp)
       pos->nOutputs = 0; /* Current cell counter in callback */
       ForAllList (pos->plistPrintRecs, InitOneOutVar, (PVOID) &pexp->os);
       pos->nOutputs = cOut; /* Set count of outputs for real */
-
-      FreeList (&pos->plistPrintRecs, NULL, TRUE);
 
       CreateOutputSchedule (pos); /* Create single output time list */
 

@@ -1,6 +1,6 @@
 /* mod.c
 
-   Copyright (c) 1993-2012. Free Software Foundation, Inc.
+   Copyright (c) 1993-2017. Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,14 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Entry point for model code generator.
 
@@ -262,6 +254,16 @@ void GetCmdLineArgs (int nArg, char *const *rgszArg, PSTR *pszFileIn,
   /* store input file name for use by modo.c */
   pinfo->szInputFilename = *pszFileIn;
 
+#ifdef _WIN32
+  /* avoid compiler errors because of invalid escapes
+     when the path is presented in source */
+  PSTR pStr = strchr (pinfo->szInputFilename, '\\');
+  while (pStr) {
+    *pStr = '/';
+    pStr = strchr (pStr + 1, '\\');
+  }
+#endif /* _WIN32 */
+
   /* use default output file name if it is missing */
   if (!*pszFileOut)
     *pszFileOut = vszFilenameDefault;
@@ -276,10 +278,21 @@ void GetCmdLineArgs (int nArg, char *const *rgszArg, PSTR *pszFileIn,
 void InitInfo (PINPUTINFO pinfo, PSTR szModGenName)
 {
   pinfo->wContext       = CN_GLOBAL;
-  pinfo->bTemplateInUse = FALSE;
+  pinfo->bDelays        = FALSE;
   pinfo->bforR          = FALSE;
+  pinfo->bTemplateInUse = FALSE;
   pinfo->szModGenName   = szModGenName;
 
+#ifdef _WIN32
+  /* avoid compiler errors because of invalid escapes
+     when the path is presented in source */
+  PSTR pStr = strchr (pinfo->szModGenName, '\\');
+  while (pStr) {
+    *pStr = '/';
+    pStr = strchr (pStr + 1, '\\');
+  }
+#endif /* _WIN32 */
+  
   pinfo->pvmGloVars     = NULL;
   pinfo->pvmDynEqns     = NULL;
   pinfo->pvmScaleEqns   = NULL;
@@ -295,6 +308,91 @@ void InitInfo (PINPUTINFO pinfo, PSTR szModGenName)
 
 
 /* ----------------------------------------------------------------------------
+   Cleanup
+
+   deallocate memory.
+*/
+
+void Cleanup (PINPUTINFO pinfo)
+{
+  PVMMAPSTRCT  next;
+
+  while (pinfo->pvmGloVars) {
+    next = pinfo->pvmGloVars->pvmNextVar;
+    free(pinfo->pvmGloVars->szName);
+    free(pinfo->pvmGloVars->szEqn);
+    free(pinfo->pvmGloVars);
+    pinfo->pvmGloVars = next;
+  }
+
+  while (pinfo->pvmDynEqns) {
+    next = pinfo->pvmDynEqns->pvmNextVar;
+    free(pinfo->pvmDynEqns->szName);
+    free(pinfo->pvmDynEqns->szEqn);
+    free(pinfo->pvmDynEqns);
+    pinfo->pvmDynEqns = next;
+  }
+  
+  while (pinfo->pvmScaleEqns) {
+    next = pinfo->pvmScaleEqns->pvmNextVar;
+    free(pinfo->pvmScaleEqns->szName);
+    free(pinfo->pvmScaleEqns->szEqn);
+    free(pinfo->pvmScaleEqns);
+    pinfo->pvmScaleEqns = next;
+  }
+  
+  while (pinfo->pvmJacobEqns) {
+    next = pinfo->pvmJacobEqns->pvmNextVar;
+    free(pinfo->pvmJacobEqns->szName);
+    free(pinfo->pvmJacobEqns->szEqn);
+    free(pinfo->pvmJacobEqns);
+    pinfo->pvmJacobEqns = next;
+  }
+
+  while (pinfo->pvmCalcOutEqns) {
+    next = pinfo->pvmCalcOutEqns->pvmNextVar;
+    free(pinfo->pvmCalcOutEqns->szName);
+    free(pinfo->pvmCalcOutEqns->szEqn);
+    free(pinfo->pvmCalcOutEqns);
+    pinfo->pvmCalcOutEqns = next;
+  }
+
+  while (pinfo->pvmEventEqns) {
+    next = pinfo->pvmEventEqns->pvmNextVar;
+    free(pinfo->pvmEventEqns->szName);
+    free(pinfo->pvmEventEqns->szEqn);
+    free(pinfo->pvmEventEqns);
+    pinfo->pvmEventEqns = next;
+  }
+
+  while (pinfo->pvmRootEqns) {
+    next = pinfo->pvmRootEqns->pvmNextVar;
+    free(pinfo->pvmRootEqns->szName);
+    free(pinfo->pvmRootEqns->szEqn);
+    free(pinfo->pvmRootEqns);
+    pinfo->pvmRootEqns = next;
+  }
+
+  while (pinfo->pvmCpts) {
+    next = pinfo->pvmCpts->pvmNextVar;
+    free(pinfo->pvmCpts->szName);
+    free(pinfo->pvmCpts->szEqn);
+    free(pinfo->pvmCpts);
+    pinfo->pvmCpts = next;
+  }
+
+  while (pinfo->pvmLocalCpts) {
+    next = pinfo->pvmJacobEqns->pvmNextVar;
+    free(pinfo->pvmJacobEqns->szName);
+    free(pinfo->pvmJacobEqns->szEqn);
+    free(pinfo->pvmJacobEqns);
+    pinfo->pvmJacobEqns = next;
+  }
+
+} /* Cleanup */
+
+
+/* ----------------------------------------------------------------------------
    main -- Entry point for the simulation model preprocessor
    
 */
@@ -306,15 +404,6 @@ int main (int nArg, PSTR rgszArg[])
   PSTR szFileIn, szFileOut;
 
   AnnounceProgram ();
-
-#ifdef WIN32
-  /* replace '\' in rgszArg[0] with '/' */
-  { int i;
-    for (i = 0; i < strlen(rgszArg[0]); i++) {
-      if (rgszArg[0][i] == '\\') rgszArg[0][i] = '/';
-    }
-  }
-#endif
 
   InitInfo (&info, rgszArg[0]);
   InitInfo (&tempinfo, rgszArg[0]);
@@ -331,6 +420,8 @@ int main (int nArg, PSTR rgszArg[])
     Write_R_Model (&info, szFileOut);
   else 
     WriteModel (&info, szFileOut);
+
+  Cleanup (&info);
 
   return 0;
 

@@ -3,7 +3,7 @@
    Written by Don Robert Maszle
    18 September 1992
 
-   Copyright (c) 1992-2008 Free Software Foundation, Inc.
+   Copyright (c) 1992-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -19,15 +19,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
 */
 
 #ifndef MATUTIL_H_DEFINED

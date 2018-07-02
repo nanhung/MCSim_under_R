@@ -1,6 +1,6 @@
 /* random.h
 
-   Copyright (c) 1992-2008 Free Software Foundation, Inc.
+   Copyright (c) 1992-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -17,31 +17,30 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
    Header for random number generator.  See random.c for extensive
    documentation.
 
    Gives prototypes for random functions.
-
 */
 
 #ifndef RANDOM_H_DEFINED
 
 #include <math.h>
 
+#include "config.h"
+
 /* ----------------------------------------------------------------------------
    Constants  */
 
 #define SEED_MIN     1.0
 #define SEED_MAX     2147483646.0
+
+#ifdef HAVE_LIBGSL
+#define SEED_DEFAULT 0
+#else  /* non-gsl version */
 #define SEED_DEFAULT 314159265.3589793
+#endif
+
 #define PI           3.1415926535897932384626433
 #define INV_SQRT_2PI 0.398942280401433
 #define SQRT_2       1.4142135623731
@@ -96,7 +95,11 @@ void   WishartRandom (long n, long p, double *t, double *w, double *work);
 BOOL   and (BOOL A, BOOL B);
 double CDFNormal (double z);
 double InterpolateX (double rgX[], double rgY[], long lLower, double dY);
+
+#ifndef HAVE_ERFC
 double erfc (double x);
+#endif
+
 double GetSeed (void);
 double lnDFNormal (double x, double mu, double sd);
 double lnGamma (double x);
