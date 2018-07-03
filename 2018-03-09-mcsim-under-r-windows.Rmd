@@ -2,7 +2,7 @@
 title: MCSim under R (Windows)
 summary: The exercise of use GNU MCsim under R in Windows system 
 author: Nan-Hung Hsieh
-date: '2018-07-02'
+date: '2018-03-09'
 slug: mcsim-under-r-windows
 categories: []
 tags:
@@ -244,7 +244,7 @@ system(paste("./mod/mod.exe ", mName, " ", mName, ".c", sep = ""))
 Compile the "simple.model.c" to "mcsim.simple.model.exe". Copy the "sim" file in MCSim folder and put in your working directory. Also copy the `config.h` file and put in the "sim" folder.
 
 ```{R, warning=FALSE}
-system(paste("gcc -O3 -I.. -I./sim -o mcsim_", mName, ".exe ", mName, ".c ./sim/*.c -lm ", libGSL, sep = ""))
+system(paste("gcc -O3 -I.. -I./sim -o mcsim_", mName, ".exe ", mName, ".c ./sim/*.c -lm ", sep = ""))
 
 # run the simulation input file
 # put its name here
