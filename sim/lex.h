@@ -3,7 +3,7 @@
    Written by Don Maszle
    13 October 1991
 
-   Copyright (c) 1991-2008 Free Software Foundation, Inc.
+   Copyright (c) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -20,18 +20,7 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
    Header file for Lexical parsing routines.
-
-   Modified 21/3/97 by FB set MAX_ERRORS to zero.
-
 */
 
 #ifndef LEX_H_DEFINED
@@ -82,6 +71,7 @@
 #define RE_FATAL            0x8000 // Can be ORd to iCode to cause exit(1)
 #define RE_WARNING          0x4000 // can be ORd to issue Warning instead
 
+#define RE_UNKNOWN          0x0000 /* Unspecified error */
 #define RE_INIT             0x0001 // Error during initialization
 #define RE_FILENOTFOUND     0x0002 // Error opening file for I/O
 #define RE_CANNOTOPEN       0x0003 // Cannot open file
@@ -104,6 +94,7 @@
 #define RE_TYPENOTMCMC      0x0116 // Level statement outside MCMC
 #define RE_TOOMANYPVARS     0x0117 // Too many variables in Print statement
 #define RE_DUPVARINEXPRT    0x0121 // Same var appears twice or more
+#define RE_POSITIVE         0x0122 // Positive number expected
 
 #define RE_ERRORSINEXP      0x0201 // Errors reported, skipping exp
 #define RE_NOOUTPUTS        0x0202 // No outputs specified
@@ -164,33 +155,36 @@ typedef char PSTREQN[MAX_EQN]; /* String of an equation */
 /* ----------------------------------------------------------------------------
    Prototypes */
 
-void    EatStatement (PINPUTBUF pib);
-int     EGetPunct (PINPUTBUF pibIn, PSTR szLex, char chPunct);
-int     ENextLex (PINPUTBUF, PSTRLEX, int);
+void EatStatement (PINPUTBUF pib);
+int  EGetPunct (PINPUTBUF pibIn, PSTR szLex, char chPunct);
+int  ENextLex (PINPUTBUF, PSTRLEX, int);
 
-int     FillBuffer (PINPUTBUF pibIn);
-void    FlushBuffer (PINPUTBUF pibIn);
+int  FillBuffer (PINPUTBUF pibIn);
+void FlushBuffer (PINPUTBUF pibIn);
 
-BOOL    GetFuncArgs (PINPUTBUF, int, PINT, PSTR);
-void    GetIdentifier (PINPUTBUF pibIn, PSTR szLex);
-void    GetNumber (PINPUTBUF pibIn, PSTR szLex, PINT piLexType);
-int     GetOptPunct (PINPUTBUF, PSTR, char);
-int     GetPunct (PINPUTBUF pibIn, PSTR szLex, char chPunct);
-void    GetStatement (PINPUTBUF pibIn, PSTR szStmt);
-void    GetaString (PINPUTBUF pibIn, PSTR szLex);
+void GetArrayBounds (PINPUTBUF pibIn, PLONG piLB, PLONG piUB);
+BOOL GetFuncArgs (PINPUTBUF, int, PINT, PSTR);
+void GetIdentifier (PINPUTBUF pibIn, PSTR szLex);
+void GetNumber (PINPUTBUF pibIn, PSTR szLex, PINT piLexType);
+int  GetOptPunct (PINPUTBUF, PSTR, char);
+int  GetPunct (PINPUTBUF pibIn, PSTR szLex, char chPunct);
+void GetStatement (PINPUTBUF pibIn, PSTR szStmt);
+void GetaString (PINPUTBUF pibIn, PSTR szLex);
 
-BOOL    InitBuffer (PINPUTBUF pibIn, PSTR szFullPathname);
+BOOL InitBuffer (PINPUTBUF pibIn, PSTR szFullPathname);
 
-void    MakeStringBuffer (PINPUTBUF pBuf, PINPUTBUF pStrBuf, PSTR sz);
+void MakeStringBuffer (PINPUTBUF pBuf, PINPUTBUF pStrBuf, PSTR sz);
 
-char    NextChar (PINPUTBUF pibIn);
-void    NextLex    (PINPUTBUF, PSTRLEX, PINT);
-int     NextListItem (PINPUTBUF, PSTR, int, int, char);
+char NextChar (PINPUTBUF pibIn);
+void NextLex    (PINPUTBUF, PSTRLEX, PINT);
+int  NextListItem (PINPUTBUF, PSTR, int, int, char);
 
-void    PreventLexSplit (PINPUTBUF pibIn, int iOffset);
+void PreventLexSplit (PINPUTBUF pibIn, int iOffset);
 
-void    SkipComment (PINPUTBUF);
-int     SkipWhitespace (PINPUTBUF pibIn);
+void SkipComment (PINPUTBUF);
+int  SkipWhitespace (PINPUTBUF pibIn);
+
+void UnrollEquation (PINPUTBUF pibIn, long index, PSTR szEqn, PSTR szEqnU);
 
 #define LEX_H_DEFINED
 #endif

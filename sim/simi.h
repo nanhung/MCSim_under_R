@@ -19,14 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
    Header file for simi.c
 */
 
@@ -52,6 +44,8 @@ BOOL EndExperiment (PINPUTBUF pibIn, PANALYSIS panal);
 BOOL EndLevel (PANALYSIS panal);
 void FreeLevels (PANALYSIS panal);
 int  FreeMCLists (PVOID pData, PVOID pUserInfo);
+int  FreeDataRec (PVOID pData, PVOID pUserInfo);
+int  FreePrintRec (PVOID pData, PVOID pUserInfo);
 void FreeOneLevel (PLEVEL plevel);
 BOOL GetData (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos);
 BOOL GetMCMCSpec (PINPUTBUF pibIn, PEXPERIMENT pexp);
@@ -66,7 +60,7 @@ int  GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex);
 int  GetMonteCarloSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex);
 BOOL GetOptDSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex);
 BOOL GetOutputFile (PINPUTBUF pibIn, PSTR szLex, PANALYSIS panal);
-BOOL GetParmMod (PINPUTBUF pibIn, PSTRLEX szLex, PSTREQN szeqn);
+BOOL GetParmMod (PINPUTBUF pibIn, PSTRLEX szLex);
 BOOL GetPrint (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos);
 BOOL GetPrintStep (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos);
 int  GetSetPointsSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex);

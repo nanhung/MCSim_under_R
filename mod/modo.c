@@ -1,6 +1,6 @@
 /* modo.c
 
-   Copyright (c) 1993-2012. Free Software Foundation, Inc.
+   Copyright (c) 1993-2017. Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,14 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Output the model.c file.
 
@@ -68,8 +60,9 @@ char *vszIFNTypes[] = { /* Must match defines in lexfn.h */
 
 int vnStates, vnOutputs, vnInputs, vnParms, vnModelVars;
 
-BOOL bForR = FALSE;
+BOOL bForR     = FALSE;
 BOOL bForInits = FALSE;
+BOOL bDelay    = TRUE; // R specific code
 
 
 /* ----------------------------------------------------------------------------
@@ -246,7 +239,9 @@ int WriteOneDecl (PFILE pfile, PVMMAPSTRCT pvm, PVOID pInfo)
   assert (TYPE(pvm) != ID_OUTPUT);
   assert (TYPE(pvm) != ID_STATE);
 
-  if (TYPE(pvm) > ID_PARM) fprintf (pfile, "  /* local */ ");
+  if (TYPE(pvm) > ID_PARM) {
+    fprintf (pfile, "  /* local */ ");
+  }
 
   fprintf (pfile, "double %s;\n", pvm->szName);
 
@@ -367,7 +362,7 @@ PSTR GetName (PVMMAPSTRCT pvm, PSTR szModelVarName, PSTR szDerivName,
 
   case ID_OUTPUT:
     if (bForR)
-        sprintf (vszVarName, "yout[ID_%s]", pvm->szName);
+      sprintf (vszVarName, "yout[ID_%s]", pvm->szName);
     else {
       if (szModelVarName)
         sprintf (vszVarName, "%s[ID_%s]", szModelVarName, pvm->szName);
@@ -605,13 +600,12 @@ void TranslateID (PINPUTBUF pibDum, PFILE pfile, PSTR szLex, int iEqType)
 
 void TranslateEquation (PFILE pfile, PSTR szEqn, long iEqType)
 {
-#define RMARGIN 65
-
-  INPUTBUF ibDum;
-  PINPUTBUF pibDum = &ibDum;
-  PSTRLEX szLex;
-  int iType;
-  BOOL bDelayCall = FALSE;
+  INPUTBUF    ibDum;
+  PINPUTBUF   pibDum = &ibDum;
+  PSTRLEX     szLex;
+  PVMMAPSTRCT pvm = NULL;
+  int         iType;
+  BOOL        bDelayCall = FALSE;
 
   MakeStringBuffer (NULL, pibDum, szEqn);
 
@@ -623,18 +617,19 @@ void TranslateEquation (PFILE pfile, PSTR szEqn, long iEqType)
 
   do {
     if (iType == LX_IDENTIFIER) { // Process Identifier
-      if (bDelayCall) {  
+      if (bDelayCall) {
         // do not translate the 1st param of CalcDelay but check it
-        PVMMAPSTRCT pvm = NULL;
-        if (((pvm = GetVarPTR(vpvmGloVarList, szLex)) && 
-	     (TYPE(pvm) == ID_STATE)) || (TYPE(pvm) == ID_OUTPUT)) {
+        pvm = GetVarPTR(vpvmGloVarList, szLex);
+        if ( ( bForR && ((pvm && (TYPE(pvm) == ID_STATE)))) ||
+             (!bForR && ((pvm && (TYPE(pvm) == ID_STATE))   || 
+                         (TYPE(pvm) == ID_OUTPUT)))) {
           fprintf (pfile, "ID_%s", szLex);
-          // add the automatic time variable
-          fprintf (pfile, ", (*pdTime)");
-          bDelayCall = FALSE;
+          fprintf (pfile, ", (*pdTime)"); // add the automatic time variable
+          bDelayCall = FALSE; // turn delay context off
         }
         else
-          ReportError (pibDum, RE_EXPECTED | RE_FATAL, "state or output", NULL);
+          ReportError (pibDum, RE_LEXEXPECTED | RE_FATAL, 
+                       (bForR ? "state" : "state or output") , NULL);
       }
       else
         TranslateID (pibDum, pfile, szLex, iEqType);
@@ -652,9 +647,11 @@ void TranslateEquation (PFILE pfile, PSTR szEqn, long iEqType)
         fprintf (pfile, "%s", szLex);
     }
 
-    if (!bDelayCall) // do not reset here if bDelayCall is TRUE
+    if (!bDelayCall) { // check delay context
       bDelayCall = (!strcmp("CalcDelay", szLex));
-
+      bDelay = bDelay || bDelayCall;
+    }
+    
     fprintf (pfile, " ");
     NextLex (pibDum, szLex, &iType);
 
@@ -1251,6 +1248,18 @@ void Write_R_InitModel (PFILE pfile, PVMMAPSTRCT pvmGlo)
   fprintf (pfile, "  odeforcs(&N, forc);\n");
   fprintf (pfile, "}\n\n\n");
 
+  if (bDelay) {
+    fprintf (pfile, "/* Calling R code will ensure that input y has same\n");
+    fprintf (pfile, "   dimension as yini */\n");
+    fprintf (pfile, "void initState (double *y)\n");
+    fprintf (pfile, "{\n");
+    fprintf (pfile, "  int i;\n\n");
+    fprintf (pfile, "  for (i = 0; i < sizeof(yini) / sizeof(yini[0]); i++)\n");
+    fprintf (pfile, "  {\n");
+    fprintf (pfile, "    yini[i] = y[i];\n");
+    fprintf (pfile, "  }\n}\n\n");
+  }
+
 } /* Write_R_InitModel */
 
 
@@ -1376,6 +1385,34 @@ int ForAllVarwSep (PFILE pfile, PVMMAPSTRCT pvm, PFI_CALLBACK pfiFunc,
 } /* ForAllVarwSep */
 
 
+/* ---------------------------------------------------------------------------
+   Is_numeric
+
+   Returns 1 if the argument is interpretable as a double precision number,
+   0 otherwise.
+*/
+int Is_numeric(PSTR str)
+{
+  double val;
+  char *ptr;
+
+  if (str) {
+    // try to convert str to a number. ptr will hold a pointer
+    // to the part of the string that can't be converted.
+    // If str starts with a variable name, then str and ptr will
+    // be the same, but if str is something like 2 * Vblood,
+    // ptr will point to the '*'. In both these cases, strlen will
+    // return a non-zero value (I think).
+    val = strtod((char *)str, &ptr);
+    if (strlen(ptr) > 0) return (0); else return (1);
+  } 
+  else {
+    return (2);
+  }
+
+} /* Is_numeric
+
+
 /* ----------------------------------------------------------------------------
    WriteOne_R_ParmDecl
 
@@ -1385,20 +1422,35 @@ int ForAllVarwSep (PFILE pfile, PVMMAPSTRCT pvm, PFI_CALLBACK pfiFunc,
 int WriteOne_R_PSDecl (PFILE pfile, PVMMAPSTRCT pvm, PVOID pInfo)
 {
   PSTR szVarName;
+  PSTR szZero = "0.0";
   long End = (long) pInfo;
+  PSTR RHS;
+  int  iOut;
 
-  if (End < 1)
+  if (End < 1) {
+
     szVarName = GetName (pvm, NULL, NULL, ID_NULL);
+
+    iOut = Is_numeric(pvm->szEqn);
+    switch (iOut) {
+    case 0:
+      RHS = szZero;
+      break;
+    case 1:
+      RHS = pvm->szEqn;
+      break;
+    case 2:
+      RHS = szZero;
+    }
+  } // end if
 
   switch (End) {
     case -1:
-      fprintf (pfile, "    %s = 0.0", szVarName);
+      fprintf (pfile, "    %s = %s", szVarName, RHS);
       break;
-
     case 0:
-      fprintf (pfile, ",\n    %s = 0.0", szVarName);
+      fprintf (pfile, ",\n    %s = %s", szVarName, RHS);
       break;
-
     case 1:
       fprintf (pfile, "\n");
       return (0);
@@ -1415,13 +1467,15 @@ int WriteOne_R_PSDecl (PFILE pfile, PVMMAPSTRCT pvm, PVOID pInfo)
 int WriteOne_R_ParmInit (PFILE pfile, PVMMAPSTRCT pvm, PVOID pInfo)
 {
   PSTR szVarName;
+  int iOut;
 
   if (((long) pInfo) < 1) {
     szVarName = GetName (pvm, NULL, NULL, ID_NULL);
-
-    fprintf (pfile, "    %s = %s;\n",szVarName,
-             (pvm->szEqn ? pvm->szEqn : "0.0"));
-
+    iOut = Is_numeric(pvm->szEqn);
+    if (iOut == 0) {
+      fprintf (pfile, "    %s = %s;\n",szVarName, pvm->szEqn);
+      //(pvm->szEqn ? pvm->szEqn : "0.0"));
+    }
     return (1);
   }
   else
@@ -1515,18 +1569,22 @@ void Write_R_InitPOS (PFILE pfile, PVMMAPSTRCT pvmGlo, PVMMAPSTRCT pvmScale)
   /* write R function initParms */
   fprintf (pfile, "initParms <- function(newParms = NULL) {\n");
   fprintf (pfile, "  parms <- c(\n");
-   ForAllVarwSep (pfile, pvmGlo, &WriteOne_R_PSDecl, ID_PARM, NULL);
-  fprintf (pfile, "  )\n");
-  fprintf (pfile, "  parms <- within(as.list(parms), {\n");
-   ForAllVarwSep (pfile, pvmGlo, &WriteOne_R_ParmInit, ID_PARM, NULL);
-  fprintf (pfile, "  })\n");
+
+  /* We write out all parameters here. If the rhs is a numerical constant, 
+     write it out. If it is an equation, then write out 0.0  */
+  ForAllVarwSep (pfile, pvmGlo, &WriteOne_R_PSDecl, ID_PARM, NULL);
+  fprintf (pfile, "  )\n\n");
   fprintf (pfile, "  if (!is.null(newParms)) {\n");
   fprintf (pfile, "    if (!all(names(newParms) %%in%% c(names(parms)))) {\n");
   fprintf (pfile, "      stop(\"illegal parameter name\")\n");
   fprintf (pfile, "    }\n");
-  fprintf (pfile, "  }\n");
-  fprintf (pfile, "  if (!is.null(newParms))\n");
   fprintf (pfile, "    parms[names(newParms)] <- newParms\n");
+  fprintf (pfile, "  }\n\n");
+  fprintf (pfile, "  parms <- within(as.list(parms), {\n");
+
+  /* Here, just write out the LHS and RHS for variables with eqns on the RHS */
+  ForAllVarwSep (pfile, pvmGlo, &WriteOne_R_ParmInit, ID_PARM, NULL);
+  fprintf (pfile, "  })\n");
   fprintf (pfile, "  out <- .C(\"getParms\",  as.double(parms),\n");
   fprintf (pfile, "            out=double(length(parms)),\n");
   fprintf (pfile, "            as.integer(length(parms)))$out\n");
@@ -1536,30 +1594,34 @@ void Write_R_InitPOS (PFILE pfile, PVMMAPSTRCT pvmGlo, PVMMAPSTRCT pvmScale)
 
   /* write R function Outputs */
   fprintf (pfile, "Outputs <- c(\n");
-   ForAllVarwSep (pfile, pvmGlo, &WriteOneOutputName, ID_OUTPUT, NULL);
+  ForAllVarwSep (pfile, pvmGlo, &WriteOneOutputName, ID_OUTPUT, NULL);
   fprintf (pfile, ")\n\n");
 
   /* write R function initStates */
   bForInits = TRUE;
   fprintf (pfile, "initStates <- function(parms, newStates = NULL)"
                   " {\n  Y <- c(\n");
-   ForAllVarwSep (pfile, pvmGlo, &WriteOne_R_PSDecl, ID_STATE, NULL);
-  fprintf (pfile, "  )\n");
+  ForAllVarwSep (pfile, pvmGlo, &WriteOne_R_PSDecl, ID_STATE, NULL);
+  fprintf (pfile, "  )\n\n");
 
   // do the next only if needed otherwise Y is reset to null
   if (ForAllVar (pfile, pvmScale, NULL, ID_STATE,  NULL) ||
       ForAllVar (pfile, pvmScale, NULL, ID_INLINE, NULL)) {
-    fprintf (pfile, "  Y <- within(as.list(parms), {");
-     Write_R_State_Scale (pfile, pvmScale);
+    fprintf (pfile, "  Y <- within(c(as.list(parms),as.list(Y)), {");
+    Write_R_State_Scale (pfile, pvmScale);
     fprintf (pfile, "\n  })$Y\n\n");
   }
-
   fprintf (pfile, "  if (!is.null(newStates)) {\n");
   fprintf (pfile, "    if (!all(names(newStates) %%in%% c(names(Y)))) {\n");
   fprintf (pfile,
            "      stop(\"illegal state variable name in newStates\")\n");
   fprintf (pfile, "    }\n");
-  fprintf (pfile, "    Y[names(newStates)] <- newStates\n  }\n  Y\n}\n");
+  fprintf (pfile, "    Y[names(newStates)] <- newStates\n  }\n\n");
+
+  if (bDelay) {
+    fprintf (pfile, ".C(\"initState\", as.double(Y));\n");
+  }
+  fprintf (pfile, "Y\n}\n");
 
   /* Write_R_Forcings: unfinished;
      translate mcsim's input information into a default forcing
@@ -1590,6 +1652,42 @@ void Write_R_Decls (PFILE pfile, PVMMAPSTRCT pvmGlo)
   ForAllVar (pfile, pvmGlo, &WriteOne_R_PIDefine, ID_INPUT, NULL);
   fprintf (pfile, "\n");
 
+  if (bDelay) {
+    fprintf (pfile, "/* Function definitions for delay differential "
+                    "equations */\n\n");
+    fprintf (pfile, "int Nout=1;\n");
+    fprintf (pfile, "int nr[1]={0};\n");
+    fprintf (pfile, "double ytau[1] = {0.0};\n\n");
+    fprintf (pfile, "static double yini[%d] = {",vnStates);
+    int i;
+    for (i = 1; i <= vnStates; i++) {
+      if (i == vnStates) {
+        fprintf (pfile, "0.0");
+      } else{
+        fprintf (pfile, "0.0, ");
+      }
+    }
+    fprintf (pfile, "}; /*Array of initial state variables*/\n\n");
+    fprintf (pfile, "void lagvalue(double T, int *nr, int N, double *ytau) "
+                    "{\n");
+    fprintf (pfile, "  static void(*fun)(double, int*, int, double*) = NULL;"
+                    "\n");
+    fprintf (pfile, "  if (fun == NULL)\n");
+    fprintf (pfile, "    fun = (void(*)(double, int*, int, double*))"
+                    "R_GetCCallable(\"deSolve\", \"lagvalue\");\n");
+    fprintf (pfile, "  return fun(T, nr, N, ytau);\n}\n\n");
+    fprintf (pfile, "double CalcDelay(int hvar, double dTime, double delay) {"
+                    "\n");
+    fprintf (pfile, "  double T = dTime-delay;\n");
+    fprintf (pfile, "  if (dTime > delay){\n");
+    fprintf (pfile, "    nr[0] = hvar;\n");
+    fprintf (pfile, "    lagvalue( T, nr, Nout, ytau );\n}\n");
+    fprintf (pfile, "  else{\n");
+    fprintf (pfile, "    ytau[0] = yini[hvar];\n}\n");
+    fprintf (pfile, "  return(ytau[0]);\n}\n\n");
+  
+  } /* end if */
+
 } /* Write_R_Decls */
 
 
@@ -1598,6 +1696,13 @@ void Write_R_Decls (PFILE pfile, PVMMAPSTRCT pvmGlo)
 void Write_R_Includes (PFILE pfile)
 {
   fprintf (pfile, "#include <R.h>\n");
+
+  if (bDelay) {
+    fprintf (pfile, "#include <Rinternals.h>\n");
+    fprintf (pfile, "#include <Rdefines.h>\n");
+    fprintf (pfile, "#include <R_ext/Rdynload.h>\n");
+  }
+
 } /* Write_R_Includes */
 
 

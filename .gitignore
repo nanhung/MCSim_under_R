@@ -4,3 +4,5 @@
 .Ruserdata
 *.out
 *.exe
+*.o
+*.dll

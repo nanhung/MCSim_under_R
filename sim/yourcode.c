@@ -2,7 +2,7 @@
 
    Originally written by Frederic Bois
    
-   Copyright (c) 1993-2008 Free Software Foundation, Inc.
+   Copyright (c) 1993-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -19,17 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
    Contains the routines most susceptible to be modified by the user and 
-   some utilities.
-   
+   some utilities.   
 */
 
 #include <stdio.h>
@@ -89,7 +80,7 @@ void DoStep_by_Step (/* your needed parameters here, e.g.:
 void TransformPred (PANALYSIS panal, PMCPREDOUT pMCPredOut)
 {
 
-  OutspecToLinearArray (panal, pMCPredOut);
+  OutspecToLinearArray (panal, pMCPredOut); /* no tranformation */
 
 } /* TransformPred */
 

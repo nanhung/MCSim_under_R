@@ -3,7 +3,7 @@
    Written by Don Maszle
    7 October 1991
 
-   Copyright (c) 1991-2008 Free Software Foundation, Inc.
+   Copyright (c) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -19,14 +19,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Model utilities.
 
@@ -86,19 +78,13 @@ BOOL vbModelReinitd = FALSE;    /* Model has been initialized */
    This routine resolves input parameter that are dependent on model
    parameters.  If a parameter has a non-zero handle, the nominal
    value of the variable associated with that handle is used for the
-   nominal value of the input parameter.  As an example, an
+   nominal value of the input parameter. As an example, an
    exponential input might have a decay rate dependent on a model
-   variable called 'Decay', which changes with each experiment.  The
+   variable called 'Decay', which changes with each experiment. The
    handle to 'Decay' would be the hDecay parameter of that input
    function.
 
-   This routine also adjust variant exposure times, e.g. for
-   PerExp's, the exposure time is set to N_TAU_EXPOSE Tau's.  At this
-   point, the input has decayed to a neglible quantity, and we don't
-   have to waste time calling the exp() function.
-
-   After N_TAU_EXPOSE == 40 Tau's, the input has decayed to 4.2e-18
-   of the magnitude.
+   This routine also adjust variant exposure times.
 */
 
 void FixupDependentInputs (void)
@@ -119,10 +105,13 @@ void FixupDependentInputs (void)
       vrgInputs[i].dTexp = GetVarValue (vrgInputs[i].hTexp);
     if (vrgInputs[i].hDecay)
       vrgInputs[i].dDecay = GetVarValue (vrgInputs[i].hDecay);
+    if (vrgInputs[i].hNcpt)
+      vrgInputs[i].dNcpt = GetVarValue (vrgInputs[i].hNcpt);
 
     /* NDoses or Spikes dependencies */
     if ((vrgInputs[i].iType == IFN_NDOSES) || /* FB 12/10/96 */
-        (vrgInputs[i].iType == IFN_SPIKES))   /* FB 11/06/97 */
+        (vrgInputs[i].iType == IFN_SPIKES) || /* FB 11/06/97 */ 
+        (vrgInputs[i].iType == IFN_EVENTS))   /* FB 15/10/16 */
       for (j = 0; j < vrgInputs[i].nDoses; j++) {
         if (vrgInputs[i].rghMags[j])
           vrgInputs[i].rgMags[j] = GetVarValue (vrgInputs[i].rghMags[j]);
@@ -141,11 +130,21 @@ void FixupDependentInputs (void)
         }
       }
 
-    /* Fix exponential exposure times for efficiency */
-    if (vrgInputs[i].iType == IFN_PEREXP) {
-      vrgInputs[i].dTexp = N_TAU_EXPOSE / vrgInputs[i].dDecay;
-      if (vrgInputs[i].dTper < vrgInputs[i].dTexp)
+    /* set exponential exposure times */
+    if ((vrgInputs[i].iType == IFN_PEREXP) ||
+        (vrgInputs[i].iType == IFN_PERTRANS)) {
         vrgInputs[i].dTexp = vrgInputs[i].dTper;
+    }
+
+    /* For PerTransit the number of compartments must be > 0 
+       and do not adjust exposure time, just set it at the period */
+    if (vrgInputs[i].iType == IFN_PERTRANS) {
+      if (vrgInputs[i].dNcpt <= 0) {
+        printf ("\nError: null or negative number of virtual compartment "
+		"in PerTransit input function - Exiting\n");
+        exit (0);
+      }
+      vrgInputs[i].dTexp = vrgInputs[i].dTper;
     }
 
     /* FB 9/9/97, modified 29/5/2006: make sure that the exposure does not 
@@ -160,7 +159,8 @@ void FixupDependentInputs (void)
     /* FB 29/5/2006 removed a condition leading to failure if the start time
        was superior to the period */
     /* If the input is ill-defined, turn it off */
-    if (vrgInputs[i].iType == IFN_PERDOSE || 
+    if (vrgInputs[i].iType == IFN_PERDOSE  || 
+        vrgInputs[i].iType == IFN_PERTRANS ||
         vrgInputs[i].iType == IFN_PEREXP) {
       if (vrgInputs[i].dTexp == 0.0 || 
           vrgInputs[i].dT0 < 0.0 || 
@@ -302,7 +302,7 @@ BOOL UpdateSpikes (PIFN pifn, PDOUBLE pdTnext, PDOUBLE pdTime)
 /* -----------------------------------------------------------------------------
    UpdateDefaultInput
 
-   Update default input types : PerDose, PerExp.
+   Update default input types : PerDose, PerExp, PerTransit.
 */
 void UpdateDefaultInput (PIFN pifn, PDOUBLE pdTnext, PDOUBLE pdTime)
 {
@@ -405,6 +405,7 @@ void UpdateInputs (PDOUBLE pdTime, PDOUBLE pdNextTransTime)
       default:
       case IFN_PERDOSE:
       case IFN_PEREXP:
+      case IFN_PERTRANS:
         if (vrgInputs[i].dMag != 0.0)
           UpdateDefaultInput (&vrgInputs[i], &dT, pdTime);
         break;
@@ -743,13 +744,16 @@ int GetNStates (void)
    also will have set dVal current value to 0.0 for inputs that are
    off, and to dMag for constant exposure inputs.
 
-   This routine will only calculate On inputs whose magnitude
-   change with time, for example exponentials and pulses.
+   This routine will only calculate "ON" inputs whose magnitude
+   changes with time, for example exponentials, transits and pulses.
 */
+
+#define SQRT2PI  2.506628274631000241612
 
 void CalcInputs (PDOUBLE pdTime)
 {
   int i;
+  double dTmp;
 
   for (i = 0; i < vnInputs; i++) {
 
@@ -776,6 +780,18 @@ void CalcInputs (PDOUBLE pdTime)
                               exp ((vrgInputs[i].dTStartPeriod + 
                                     vrgInputs[i].dT0 - *pdTime) * 
                                    vrgInputs[i].dDecay);
+          break;
+
+        case IFN_PERTRANS: /* Calc current transit input value */
+          /* compute k * t */
+          dTmp = vrgInputs[i].dDecay * 
+                 (*pdTime - vrgInputs[i].dTStartPeriod - vrgInputs[i].dT0);
+          vrgInputs[i].dVal = vrgInputs[i].dMag * ((int) vrgInputs[i].bOn) *
+	                      pow(dTmp, vrgInputs[i].dNcpt) * exp(-dTmp) /
+	                      (SQRT2PI * 
+                              pow(vrgInputs[i].dNcpt, vrgInputs[i].dNcpt+0.5) *
+                              exp(-vrgInputs[i].dNcpt));
+
           break;
 
         case IFN_SPIKES:
@@ -855,7 +871,7 @@ void GetStateHandles (HVAR *phvar)
 
   VMMAPSTRCT *pvm = vrgvmGlo;
 
-  while (pvm->szName) {
+  while (pvm->pVar) {
     if (IsState(pvm->hvar))
       phvar[i++] = pvm->hvar;
     ++pvm;

@@ -1,6 +1,6 @@
 /* modd.c
 
-   Copyright (c) 1993-2012. Free Software Foundation, Inc.
+   Copyright (c) 1993-2017. Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,14 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Contains routines for defining the model from the input file.
 */
@@ -48,8 +40,9 @@
 
 PSTR vrgszMathFuncs[] = {
   /* standard math functions */
-  "acos", "asin", "atan", "atan2", "ceil", "cos", "cosh", "exp", "fabs", 
-  "floor", "fmod", "log", "log10", "pow", "sin", "sinh", "sqrt", "tan", "tanh",
+  "acos",  "asin", "atan", "atan2", "ceil", "cos",   "cosh", "exp", "fabs", 
+  "floor", "fmax", "fmin", "fmod",  "log",  "log10", "pow",  "sin", "sinh", 
+  "sqrt",  "tan",  "tanh",
 
   /* special functions defined in random.c */
   "CDFNormal", "erfc", "lnDFNormal", "lnGamma", "piecewise",
@@ -140,7 +133,7 @@ BOOL VerifyEqn (PINPUTBUF pibIn, PSTR szEqn)
           if (GetFnType (szLex)) {
             ReportError (pibIn, RE_BADCONTEXT | RE_FATAL, szLex, NULL); 
           }
-          /* Allowable identifiers are declared variables,
+          /* Allowable identifiers are declared variables, CalcDelay calls,
              C functions, and the time variable  */
           if (!(bOK = (GetVarType (pinfo->pvmGloVars, szLex) || 
                        IsMathFunc  (szLex) || 

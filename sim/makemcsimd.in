@@ -17,14 +17,11 @@ if test -f model.c; then \
 
 	echo; \
 	echo "Compiling and linking model for debugging ..."; \
-	@CC@ -DDEBUG -g -I@prefix@/include @CPPFLAGS@ @CFLAGS@ @LDFLAGS@ model.c @prefix@/share/mcsim/sim/*.c -o $target @LIBS@ -Wall; \
+	@CC@ -DDEBUG -g -I@prefix@/include model.c @prefix@/share/mcsim/sim/*.c -o $target @LIBS@ -Wall; \
 
 fi;
 
 if test -f $target; then \
-
-	echo "Cleaning up ..."; \
-	rm -f model.c; \
 
 	echo "Created executable $target with debugging symbols"; \
 	echo; \

@@ -1,6 +1,6 @@
 /* mod.h
 
-   Copyright (c) 1993-2015. Free Software Foundation, Inc.
+   Copyright (c) 1993-2018. Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,15 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
-
 */
 
 #ifndef MOD_DEFINED
@@ -39,8 +30,8 @@
 /* ----- Constants  */
 
 /* Version and copyright */
-#define VSZ_VERSION "v5.6.5"
-#define VSZ_COPYRIGHT "Copyright (c) 1993-2015 Free Software Foundation, Inc."
+#define VSZ_VERSION "v6.0.1"
+#define VSZ_COPYRIGHT "Copyright (c) 1993-2018 Free Software Foundation, Inc."
 
 /* The time variable accessible to the user */
 #define VSZ_TIME "t"
@@ -139,7 +130,6 @@ typedef struct tagINPUTINFO {
   WORD wContext;
   BOOL bDelays;
   BOOL bforR;
-  BOOL bGraph;
   BOOL bTemplateInUse;
   PSTR szInputFilename;
   PSTR szModGenName;

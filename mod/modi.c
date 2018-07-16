@@ -1,6 +1,6 @@
 /* modi.c
 
-   Copyright (c) 1993-2012. Free Software Foundation, Inc.
+   Copyright (c) 1993-2017. Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,14 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Handles parsing input of the Model Definition File.
 */
@@ -119,7 +111,7 @@ int GetKeywordCode (PSTR szKeyword, PINT pfContext)
 /* ----------------------------------------------------------------------------
    GetVarList
    
-   Processes a list of variables (or arrays).
+   Processes a list of variables (or arrays). Exit if an error is found.
 */
 
 void GetVarList (PINPUTBUF pibIn, PSTR szLex, int iKWCode)
@@ -140,12 +132,17 @@ void GetVarList (PINPUTBUF pibIn, PSTR szLex, int iKWCode)
         }
       }
       else { /* simple var */
+        /* push back szPunct */
+        *pibIn->pbufCur--;
         DeclareModelVar (pibIn, szLex, iKWCode);
       }
     }
     else { /* not an identifier, should be ',' or '}' */
-      if ((szLex[0] != ',') && (szLex[0] != CH_RBRACE))
+      if ((szLex[0] != ',') && (szLex[0] != CH_RBRACE)) {
         iErr = szPunct[1] = CH_RBRACE;
+        ReportError (pibIn, RE_EXPECTED | RE_FATAL, szPunct,
+                     "* List must be comma-delimited and end with }.");
+      }
     }              
   } while ((szLex[0] != CH_RBRACE) && (!iErr));
 
@@ -469,13 +466,11 @@ int FindEnd (PBUF pBuf, long N)
   c = pBuf;
   end = pBuf + N;
   while (c < end) {
-    // printf ("%c", *c);
-    if (*c == CH_EOLN) { // eat up leading white space
+    if (*c == CH_EOLN) { /* eat up leading white space */
       c++;
-      while ((c < end) && (isspace(*c))) //((*c == ' ') || (*c == '\t')))
+      while ((c < end) && (isspace(*c)))
         c++;
       if (c < end) {
-        // printf ("|%c", *c);
 	if (((c+2) < end) && (*c == 'E') && (*(c+1) == 'n') && (*(c+2) == 'd'))
 	  return (1);
       }
@@ -483,7 +478,7 @@ int FindEnd (PBUF pBuf, long N)
     c++;
   }
 
-  // not found
+  /* not found */
   return(0);
 
 } /* FindEnd */
@@ -557,8 +552,9 @@ void ReadModel (PINPUTINFO pinfo, PINPUTINFO ptempinfo, PSTR szFileIn)
 
   } while (pinfo->wContext != CN_END);
 
-  pinfo->wContext = CN_END; 
+  pinfo->wContext = CN_END;
 
-  // fclose (ibIn.pfileIn); already closed in InitBuffer
+  if (ibIn.pbufOrg)
+    free(ibIn.pbufOrg);
 
 } /* ReadModel */

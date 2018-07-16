@@ -1,6 +1,6 @@
 /* lex.c
 
-   Copyright (c) 1993-2008. Free Software Foundation, Inc.
+   Copyright (c) 1993-2017. Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,14 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
-
-   -- Revisions -----
-     Logfile:  %F%
-    Revision:  %I%
-        Date:  %G%
-     Modtime:  %U%
-      Author:  @a
-   -- SCCS  ---------
 
    Contains routines for lexical parsing of input.  Provides types
    INPUTBUF and *PINPUTBUF for maintaining information about an input
@@ -1088,31 +1080,35 @@ void GetStatement (PINPUTBUF pibIn, PSTR szStmt)
   if (!EOB(pibIn)) {
     while (!fDone) {
       if (*pibIn->pbufCur) {
-        /* Stop if end of statement found and parentheses are balanced */
+        // Stop if end of statement found and parentheses are balanced
         if (!(fDone = ((NextChar(pibIn) == CH_STMTTERM) && !bParOpen))) {
-          if (i < MAX_EQN - 2) {
-            if ((szStmt[i++] = *pibIn->pbufCur++) == CH_EOLN)
-              pibIn->iLineNum++;
-            if ((char) szStmt[i-1] == '(') {
-               iParCount++;
-               bParOpen = TRUE;
-            }
-            if ((char) szStmt[i-1] == ')')
-              iParCount--;
-            if ((iParCount == 0) && bParOpen) 
-              bParOpen = FALSE;
-          } /* if */
+          if (*pibIn->pbufCur == CH_COMMENT) // skip comments
+            SkipComment (pibIn); 
           else {
-            if (bParOpen)
-              ReportError (pibIn, RE_UNBALPAR | RE_FATAL, NULL, NULL);
-            else
-              ReportError (pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, NULL);
+            if (i < MAX_EQN - 2) {
+              if ((szStmt[i++] = *pibIn->pbufCur++) == CH_EOLN)
+                pibIn->iLineNum++;
+              if ((char) szStmt[i-1] == '(') {
+                 iParCount++;
+                 bParOpen = TRUE;
+              }
+              if ((char) szStmt[i-1] == ')')
+                iParCount--;
+              if ((iParCount == 0) && bParOpen) 
+                bParOpen = FALSE;
+            }
+            else {
+              if (bParOpen)
+                ReportError (pibIn, RE_UNBALPAR | RE_FATAL, NULL, NULL);
+              else
+                ReportError (pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, NULL);
+            }
           }
         }
-      } /* if pibIn->pbufCur */
+      } // if pibIn->pbufCur
       else
         fDone = (FillBuffer (pibIn, BUFFER_SIZE) == EOF);
-    } /* while */
+    } // while
 
     /* remove white spaces going backward - FB 28/2/98 */
     while (isspace(szStmt[i-1]))
