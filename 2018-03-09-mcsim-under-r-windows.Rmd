@@ -47,7 +47,6 @@ You will need to add the Rtools to your path manually, as follow
 ```{R, warning=FALSE}
 Sys.setenv(PATH = paste("c:\\Rtools\\bin", Sys.getenv("PATH"), sep=";"))
 Sys.setenv(PATH = paste("c:\\Rtools\\mingw_64\\bin", Sys.getenv("PATH"), sep=";"))
-Sys.setenv(BINPREF = "c:\\Rtools\\mingw_64\\bin")
 ```
 
 Then, use following command to check the function.

@@ -9,7 +9,7 @@ Sys.setenv(PATH = paste("c:\\MinGW\\bin", Sys.getenv("PATH"), sep=";"))
 # Sys.setenv(PATH = paste("c:\\Rtools\\bin", Sys.getenv("PATH"), sep=";"))
 # Sys.setenv(PATH = paste("c:\\Rtools\\mingw_32/bin", Sys.getenv("PATH"), sep=";"))
 Sys.setenv(PATH = paste("c:\\Rtools\\mingw_64/bin", Sys.getenv("PATH"), sep=";"))
-# Sys.setenv(BINPREF = "c:\\Rtools\\mingw_64/bin/")
+# Sys.setenv(BINPREF = "c:\\Rtools\\mingw_64/bin/") # Danger zone
 
 # Check the GNU compiler 
 Sys.which("gcc")
