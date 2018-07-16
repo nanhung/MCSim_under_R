@@ -3,7 +3,7 @@
    Written by D.R.Maszle
    28 October 1991
 
-   Copyright (c) 1991-2017 Free Software Foundation, Inc.
+   Copyright (c) 1991-2008 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -19,6 +19,14 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
+
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
 
    A LIST data type utility.
 */
@@ -58,11 +66,11 @@ PLIST InitList (void)
    FreeList
 
    Frees the memory allocated to a LIST, incrementing through each
-   element sequentially. Allows user to free data with a provided
+   element sequentially.  Allows user to free data with a provided
    callback function, or to specify free'ing of data in this routine.
 
    If the pfvFreeData function is non-NULL, the function is called
-   with each data pointer in the list, and bAndData is ignored.
+   with each data pointer in the list.  bAndData is ignored.
 
    If the callback is NULL and the boolean bAndData is set, free() is
    called with each user data pointer before freeing the list element.

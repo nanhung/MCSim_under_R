@@ -1,6 +1,6 @@
 /* sim.c
 
-   Copyright (c) 1993-2017 Free Software Foundation, Inc.
+   Copyright (c) 1993-2008 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -17,12 +17,15 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   Entry point and main simulation routines for 'sim' program.
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
 
-   This file can use the SUNDIALS CVODES libraries if they are installed.
-   If so, the symbols HAVE_LIBSUNDIALS_CVODES and HAVE_LIBSUNDIALS_NVECSERIAL
-   should be defined in config.h (or in the makefile).
-   Otherwise, the corresponding features are disabled.
+   Entry point and main simulation routines for 'sim' program.
 
 */
 
@@ -46,104 +49,6 @@
 #include "simo.h"
 #include "simmonte.h"
 #include "strutil.h"
-#include "config.h"
-
-// CVODES specific includes and routines
-
-#ifdef HAVE_LIBSUNDIALS_CVODES
-
-#include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
-
-#include <cvodes/cvodes.h>           /* prototypes CVODE fcts. and consts. */
-#include <cvodes/cvodes_band.h>      /* prototype for CVBand */
-#include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
-#include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
-#include <sundials/sundials_types.h> /* definition of type realtype */
-#include <sundials/sundials_math.h>  /* definition of ABS and EXP */
-
-
-typedef struct {
-  int nVars; // number of state and output variables
-  int npes, my_pe;
-} UserData;
-
-/* Check function return value...
-     opt == 0 means SUNDIALS function allocates memory so check if
-              returned NULL pointer
-     opt == 1 means SUNDIALS function returns a flag so check if
-              flag >= 0
-     opt == 2 means function allocates memory so check if returned
-              NULL pointer */
-static int check_flag(void *flagvalue, char *funcname, int opt)
-{
-  int *errflag;
-
-  /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
-
-  if (opt == 0 && flagvalue == NULL) {
-    fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
-            funcname);
-    return(1); }
-
-  /* Check if flag < 0 */
-
-  else if (opt == 1) {
-    errflag = (int *) flagvalue;
-    if (*errflag < 0) {
-      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
-              funcname, *errflag);
-      return(1); }}
-
-  /* Check if function returned NULL pointer - no memory allocated */
-
-  else if (opt == 2 && flagvalue == NULL) {
-    fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
-            funcname);
-    return(1); }
-
-  return(0);
-}
-
-
-/* ----------------------------------------------------------------------------
-   f_for_cvodes
-
-   stupid routine interfacing cvodes derivative function call and CalcDeriv.
-*/
-static int f_for_cvodes(realtype t, N_Vector u, N_Vector udot, void *user_data)
-{
-  static realtype *rgMVars = NULL;
-  static int nStates, nVars;
-  int i;
-
-  /* problem with the output variables, derivatives have the proper length
-     and do not need to be translated */
-  if (rgMVars == NULL) { // initialize
-
-    nStates = NV_LENGTH_S(udot);
-
-    /* Extract number of outputs from user_data */
-    nVars = ((UserData *) user_data)->nVars;
-
-    // state and output vector
-    rgMVars = (realtype *) malloc(nVars * sizeof(realtype));
-
-    if (/*!dudata ||*/ !rgMVars)
-      ReportError (NULL, RE_OUTOFMEM | RE_FATAL, "f_for_cvodes", NULL);
-  }
-
-  // copy u to rgMVars start
-  for (i = 0; i < nStates; i++) {
-    rgMVars[i] = NV_Ith_S(u, i);
-  }
-
-  CalcDeriv ((PDOUBLE) rgMVars, (PDOUBLE) NV_DATA_S(udot), (PDOUBLE) &t);
-
-  return(0);
-
-} /* f_for_cvodes */
-
-#endif
 
 
 /* ----------------------------------------------------------------------------
@@ -159,6 +64,7 @@ static int f_for_cvodes(realtype t, N_Vector u, N_Vector udot, void *user_data)
 
    This does NOT affect state and output definitions.
 */
+
 void CorrectInputToTransition (PEXPERIMENT pexp, PDOUBLE pdTtrans)
 {
   pexp->dTime = *pdTtrans;
@@ -171,7 +77,9 @@ void CorrectInputToTransition (PEXPERIMENT pexp, PDOUBLE pdTtrans)
    Euler
 
    Simple Euler integrator.
+
 */
+
 int Euler (long neq, double *y, double *t, double tout, double dTStep)
 {
   static PDOUBLE rgdDeriv;
@@ -227,6 +135,7 @@ int Euler (long neq, double *y, double *t, double tout, double dTStep)
    free'd.  Note that FreeList() will pass the data as a PVOID which
    needs to be re-cast.
 */
+
 void FreeVarMod (PVOID pData)
 {
   PVARMOD pvarmod = (PVARMOD) pData;
@@ -265,6 +174,7 @@ int ModifyOneParm (PVOID pData, PVOID pNullInfo)
    Modifies the parameters in the plistParmMods LIST of the experiment
    spec by call ForAllList to increment through the list.
 */
+
 void ModifyParms (PLIST plistParmMods)
 {
 
@@ -279,6 +189,7 @@ void ModifyParms (PLIST plistParmMods)
 
    Runs one experiment - return 1 on success and 0 in case of errors
 */
+
 int DoOneExperiment (PEXPERIMENT pexp)
 {
 
@@ -288,14 +199,6 @@ int DoOneExperiment (PEXPERIMENT pexp)
   int    iOut;      /* index to next output time */
   PMODELINFO pmod;  /* pointer to the current model info */
   PINTSPEC   pis;   /* pointer to the integrator specs */
-
-#ifdef HAVE_LIBSUNDIALS_CVODES
-  // CVODES specific variables
-  static N_Vector u = NULL;
-  static UserData user_data;
-  static void *cvode_mem = NULL;
-  int flag, i;
-#endif
 
   if (!pexp) return 0;
 
@@ -328,68 +231,8 @@ int DoOneExperiment (PEXPERIMENT pexp)
 
   pexp->dTime = pexp->dT0;
 
-  // integrator initializations
-  if (pis->iAlgo == IAL_LSODES) { /* Lsodes algorithm */
-    /* set lsodes return flag to 1 for first call */
-    pis->iDSFlag = 1;
-  }
-  else {
-    if (pis->iAlgo == IAL_CVODES) { /* Sundials CVODE algorithm */
-
-#ifdef HAVE_LIBSUNDIALS_CVODES
-
-      if (1 || u == NULL) { /* always done for now */
-
-        /* Create a serial vector for state variables */
-        u = N_VNew_Serial(pmod->nStates);  /* Allocate u vector */
-        if (check_flag((void*)u, "N_VNew_Serial", 0)) return(1);
-
-        /* Call CVodeCreate to create the solver memory and specify the 
-         * Backward Differentiation Formula and the use of a Newton iteration */
-        cvode_mem = CVodeCreate(CV_BDF, CV_NEWTON);
-        if (check_flag((void *)cvode_mem, "CVodeCreate", 0)) return(1);
-
-        /* set initial state values */
-        for (i = 0; i < pmod->nStates; i++)
-          NV_Ith_S(u, i) = pmod->pdModelVars[i];
-    
-        /* Call CVodeInit to initialize the integrator memory and specify the
-         * user's right hand side function in u'=f(t,u), the inital time T0, and
-         * the initial dependent variable vector u. */
-        flag = CVodeInit(cvode_mem, f_for_cvodes, pexp->hT0, u);
-        if (check_flag(&flag, "CVodeInit", 1)) return(1);
-
-        /* Call CVodeSStolerances to specify the scalar relative tolerance
-         * and scalar absolute tolerance */
-        flag = CVodeSStolerances(cvode_mem, 
-                                 RCONST(pis->dRtol), RCONST(pis->dAtol));
-        if (check_flag(&flag, "CVodeSStolerances", 1)) return(1);
-
-        /* Set the pointer to user-defined data used to store the total 
-           number of state and output variables */
-        user_data.nVars = pmod->nModelVars;
-        flag = CVodeSetUserData(cvode_mem, &user_data);
-        if (check_flag(&flag, "CVodeSetUserData", 1)) return(1);
-
-        /* Call CVDense to specify the CVDENSE dense linear solver */
-        flag = CVDense(cvode_mem, pmod->nStates);
-        if (check_flag(&flag, "CVDense", 1)) return(1);
-    
-        /* Set the user-supplied Jacobian routine Jac, not used now
-        flag = CVDlsSetBandJacFn(cvode_mem, Jac);
-        if(check_flag(&flag, "CVDlsSetBandJacFn", 1)) return(1); */
-
-      }
-      else { /* disabled for now */
-        /* reset initial state values */
-        for (i = 0; i < pmod->nStates; i++)
-          NV_Ith_S(u, i) = pmod->pdModelVars[i];
-
-        flag = CVodeReInit(cvode_mem, pexp->dT0, u);
-      }
-#endif
-    } /* end if IAL_CVODES */
-  }
+  /* set lsodes return flag to 1 for first call */
+  pis->iDSFlag = 1;
 
   /* Iterate to final time */
   while (pexp->dTime < pexp->dTfinal) {
@@ -430,25 +273,9 @@ int DoOneExperiment (PEXPERIMENT pexp)
         }
       }
       else {
-        if (pis->iAlgo == IAL_CVODES) { /* Sundials CVODE algorithm */
-
-#ifdef HAVE_LIBSUNDIALS_CVODES
-	  if (dTup > (pexp)->dTime) {
-	    /* do not overshoot */
-            flag = CVodeSetStopTime(cvode_mem, (realtype) dTup);
-            flag = CVode(cvode_mem, dTup, u, &(pexp)->dTime, CV_NORMAL);
-            if (check_flag(&flag, "CVode", 1))
-              break;
-            /* copy back state values */
-            for (i = 0; i < pmod->nStates; i++) {
-	      pmod->pdModelVars[i] = NV_Ith_S(u, i);
-	    }
-          }
-#endif
-        }
-        else if (pis->iAlgo == IAL_EULER) { /* Euler algorithm */
-          Euler(pmod->nStates, pmod->pdModelVars, &(pexp)->dTime, dTup,
-                pis->dTStep);
+        if (pis->iAlgo == IAL_EULER) { /* Euler algorithm */
+          Euler (pmod->nStates, pmod->pdModelVars, &(pexp)->dTime, dTup,
+                 pis->dTStep);
         }
       }
     }
@@ -485,14 +312,6 @@ int DoOneExperiment (PEXPERIMENT pexp)
 
   } /* while dTime < final time */
 
-  if (pis->iAlgo == IAL_CVODES) { /* cleanup Sundials CVODE algorithm */
-#ifdef HAVE_LIBSUNDIALS_CVODES
-    /* Free vector u */
-    N_VDestroy_Serial(u);    
-    CVodeFree(&cvode_mem);  /* Free the integrator memory */
-#endif
-  }
-
   /* success */
   return 1;
 
@@ -506,6 +325,7 @@ int DoOneExperiment (PEXPERIMENT pexp)
 
    Return 1 on success and 0 in case of failure
 */
+
 int DoOneNormalExp (PANALYSIS panal, PEXPERIMENT pexp)
 {
   printf (" %d", pexp->iExp); /* Show what experiment it is */
@@ -554,6 +374,7 @@ int DoOneNormalExp (PANALYSIS panal, PEXPERIMENT pexp)
 
    Return 1 on success and 0 in case of failure
 */
+
 int DoOneMCExp (PANALYSIS panal, PEXPERIMENT pexp)
 {
   register MONTECARLO *pmc = &panal->mc;
@@ -577,6 +398,7 @@ int DoOneMCExp (PANALYSIS panal, PEXPERIMENT pexp)
 
    Does a normal analysis
 */
+
 void DoNormal (PANALYSIS panal)
 {
   int nExps = panal->expGlobal.iExp;
@@ -618,6 +440,7 @@ void DoNormal (PANALYSIS panal)
    thus preventing the the Monte Carlo's from accidentaly running
    forever.
 */
+
 void DoMonteCarlo (PANALYSIS panal)
 {
   int nExps = panal->expGlobal.iExp;
@@ -627,7 +450,7 @@ void DoMonteCarlo (PANALYSIS panal)
   int i;
 
   mcpredout.pred = NULL;
-
+  InitRandom (panal->dSeed, TRUE);
   if (panal->iType == AT_MONTECARLO && nRuns <= 0)
     nRuns = 1; /* Don't let MonteCarlo run forever */
 
@@ -686,8 +509,6 @@ void DoMonteCarlo (PANALYSIS panal)
 
   CloseMCFiles (panal);
 
-  if (mcpredout.pred) free(mcpredout.pred);
-
 } /* DoMonteCarlo */
 
 
@@ -696,10 +517,9 @@ void DoMonteCarlo (PANALYSIS panal)
 
    Does the analysis in the given specification.
 */
+
 void DoAnalysis (PANALYSIS panal)
 {
-
-  InitRandom (panal->dSeed, TRUE);
 
   switch (panal->iType) {
 
@@ -732,66 +552,6 @@ void DoAnalysis (PANALYSIS panal)
 
 
 /* ----------------------------------------------------------------------------
-   FreeMemory
-
-   To use in the case of simulations without Levels.
-*/
-void FreeMemory (PANALYSIS panal)
-{
-  int i, j;
-
-  free(panal->modelinfo.pStateHvar);
-
-  FreeList (&panal->mc.plistMCVars, NULL, TRUE);
-  if (panal->mc.rgdParms) {
-    free (panal->mc.rgdParms);
-    free (panal->mc.rghvar);
-  }
-
-  PINTSPEC pis = &panal->rgpExps[0]->is;
-  free (pis->iwork);
-  free (pis->rwork);
-
-  for (i = 0; i < panal->expGlobal.iExp; i++) {
-    if (panal->rgpExps[i] != NULL) {
-      POUTSPEC pos = &panal->rgpExps[i]->os;
-
-      FreeList (&panal->rgpExps[i]->plistParmMods, NULL, TRUE);  
-      free (pos->pszOutputNames);
-      free (pos->phvar_out);
-      free (pos->pcOutputTimes);
-      free (pos->piCurrentOut);
-      free (pos->prgdOutputTimes);
-      for (j = 0; j < pos->nOutputs; j++)
-        free(pos->prgdOutputVals[j]);
-      free (pos->prgdOutputVals);
-      free (pos->rgdDistinctTimes);
-      ForAllList (pos->plistPrintRecs, &FreePrintRec, NULL);
-      FreeList (&pos->plistPrintRecs, NULL, FALSE);  
-      free (pos->plistPrintRecs);
-      ForAllList (pos->plistDataRecs, &FreeDataRec, NULL);
-      FreeList (&pos->plistDataRecs, NULL, FALSE);  
-      free (pos->plistDataRecs);
-      free (panal->rgpExps[i]);
-    }
-  }
-  if (panal->bAllocatedFileName) {
-    if (panal->szOutfilename)           free (panal->szOutfilename);
-    if (panal->mc.szMCOutfilename)      free (panal->mc.szMCOutfilename);
-    if (panal->gd.szGout)               free (panal->gd.szGout);
-  }
-  
-  if (panal->mc.szSetPointsFilename)  free (panal->mc.szSetPointsFilename);
-  if (panal->gd.szGrestart)           free (panal->gd.szGrestart);
-  if (panal->gd.szGdata)              free (panal->gd.szGdata);
-
-  FreeList (&panal->expGlobal.plistParmMods, NULL, TRUE);
-  free (panal);
-
-} /* FreeMemory */
-
-
-/* ----------------------------------------------------------------------------
    MCVarListToArray
 
    converts a list of MCVAR to an array.  This must be a callback for
@@ -816,8 +576,9 @@ int MCVarListToArray (PVOID pv_pMCVar, PVOID pv_Null)
    PrepAnalysis
 
    makes the ANALYSIS structure easier to work with in the simulation
-   code. Specifically, changes lists to arrays.
+   code.  Specifically, changes lists to arrays.
 */
+
 void PrepAnalysis (PANALYSIS panal)
 {
   register MONTECARLO *pmc = &panal->mc;
@@ -884,6 +645,7 @@ char *SansPath (char *szFullPathname)
    prompts for both input and output file names.  The space allocated
    for inputting the files is reallocated to their actual size.
 */
+
 void PromptFilenames (PSTR *pszFileIn, PSTR *pszFileOut)
 {
   *pszFileIn  = (PSTR) calloc (1, MAX_FILENAMESIZE);
@@ -1074,7 +836,7 @@ void AnnounceProgram (void)
    Entry point for simulation and analysis program.
 */
 
-int main (int nArg, char **rgszArg)
+int main (int nArg, char *const *rgszArg)
 {
   PSTR szFileIn, szFileOut;
   INPUTBUF ibIn;
@@ -1102,14 +864,12 @@ int main (int nArg, char **rgszArg)
   if (ReadAnalysis (&ibIn)) {
     PrepAnalysis (panal);
     DoAnalysis (panal);
-  }
+  } /* if */
+  FreeLevels(panal);
 
-  if (panal->iType == AT_MCMC)
-    FreeLevels (panal);
-  else {
-    FreeMemory (panal);
-    free (ibIn.pbufOrg);
-  }
+#ifdef _MACOSLEVEL1_
+  printf ("Done.(Hit Return)\n\n");
+#endif
 
   return 0;
 

@@ -1,6 +1,6 @@
 /* simmonte.c
 
-   Copyright (c) 1993-2017 Free Software Foundation, Inc.
+   Copyright (c) 1993-2008 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -16,6 +16,14 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
+
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
 
    Handles functions related to Monte Carlo analysis.
 
@@ -89,8 +97,7 @@ void SetParmsExp (long cParms, HVAR *rghvar, double *rgdParm)
 /* ----------------------------------------------------------------------------
    CalculateOneMCParm
 
-   Callback function for CalculateMCParms. Assign the dVal member of 
-   a MCVAR structure by sampling from the distribution specified by its iType
+   Callback function for CalculateMCParms.
 */
 
 int CalculateOneMCParm (PMCVAR pMCVar)
@@ -119,45 +126,36 @@ int CalculateOneMCParm (PMCVAR pMCVar)
       pMCVar->dVal = BetaRandom (dParm1, dParm2, dMin, dMax);
       break;
 
-    case MCV_HALFNORMAL:
-      pMCVar->dVal = fabs(NormalRandom (dParm1, dParm2));
-      break;
-
     case MCV_NORMAL:
       pMCVar->dVal = NormalRandom (dParm1, dParm2);
       break;
 
-    case MCV_NORMALCV:
-      pMCVar->dVal = NormalRandom (dParm1, fabs(dParm1 * dParm2));
-      break;
-
-    case MCV_NORMALV:
-      pMCVar->dVal = NormalRandom (dParm1, sqrt (dParm2));
-      break;
-
-    case MCV_TRUNCNORMAL:
-      pMCVar->dVal = TruncNormalRandom (dParm1, dParm2, dMin, dMax);
-      break;
-
-    case MCV_TRUNCNORMALCV:
-      pMCVar->dVal = TruncNormalRandom (dParm1, fabs(dParm1 * dParm2),
-                                        dMin, dMax);
-      break;
-
-    case MCV_TRUNCNORMALV:
-      pMCVar->dVal = TruncNormalRandom (dParm1, sqrt (dParm2), dMin, dMax);
+    case MCV_HALFNORMAL:
+      pMCVar->dVal = fabs(NormalRandom (dParm1, dParm2));
       break;
 
     case MCV_LOGNORMAL:
       pMCVar->dVal = LogNormalRandom (dParm1, dParm2);
       break;
 
+    case MCV_TRUNCNORMAL:
+      pMCVar->dVal = TruncNormalRandom (dParm1, dParm2, dMin, dMax);
+      break;
+
     case MCV_TRUNCLOGNORMAL:
       pMCVar->dVal = TruncLogNormalRandom (dParm1, dParm2, dMin, dMax);
       break;
 
+    case MCV_NORMALV:
+      pMCVar->dVal = NormalRandom (dParm1, sqrt (dParm2));
+      break;
+
     case MCV_LOGNORMALV:
       pMCVar->dVal = LogNormalRandom (dParm1, exp(sqrt(dParm2)));
+      break;
+
+    case MCV_TRUNCNORMALV:
+      pMCVar->dVal = TruncNormalRandom (dParm1, sqrt (dParm2), dMin, dMax);
       break;
 
     case MCV_TRUNCLOGNORMALV:

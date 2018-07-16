@@ -3,7 +3,7 @@
    Written by Don Maszle
    15 October 1991
 
-   Copyright (c) 1991-2017 Free Software Foundation, Inc.
+   Copyright (c) 1991-2008 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -20,6 +20,14 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
+
    Header file for input definitions.
 */
 
@@ -33,6 +41,8 @@
 /* ----------------------------------------------------------------------------
    Constants  */
 
+#define N_TAU_EXPOSE 40 /* Number of Tau's to expose exp() inputs */
+
 /* Input Function constants */
 
 #define IFN_NULL     0
@@ -42,7 +52,6 @@
 #define IFN_NDOSES   4
 #define IFN_SPIKES   5
 #define IFN_EVENTS   6
-#define IFN_PERTRANS 7
 
 /* ----------------------------------------------------------------------------
    Typedefs  */
@@ -66,21 +75,19 @@
 
      IFN_PERDOSE  Periodic dose lasting dTexp
      IFN_PEREXP   Periodic exponential with decay constant dDecay
-     IFN_PERTRANS Periodic transit (analytical multicompartment) Savic model
-                  Savic et al., J Pharmacokinet Pharmacodyn. 2007, 34:711.
 
    -- Multiple pulse functions:
 
      IFN_NDOSES   nDoses of rgMags[] starting at rgT0s[]
      IFN_SPIKES   nDoses spikes of rgMags[] at time rgT0s[]
-     IFN_EVENTS   nDoses discontinuities in a state variable
+     IFN_EVENT    nDoses discontinuities in a state variable
 */
 
 typedef struct tagIFN {
   /* Bookkeeping */
 
-  int    iType;            /* One of the IFN_ types */
-  BOOL   bOn;              /* TRUE if exposure is On */
+  int iType;               /* One of the IFN_ types */
+  BOOL bOn;                /* TRUE if exposure is On */
   double dTStartPeriod;    /* Start of current period */
   double dVal;             /* Current value: CalcInputs updates */
 
@@ -94,13 +101,8 @@ typedef struct tagIFN {
   /* For exponential inputs, the exponential decay rate
      Exposure lasts for N_TAU_EXPOSE Tau periods. (tau=1/Decay)
      After this, input is considered to be neglible. */
-  double dDecay;
 
-  /* For Savic's transit model inputs 
-     dMag * ((dDecay * t)^n) * exp(-dDecay * t) / n!
-     with n! = SQRT2PI * (n^(n+0.5)) *exp(-n)
-     So we need n, the number of virtual transit compartments (as a double) */
-  double dNcpt; 
+  double dDecay;
 
   /* Dependencies for the periodic parms */
 
@@ -109,7 +111,6 @@ typedef struct tagIFN {
   HANDLE hT0;              /* Handle to starting time */
   HANDLE hTexp;            /* Handle to exposure time */
   HANDLE hDecay;           /* Handle to exponential decay rate */
-  HANDLE hNcpt;            /* Handle to the number of virtual compartments */
 
   /* Multiple dose inputs */
 
@@ -137,7 +138,7 @@ typedef struct tagIFN {
 BOOL DefDepParm (PSTR szLex, PDOUBLE pdValue, HANDLE *phvar);
 
 int  GetFnType (PSTR szName);
-BOOL GetInputArgs (PINPUTBUF pibIn, PIFN pifn, int n);
+BOOL GetInputArgs (PINPUTBUF pibIn, PIFN pifn);
 BOOL GetInputFn (PINPUTBUF pibIn, PSTR sz, PIFN pifn);
 BOOL GetNDoses (PINPUTBUF pibIn, PSTR szLex, PIFN pifn);
 BOOL GetNNumbers (PINPUTBUF pibIn, PSTR szLex, int nNumbers, PDOUBLE rgd);

@@ -3,7 +3,7 @@
    Written by Don Maszle
    10 October 1991
 
-   Copyright (c) 1991-2017 Free Software Foundation, Inc.
+   Copyright (c) 1991-2008 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -19,6 +19,14 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
+
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
 
    Contains routines for lexical parsing of input.  Provides types
    INPUTBUF and *PINPUTBUF for maintaining information about an input
@@ -241,56 +249,6 @@ int SkipWhitespace (PINPUTBUF pibIn)
   return (fSkipped);
 
 } /* SkipWhitespace */
-
-
-/* ---------------------------------------------------------------------------
-   GetArrayBounds
-   return the lower (LB) upper (UB) bounds of an array given between []. 
-   GetArrayBounds must be called after finding [. It reads up to ], included.
-   Errors are generated if LB < 0 or UB < LB. 
-   Syntax for bounds:
-   [i]:   bounds returned are i to i+1
-   [i-j]: bounds returned are i to j+1
-   where i and j are long integers
-*/
-
-void GetArrayBounds (PINPUTBUF pibIn, PLONG piLB, PLONG piUB)
-{
-  PSTRLEX szTmp;
-
-  if (ENextLex (pibIn, szTmp, LX_INTEGER)) {
-    ReportError (pibIn, RE_INIT | RE_FATAL, NULL, NULL);
-  }
-  else {
-    *piLB = atol(szTmp);
-    if (*piLB < 0) 
-      ReportError (pibIn, RE_POSITIVE | RE_FATAL, szTmp, NULL);
-
-    if (NextChar (pibIn) == '-') { /* get eventual hyphen */
-      pibIn->pbufCur++; /* advance */
-      if (ENextLex (pibIn, szTmp, LX_INTEGER)) {
-        ReportError (pibIn, RE_INIT | RE_FATAL, NULL, NULL);
-      }
-      else {
-      *piUB = atol(szTmp) + 1;
-        if (*piUB <= *piLB) 
-         ReportError (pibIn, RE_UNKNOWN | RE_FATAL, "", 
-                      "Upper bound must be higher than lower bound");
-      }
-      if (!GetPunct (pibIn, szTmp, ']')) { /* get closing bracket */
-        ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "]", NULL);
-      }
-    }
-    else {
-      if (!GetPunct (pibIn, szTmp, ']')) { /* get closing bracket */
-        ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "]", NULL);
-      }
-      else { /* a number is an index, the upper bound is set at LB+1 */
-        *piUB = *piLB + 1;
-      }
-    }
-  }
-} /* GetArrayBounds */
 
 
 /* -----------------------------------------------------------------------------
@@ -818,84 +776,4 @@ BOOL GetFuncArgs (PINPUTBUF pibIn,
 
 } /* GetFuncArgs */
 
-
-/* ---------------------------------------------------------------------------
-   UnrollEquation
-
-   Copy szEqn in szEqnU, replacing bracketed expressions evaluating in
-   <number> by _number. Expressions can be composed of integers, the 
-   4 basic arithmetic operators, parentheses and 'i' which stands for the
-   argument index passed to the routine.
-   Examples:
-   y[0] -> y_0
-   y[1 + 1] -> y_2
-   y[i * 2] -> y_4 if index = 2
-*/
-
-void UnrollEquation (PINPUTBUF pibIn, long index, PSTR szEqn, PSTR szEqnU)
-{
-  int j = 0, k = 0, m;
-  BOOL bExpress = FALSE;
-  PSTRLEX szExpression;
-
-  while ((szEqn[j] != '\0') && (k < MAX_EQN - 1)) {
-    if (bExpress) { /* bracketed expressions found: scan it up to ] included */
-      /* copy the expression to a temporary string */
-      m = 0;
-      while ((szEqn[j] != '\0') && (szEqn[j] != ']') && (m < MAX_EQN - 1)) {
-        szExpression[m] = szEqn[j]; 
-        j++;
-        m++;
-      }
-      if (szEqn[j] == ']') { /* skip and exit expression parsing mode */
-        j++;
-        bExpress = FALSE;
-      }
-      if ((szEqn[j] != '\0') && (m == MAX_EQN - 1))
-        ReportError (pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, 
-                     "(Occured while unrolling a loop)");
-      szExpression[m] = '\0'; /* terminate szExpression */
-
-      /* compute expression and put back the result in szExpression
-      sprintf (szExpression, "%ld", 
-               EvaluateExpression (pibIn, index, szExpression)); */
-
-      /* copy szExpression into szEqnU */
-      m = 0;
-      while ((szExpression[m] != '\0') && (m < MAX_EQN - 1)) {
-        szEqnU[k] = szExpression[m]; 
-        k++;
-        m++;
-      }
-    } /* end if bExpress */
-    else switch (szEqn[j]) {
-      case '[': /* replace by _ and enter expression parsing mode */
-        szEqnU[k] = '_';
-        j++;
-        k++;
-        bExpress = TRUE;
-        break;
-
-      case ']': /* should have been eaten in expression parsing mode */
-        ReportError (pibIn, RE_UNEXPECTED | RE_FATAL, "]", 
-                     "(Could be nested brackets)");
-
-      default: /* copy and advance */
-        szEqnU[k] = szEqn[j]; 
-        j++;
-        k++;
-        break;
-    }
-  } /* while */
-  if ((szEqn[j] != '\0') && (k == MAX_EQN - 1))
-    ReportError (pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, 
-                 "(Occured in UnrollEquation)");
-    
-  /* terminate szEqnU */
-  szEqnU[k] = '\0';
-
-} /* UnrollEquation */
-
-
-/* End */
 

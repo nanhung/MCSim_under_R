@@ -17,26 +17,21 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
 
- * Random number generator module: Two versions are provided. One uses the
-   GNU Scientific Library (GSL). The other is independent of GSL.
+ * Random number generator module:  provides two basic random number
+   generators:
 
-   The GSL version provides:
-   Randoms(), which in fact call gsl_rng_uniform()
-   InitRandom(seed, f), which must be called to initializes the generator
-   SetSeed(seed), which sets the seed of Randoms()
-   GetSeed(seed), not implemented in fact and exits with an error message
+   Randoms()        yielding uniform random variates between 0 and 1, and
+   RandomShuffle()  which shuffles the output of the first generator.
 
-   The independent (non-GSL) code provides two basic uniform random number
-   generators and associated functions:
-   Randoms(), yielding uniform random variates between 0 and 1
-   RandomShuffle(), which shuffles the output of Randoms().
-   InitRandom(seed, f), which initializes RandomShuffle()
-   SetSeed(seed), which sets the seed of Randoms()
-   GetSeed(seed), which gets the current seed
-
- * Other types of random variates generators are available. They call 
-   Randoms() if they require a uniform variate:
+ * Also available are several other types of random variates:
 
    BetaRandom(alpha, beta, a, b)      -- Beta(alpha, beta) over [a, b]
    BinomialBetaRandom(E, a, b)        -- BetaBinomial(n = E + E * a / b)
@@ -66,15 +61,26 @@
 
  * And utility functions:
 
-   and()                                     -- Logical "and" function
-   CDFNormal(z)                              -- Integral of the normal at z
-   CalcCumulative(n, x[], p[], Cdf[], o)     -- Constructs a CDF given a PDF
-   erfc(x)                                   -- Complementary error function
-   leq()                                     -- Logical lower or equal function
-   lnDFNormal(x, mu, sd)                     -- Log of the normal density
-   lnGamma(x)                                -- Natural log of gamma function
-   lnDFBeta(x, alpha, beta, min, max)        -- Log of beta density
-   piecewise(...)                            -- Piecewise function
+   and()                                       -- Logical "and" function
+   CDFNormal(z)                                -- Integral of the normal at z
+   CalcCumulative(n, x[], p[], Cdf[], o)       -- Constructs a CDF given a PDF
+   erfc(x)                                     -- Complementary error function
+   leq()                                       -- Logical lower or equal function
+   lnDFNormal(x, mu, sd)                       -- Log of the normal density
+   lnGamma(x)                                  -- Natural log of gamma function
+   lnDFBeta(x, alpha, beta, min, max)          -- Log of beta density
+   piecewise(...)                              -- Piecewise function
+   SetSeed(seed)                               -- Sets the seed of Randoms
+   InitRandom(seed, f)                         -- Initializes the package
+
+ * The random number generator must be initialized by providing a seed
+   to InitRandom(). A non-zero second argument to this function
+   instructs the random number generator to "warm up" by filling a
+   memory array used by RandomShuffle(). This also initializes a flag
+   used by the Normal() routine.
+
+   If the random number generator is not initialized before any of its
+   routines are called, it initializes itself with a default seed.
 
 */
 
@@ -91,125 +97,20 @@
 #include "random.h"
 
 
-/* ----------------------------------------------------------------------------
-   Globals/Externals
-*/
-
-static BOOL vbSwitchGauss = FALSE; /* Flag to reset switchG in NormalRandom */ 
-
-
-/* ----------------------------------------------------------------------------
-   We have two versions of Randoms() depending whether we use gsl or not
-*/
-
-#ifdef HAVE_LIBGSL
-
-#include <gsl/gsl_rng.h>
-
-/* ----------------------------------------------------------------------------
-   GSL version, global definitions, private
-*/
-
-static const gsl_rng_type * genType;
-static gsl_rng * rGenerator;
-
-/* ----------------------------------------------------------------------------
-   GetSeed
-
-   Not available if GSL is used. Issue an error message.
-*/
-
-double GetSeed (void)
-{
-  printf ("Error: the GetSeed() function is not available if GSL is used "
-          "- Exiting\n\n");
-  exit (0);
-}
-
-
-/* ----------------------------------------------------------------------------
-   SetSeed
-
-   Sets vRandRec.seed to given dSeed. Note that the seed is a long int.
-*/
-void SetSeed (double dSeed)
-{
-  
-  gsl_rng_set(rGenerator, (unsigned long int) dSeed);
-  vbSwitchGauss = FALSE; /* Force a reset of the normal variate sampler */
-  
-} /* SetSeed */
-
-
-/* ----------------------------------------------------------------------------
-   Randoms, gsl version
-*/
-double Randoms (void)
-{
-
-  return(gsl_rng_uniform(rGenerator));
-
-} /* Randoms, gsl version */
-
-
-/* ----------------------------------------------------------------------------
-   InitRandom, gsl version
-
-   Selects a generator and sets the gsl seed to given dSeed, silently
-   corrects an invalid dSeed.
-*/
-void InitRandom (double dSeed, int rdm_gen_name)
-{
-  static int bInit = 0;
-
-  if (!bInit) { /* initialize */
-
-    /* set the type of random generator, in fact we should use an enum */
-    switch (rdm_gen_name) {
-    case TRUE:
-      genType = gsl_rng_default; /* mt19937 */ 
-      break;
-    case FALSE:
-      genType = gsl_rng_taus2;
-      break;
-    default:
-      genType = gsl_rng_default;
-    }
-
-    /* create an instance of a generator of type genType */
-    rGenerator = gsl_rng_alloc(genType);
-
-    /* set the seed */
-    gsl_rng_set(rGenerator, (unsigned long int) dSeed);
-
-    printf ("\n* Using GNU Scientific Library (GSL) '%s' "
-            "random number generator.\n\n", gsl_rng_name(rGenerator));
-
-    vbSwitchGauss = FALSE; /* Force a reset of the normal variate sampler */
-    
-    /* next calls to InitRandoms will do nothing */
-    bInit = 1;
-  }
-
-} /* InitRandom, gsl version */
-
-
-#else  /* non-gsl version */
-
-/* ----------------------------------------------------------------------------
-   Non-GSL version, global definitions, private
-*/
-
 typedef struct tagRANDREC {
   double seed, last;
   double mem[50];
+  long switchG;
+  double memGauss;
+
 } RANDREC, *PRANDREC;
 
 
-static BOOL vbNoSeed = TRUE;       /* Flag to prevent use without seed */
-static BOOL vbNotInitd = TRUE;     /* Flag to prevent use without initing */
-static RANDREC vRandRec;           /* Global random information shared by */
-                                   /* all random number functions */
+static BOOL vbNoSeed = TRUE;    /* Flag to prevent use without seed */
+static BOOL vbNotInitd = TRUE;  /* Flag to prevent use without initializing */
+static RANDREC vRandRec;        /* Global random informatino shared by */
+                                /* all random number functions */
+
 
 /* ----------------------------------------------------------------------------
    GetSeed
@@ -260,8 +161,7 @@ void SetSeed (double dSeed)
             "New seed --> %g\n", SEED_MIN, SEED_MAX, dSeed);
 
   vRandRec.seed = dSeed;
-  vbNoSeed = FALSE;      /* Flag that seed has been set */
-  vbSwitchGauss = FALSE; /* Force a reset of the normal variate sampler */
+  vbNoSeed = FALSE; /* Flag that seed has been set */
 
 } /* SetSeed */
 
@@ -287,16 +187,17 @@ void InitRandom (double dSeed, int bWarmUp)
 
   if (bWarmUp) {
     /* Warm up generator */
-    for (i = 0; i < 50; i++) (void) Randoms();
+    for (i = 0; i < 50; i++) (void) Randoms ();
 
     /* Fill the shuffle array */
-    for (i = 0; i < 50; i++) vRandRec.mem[i] = Randoms();
+    for (i = 0; i < 50; i++) vRandRec.mem[i] = Randoms ();
 
-    vRandRec.last = Randoms(); /* Draw first number */
-    vbNotInitd = FALSE;        /* Flag as initialized */
-  }
+    vRandRec.last = Randoms (); /* Draw first number */
+    vRandRec.switchG = 0;       /* Flag as first Normal */
+    vbNotInitd = FALSE;         /* Flag as initialized */
+  } /* if */
 
-} /* InitRandom, non-gsl version */
+} /* InitRandom */
 
 
 /* ----------------------------------------------------------------------------
@@ -307,7 +208,7 @@ void InitRandom (double dSeed, int bWarmUp)
 
    Randoms() returns random numbers between 0 and 1. The minimum
    returned value is 1/m and the maximum 1 - 1/m. The generator can
-   be initialized with InitRandom(). If not, it auto-initializes its seed.
+   be initialized with InitRandom(). 
 
    This generator should be correct on any system for which the
    representattion of reals uses at least a 32-bit mantissa, including
@@ -344,7 +245,7 @@ double Randoms (void)
 #undef q
 #undef r
 
-} /* Randoms, non-gsl version */
+} /* Randoms */
 
 
 /* ----------------------------------------------------------------------------
@@ -369,15 +270,11 @@ double RandomShuffle (void)
 
   i = (long) (50.0 * vRandRec.last); /* Randomly shuffle output */
   vRandRec.last = vRandRec.mem[i];
-  vRandRec.mem[i] = Randoms();
+  vRandRec.mem[i] = Randoms ();
 
   return (vRandRec.last);
 
 } /* RandomShuffle */
-
-#endif
-
-/* End of the non-gsl random uniform generators */
 
 
 /* ----------------------------------------------------------------------------
@@ -475,7 +372,7 @@ double BinomialBetaRandom (double Expectation, double alpha, double beta)
 
    Return as a double floating-point number an integer value that is a random
    deviate drawn from a binomial distribution of n trials each of
-   probability p, using Randoms() as a source of uniform random deviates.
+   probability p, using Randoms () as a source of uniform random deviates.
    Adapted from the algorithm described in the book Numerical Recipes by
    Press et al. 
 */
@@ -502,7 +399,7 @@ double BinomialRandom (double p, long N)
   if (N < 25) {
     dDeviate = 0;
     for (j = 0; j < N; j++)
-      if (Randoms() < dPtemp)
+      if (Randoms () < dPtemp)
         dDeviate = dDeviate + 1;
   }
   else
@@ -512,7 +409,7 @@ double BinomialRandom (double p, long N)
       dTemp1 = exp(-dMean);
       dTemp2 = 1.0;
       for (j = 0; j <= N; j++) {
-        dTemp2 = dTemp2 * Randoms();
+        dTemp2 = dTemp2 * Randoms ();
         if (dTemp2 < dTemp1) break;
       }
 
@@ -540,7 +437,7 @@ double BinomialRandom (double p, long N)
 
       do {
         do {
-          dAngle = PI * Randoms();
+          dAngle = PI * Randoms ();
           dTangent = tan(dAngle);
           dTemp1 = dSqrt * dTangent + dMean;
         } while (dTemp1 < 0 || dTemp1 >= (N + 1)); /* Reject */
@@ -552,7 +449,7 @@ double BinomialRandom (double p, long N)
                      lnGamma(N - dTemp1 + 1) +
                      dTemp1 * dLnP + (N - dTemp1) * dLnQ);
 
-      } while (Randoms() > dTemp2);
+      } while (Randoms () > dTemp2);
 
       /* Reject on average about 1.5 time per deviate */
 
@@ -889,27 +786,32 @@ void Multinomial (long n, int dim, double *p, double *x)
    using a random generator as a source of uniform deviates.
    Adapted from the algorithm described in the book Numerical Recipes by
    Press et al. 
+
+   Programs using Normal should initialize the random number
+   generator with InitRandom().
 */
 
 double NormalRandom (double dMean, double dStdDev)
 {
   double dRacine, dTemp1, dTemp2, dTemp3;
-  static double memGauss;
 
-  if (vbSwitchGauss) { /* used stored variate */
-    vbSwitchGauss = FALSE;
-    return (dMean + dStdDev * memGauss);
-  }
+  if (vbNotInitd)
+    InitRandom (SEED_DEFAULT, TRUE);
+
+  if (vRandRec.switchG != 0) {
+    vRandRec.switchG = 0;
+    return (dMean + dStdDev * (vRandRec.memGauss));
+  } /* if */
 
   do {
-    dTemp1 = 2 * Randoms() - 1;
-    dTemp2 = 2 * Randoms() - 1;
+    dTemp1 = 2 * RandomShuffle () - 1;
+    dTemp2 = 2 * RandomShuffle () - 1;
     dRacine = dTemp1 * dTemp1 + dTemp2 * dTemp2;
   } while ((dRacine >= 1) || (dRacine == 0));
 
   dTemp3 = sqrt(-2 * log(dRacine) / dRacine);
-  vbSwitchGauss = TRUE;
-  memGauss = dTemp1 * dTemp3;
+  vRandRec.memGauss = dTemp1 * dTemp3;
+  vRandRec.switchG = 1;
   return (dMean + dStdDev * (dTemp2 * dTemp3));
 
 } /* NormalRandom */
@@ -1322,7 +1224,7 @@ double lnDFBeta (double x, double alpha, double beta, double min, double max)
 /* ----------------------------------------------------------------------------
    lnDFNormal
    the log of the normal density function
-   0.918938533204672669541 is log(sqrt(2*PI))
+   0.9189385332046 is log(sqrt(2*PI))
 */
 double lnDFNormal (double x, double mu, double sd)
 {
@@ -1331,7 +1233,7 @@ double lnDFNormal (double x, double mu, double sd)
     exit (0);
   }
 
-  return ( -0.918938533204672669541 - log (sd) - 0.5 * pow ((mu - x)/sd, 2) );
+  return ( -0.9189385332046 - log (sd) - 0.5 * pow ((mu - x)/sd, 2) );
 }
 
 
@@ -1376,7 +1278,6 @@ double lnGamma (double x)
 BOOL and (BOOL A, BOOL B)
 { return (A && B); } /* piecewise */
 
-
 #ifdef ndef
 /* ----------------------------------------------------------------------------
    Piecewise math function.
@@ -1407,7 +1308,6 @@ void piecewise (double X1 ...)
 
 } /* piecewise */
 #endif
-
 
 /* ----------------------------------------------------------------------------
    PiecewiseRandom

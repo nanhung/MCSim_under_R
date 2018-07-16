@@ -3,7 +3,7 @@
    Written by Don Maszle
    15 October 1991
 
-   Copyright (c) 1991-2017 Free Software Foundation, Inc.
+   Copyright (c) 1991-2008 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -19,6 +19,14 @@
 
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
+
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
 
    Handles lexical parsing for functions.
 
@@ -67,12 +75,11 @@ typedef struct tagINPUTFUNCTIONMAP {
 
 IFM vrgifmMap[] = { /* Input function map */
 
-  {"PerDose",    IFN_PERDOSE},
-  {"PerExp",     IFN_PEREXP},
-  {"PerTransit", IFN_PERTRANS},
-  {"NDoses",     IFN_NDOSES},
-  {"Spikes",     IFN_SPIKES},
-  {"Events",     IFN_EVENTS},
+  {"PerDose",   IFN_PERDOSE},
+  {"PerExp",    IFN_PEREXP},
+  {"NDoses",    IFN_NDOSES},
+  {"Spikes",    IFN_SPIKES},
+  {"Events",    IFN_EVENTS},
 
   {"", IFN_NULL} /* End flag */
 
@@ -177,17 +184,16 @@ BOOL DefDepParm (PSTR szLex, PDOUBLE pdValue, HANDLE *phvar)
      initialization.
 */
 
-BOOL GetInputArgs (PINPUTBUF pibIn, PIFN pifn, int nArgs)
+BOOL GetInputArgs (PINPUTBUF pibIn, PIFN pifn)
 {
-  PSTRLEX *rgszLex = malloc (nArgs * sizeof(PSTRLEX));
-  int *rgiTypes = malloc (nArgs * sizeof(int));
-  int  i;
+  PSTRLEX rgszLex[4];
+  int rgiTypes[4], i;
   BOOL bReturn = FALSE;
 
-  for (i = 0; i < nArgs; i++)
+  for (i = 0; i < 4; i++)
     rgiTypes[i] = LX_INTEGER | LX_FLOAT | LX_IDENTIFIER;
 
-  if (GetFuncArgs (pibIn, nArgs, rgiTypes, rgszLex[0])) {
+  if (GetFuncArgs (pibIn, 4, rgiTypes, rgszLex[0])) {
 
     /* Try to get each parm to show all errors */
 
@@ -196,20 +202,14 @@ BOOL GetInputArgs (PINPUTBUF pibIn, PIFN pifn, int nArgs)
     bReturn &= DefDepParm (rgszLex[1], &pifn->dTper, &pifn->hTper);
     bReturn &= DefDepParm (rgszLex[2], &pifn->dT0, &pifn->hT0);
 
-    if ((pifn->iType == IFN_PEREXP) || (pifn->iType == IFN_PERTRANS))
+    if (pifn->iType == IFN_PEREXP)
       bReturn &= DefDepParm (rgszLex[3], &pifn->dDecay, &pifn->hDecay);
     else
       bReturn &= DefDepParm (rgszLex[3], &pifn->dTexp, &pifn->hTexp);
 
-    if ((pifn->iType == IFN_PERTRANS) && (nArgs == 5))
-      bReturn &= DefDepParm (rgszLex[4], &pifn->dNcpt, &pifn->hNcpt);
-
     if (!bReturn)
       ReportError (pibIn, RE_EXPECTED, "input-spec", NULL);
   } /* if */
-
-  free(rgiTypes);
-  free(rgszLex);
 
   return (bReturn);
 
@@ -252,17 +252,15 @@ BOOL GetNNumbers (PINPUTBUF pibIn, PSTR szLex, int nNumbers, PDOUBLE rgd)
 BOOL GetNDoses (PINPUTBUF pibIn, PSTR szLex, PIFN pifn)
 {
   PSTRLEX *rgszLex;
-  PSTRLEX  szTmp;
   int *rgiTypes, iType;
-  long i, j, iLB, iUB, iDoseArg;
+  int i, iDoseArg;
   BOOL bOK = TRUE;
   BOOL bErr = FALSE; /* Return value flags error condition */
-  HVAR hvar;
 
-  if ((bErr = EGetPunct(pibIn, szLex, CH_LPAREN)))
+  if ((bErr = EGetPunct (pibIn, szLex, CH_LPAREN)))
     goto Exit_GetNDoses;
 
-  if ((bErr = ENextLex(pibIn, szLex, LX_INTEGER)))
+  if ((bErr = ENextLex (pibIn, szLex, LX_INTEGER)))
     goto Exit_GetNDoses;
 
   pifn->nDoses = atoi(szLex);
@@ -292,105 +290,28 @@ BOOL GetNDoses (PINPUTBUF pibIn, PSTR szLex, PIFN pifn)
        (HANDLE *) malloc (pifn->nDoses * sizeof(HANDLE))))
     ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "GetNDoses", NULL);
 
-  /* Read the leading comma */
-  if (!(bOK = GetPunct (pibIn, rgszLex[0], ','))) {
-    *(rgszLex[0] + 1)  = ',';
-    ReportError(pibIn, RE_EXPECTED | RE_FATAL, rgszLex[0], NULL);
-  }
+  /* Try to get doses list: n Mag's, n T0's */
 
-  /* Try to get a list of n magnitudes */
-  for (i = 0; i < (iDoseArg / 2) && bOK; i++) {
+  for (i = 0; i < iDoseArg && bOK; i++) {
 
     rgiTypes[i] = LX_INTEGER | LX_FLOAT | LX_IDENTIFIER;
 
-    /* read the magnitude, numeric or symbolic */
-    NextLex (pibIn, szLex, &iType);
+    if (!(bOK = GetOptPunct (pibIn, rgszLex[i], ','))) {
+      *(rgszLex[i] + 1)  = ',';
+      ReportError(pibIn, RE_EXPECTED | RE_FATAL, rgszLex[i], NULL);
+      break; /* Error: Stop getting args */
+    }
+
+    NextLex (pibIn, rgszLex[i], &iType);
     if (!(bOK &= (iType & rgiTypes[i]) > 0))
       ReportError(pibIn, RE_LEXEXPECTED | RE_FATAL, vrgszLexTypes[rgiTypes[i]],
-                  szLex);
+                  rgszLex[i]);
+  } /* for */
 
-      /* check if it is a scalar or an array and act accordingly */
-      iLB = iUB = -1;
-      if (GetPunct (pibIn, szTmp, '[')) /* array found, read bounds */
-        GetArrayBounds (pibIn, &iLB, &iUB);
-
-      if (iUB == -1) { /* scalar, copy to rgszLex and continue */
-        strcpy (rgszLex[i], szLex);
-      }
-      else { /* array */
-
-        if (2 * (iUB - iLB) != iDoseArg)
-          ReportError (pibIn, RE_TOOMANYPVARS | RE_FATAL, "GetNDoses", NULL);
-
-        for (j = iLB; j < iUB; j++) {
-          sprintf (szTmp, "%s_%ld", szLex, j); /* create names */          
-
-          if ((bErr = !(hvar = GetVarHandle (szTmp))))
-            ReportError (pibIn, RE_UNDEFINED | RE_FATAL, szTmp, NULL);
-          else {
-            strcpy (rgszLex[i+j-iLB], szTmp);
-          }
-        } /* for j */
-
-        /* get the separating comma */
-       if ((bErr = !GetPunct (pibIn, szTmp, ',')))
-         goto Exit_GetNDoses;
-
-        break; /* get out of the for i loop */
-
-      } /* end else */
-
-  } /* for i */
-
-  /* Try to get a list of n T0's, numeric or symbolic */
-  for (i = iDoseArg / 2; i < iDoseArg && bOK; i++) {
-
-    rgiTypes[i] = LX_INTEGER | LX_FLOAT | LX_IDENTIFIER;
-
-    /* read the T0's, numeric or symbolic */
-    NextLex (pibIn, szLex, &iType);
-    if (!(bOK &= (iType & rgiTypes[i]) > 0))
-      ReportError(pibIn, RE_LEXEXPECTED | RE_FATAL, vrgszLexTypes[rgiTypes[i]],
-                  szLex);
-
-      /* check if it is a scalar or an array and act accordingly */
-      iLB = iUB = -1;
-      if (GetPunct (pibIn, szTmp, '[')) /* array found, read bounds */
-        GetArrayBounds (pibIn, &iLB, &iUB);
-
-      if (iUB == -1) { /* scalar, copy to rgszLex and continue */
-        strcpy (rgszLex[i], szLex);
-      }
-      else { /* array */
-
-        if (2 * (iUB - iLB) != iDoseArg)
-          ReportError (pibIn, RE_TOOMANYPVARS | RE_FATAL, "GetNDoses", NULL);
-
-        for (j = iLB; j < iUB; j++) {
-          sprintf (szTmp, "%s_%ld", szLex, j); /* create names */
-
-          if ((bErr = !(hvar = GetVarHandle (szTmp))))
-            ReportError (pibIn, RE_UNDEFINED | RE_FATAL, szTmp, NULL);
-          else {
-            strcpy (rgszLex[i+j-iLB], szTmp);
-          }
-        } /* for j */
-
-        /* get the final parenthesis */
-       if ((bErr = EGetPunct (pibIn, szTmp, CH_RPAREN)))
-         goto Exit_GetNDoses;
-
-        break; /* get out of the for i loop */
-
-      } /* end else */
-
-  } /* for i */
-
-  if ((bErr = (szTmp[0] != CH_RPAREN)))
+  if ((bErr = EGetPunct (pibIn, szLex, CH_RPAREN)))
     goto Exit_GetNDoses;
 
-  /* We have read in the list and stored it in rgszLex.
-     Try to get each parm value or handle to show all errors */
+  /* Try to get each parm to show all errors */
 
   bOK = TRUE;
 
@@ -692,11 +613,7 @@ BOOL GetInputFn (PINPUTBUF pibIn, PSTR sz, PIFN pifn)
 
       case IFN_PERDOSE:
       case IFN_PEREXP:
-        bReturn = GetInputArgs (pibDum, pifn, 4); /* 4 arguments */
-        break;
-
-      case IFN_PERTRANS:
-        bReturn = GetInputArgs (pibDum, pifn, 5); /* 5 arguments */
+        bReturn = GetInputArgs (pibDum, pifn);
         break;
 
       } /* switch */

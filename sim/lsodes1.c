@@ -1,6 +1,6 @@
 /* lsodes1.c
 
-   Copyright (c) 1993-2017 Free Software Foundation, Inc.
+   Copyright (c) 1993-2008 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -17,988 +17,994 @@
    You should have received a copy of the GNU General Public License
    along with GNU MCSim; if not, see <http://www.gnu.org/licenses/>
 
-   lsodes.c was translated from lsodes.f by the utility f2c.
-   To make lsodes.c a stand alone C routine, the following modifications 
-   were made:
+   -- Revisions -----
+     Logfile:  %F%
+    Revision:  %I%
+        Date:  %G%
+     Modtime:  %U%
+      Author:  @a
+   -- SCCS  ---------
+
+lsodes.c was translated from lsodes.f by the utility f2c in bea.
+To make lsodes.c a stand alone C routine, the following modifications were made:
         1. the options -lF77 -lI77 were removed from the link command line
         2. a function d_sign was written and added at the beginning of
            the function body
         3. lsodes was cut in two pieces
 
-  This is the first file for the two parts
+This is the first file for the two parts
 
-  -----------------------------------------------------------------------------
-  LSODES - summary of usage.
+LSODES - summary of usage.
 
-  This is the march 30, 1987 version of lsodes -
-  The Livermore solver for ordinary differential equations
-  with general sparse jacobian matrices.
-  This version is in double precision.
-  
-  Communication between the user and the lsodes package, for normal
-  situations, is summarized here.  this summary describes only a subset
-  of the full set of options available.  see the full description for
-  details, including optional communication, nonstandard options,
-  and instructions for special situations.  see also the example
-  problem (with program and output) following this summary.
-  
-  a. first provide a subroutine of the form..
-                subroutine CalcDeriv (neq, t, y, ydot)
-                dimension y(neq), ydot(neq)
-  which supplies the vector function f by loading ydot(i) with f(i).
-  
-  b. next determine (or guess) whether or not the problem is stiff.
-  stiffness occurs when the jacobian matrix df/dy has an eigenvalue
-  whose real part is negative and large in magnitude, compared to the
-  reciprocal of the t span of interest.  if the problem is nonstiff,
-  use a method flag mf = 10.  if it is stiff, there are two standard
-  for the method flag, mf = 121 and mf = 222.  in both cases, lsodes
-  requires the jacobian matrix in some form, and it treats this matrix
-  in general sparse form, with sparsity structure determined internally.
-  (for options where the user supplies the sparsity structure, see
-  the full description of mf below.)
-  
-  c. if the problem is stiff, you are encouraged to supply the jacobian
-  directly (mf = 121), but if this is not feasible, lsodes will
-  compute it internally by difference quotients (mf = 222).
-  if you are supplying the jacobian, provide a subroutine of the form..
-                subroutine jac (neq, t, y, j, ian, jan, pdj)
-                (here CalcJacob (t, y, j, pdj))
-                dimension y(1), ian(1), jan(1), pdj(1)
-  here neq, t, y, and j are input arguments, and the jac routine is to
-  load the array pdj (of length neq) with the j-th column of df/dy.
-  i.e., load pdj(i) with df(i)/dy(j) for all relevant values of i.
-  the arguments ian and jan should be ignored for normal situations.
-  lsodes will call the jac routine with j = 1,2,...,neq.
-  only nonzero elements need be loaded.  usually, a crude approximation
-  to df/dy, possibly with fewer nonzero elements, will suffice.
-  
-  d. write a main program which calls subroutine lsodes once for
-  each point at which answers are desired.  this should also provide
-  for possible use of logical unit 6 for output of error messages
-  by lsodes.  on the first call to lsodes, supply arguments as follows..
-  f      = name of subroutine for right-hand side vector f.
-           this name must be declared external in calling program.
-  neq    = number of first order ode-s.
-  y      = array of initial values, of length neq.
-  t      = the initial value of the independent variable.
-  tout   = first point where output is desired (.ne. t).
-  itol   = 1 or 2 according as atol (below) is a scalar or array.
-  rtol   = relative tolerance parameter (scalar).
-  atol   = absolute tolerance parameter (scalar or array).
-           the estimated local error in y(i) will be controlled so as
-           to be roughly less (in magnitude) than
-              ewt(i) = rtol*abs(y(i)) + atol     if itol = 1, or
-              ewt(i) = rtol*abs(y(i)) + atol(i)  if itol = 2.
-           thus the local error test passes if, in each component,
-           either the absolute error is less than atol (or atol(i)),
-           or the relative error is less than rtol.
-           use rtol = 0.0 for pure absolute error control, and
-           use atol = 0.0 (or atol(i) = 0.0) for pure relative error
-           control.  caution.. actual (global) errors may exceed these
-           local tolerances, so choose them conservatively.
-  itask  = 1 for normal computation of output values of y at t = tout.
-  istate = integer flag (input and output).  set istate = 1.
-  iopt   = 0 to indicate no optional inputs used.
-  rwork  = real work array of length at least..
-              20 + 16*neq            for mf = 10,
-              20 + (2 + 1./lenrat)*nnz + (11 + 9./lenrat)*neq
-                                     for mf = 121 or 222,
-           where..
-           nnz    = the number of nonzero elements in the sparse
-                    jacobian (if this is unknown, use an estimate), and
-           lenrat = the real to integer wordlength ratio (usually 1 in
-                    single precision and 2 in double precision).
-           in any case, the required size of rwork cannot generally
-           be predicted in advance if mf = 121 or 222, and the value
-           above is a rough estimate of a crude lower bound.  some
-           experimentation with this size may be necessary.
-           (when known, the correct required length is an optional
-           output, available in iwork(17).)
-  lrw    = declared length of rwork (in user-s dimension).
-  iwork  = integer work array of length at least 30.
-  liw    = declared length of iwork (in user-s dimension).
-  jac    = name of subroutine for Jacobian matrix (mf = 121).
-           if used, this name must be declared external in calling
-           program.  if not used, pass a dummy name.
-  mf     = method flag.  standard values are..
-           10  for nonstiff (adams) method, no Jacobian used.
-           121 for stiff (bdf) method, user-supplied sparse Jacobian.
-           222 for stiff method, internally generated sparse Jacobian.
-  note that the main program must declare arrays y, rwork, iwork,
-  and possibly atol.
-  
-  e. the output from the first call (or any call) is..
-       y = array of computed values of y(t) vector.
-       t = corresponding value of independent variable (normally tout).
-  istate = 2  if lsodes was successful, negative otherwise.
-           -1 means excess work done on this call (perhaps wrong mf).
-           -2 means excess accuracy requested (tolerances too small).
-           -3 means illegal input detected (see printed message).
-           -4 means repeated error test failures (check all inputs).
-           -5 means repeated convergence failures (perhaps bad Jacobian
-              supplied or wrong choice of mf or tolerances).
-           -6 means error weight became zero during problem. (solution
-              component i vanished, and atol or atol(i) = 0.)
-           -7 means a fatal error return flag came from the sparse
-              solver cdrv by way of prjs or slss.  should never happen.
-           a return with istate = -1, -4, or -5 may result from using
-           an inappropriate sparsity structure, one that is quite
-           different from the initial structure.  consider calling
-           lsodes again with istate = 3 to force the structure to be
-           reevaluated.  see the full description of istate below.
-  
-  f. to continue the integration after a successful return, simply
-  reset tout and call lsodes again.  no other parameters need be reset.
-  
-  -----------------------------------------------------------------------------
-  full description of user interface to lsodes.
-  
-  the user interface to lsodes consists of the following parts.
-  
-  i.   the call sequence to subroutine lsodes, which is a driver
-       routine for the solver.  this includes descriptions of both
-       the call sequence arguments and of user-supplied routines.
-       following these descriptions is a description of
-       optional inputs available through the call sequence, and then
-       a description of optional outputs (in the work arrays).
-  
-  ii.  descriptions of other routines in the lsodes package that may be
-       (optionally) called by the user.  these provide the ability to
-       alter error message handling, save and restore the internal
-       common, and obtain specified derivatives of the solution y(t).
-  
-  iii. descriptions of common blocks to be declared in overlay
-       or similar environments, or to be saved when doing an interrupt
-       of the problem and continued solution later.
-  
-  iv.  description of two routines in the lsodes package, either of
-       which the user may replace with his own version, if desired.
-       these relate to the measurement of errors.
-  
-  -----------------------------------------------------------------------------
-  part i.  call sequence.
-  
-  the call sequence parameters used for input only are
-      f, neq, tout, itol, rtol, atol, itask, iopt, lrw, liw, jac, mf,
-  and those used for both input and output are
-      y, t, istate.
-  the work arrays rwork and iwork are also used for conditional and
-  optional inputs and optional outputs.  (the term output here refers
-  to the return from subroutine lsodes to the user-s calling program.)
-  
-  the legality of input parameters will be thoroughly checked on the
-  initial call for the problem, but not checked thereafter unless a
-  change in input parameters is flagged by istate = 3 on input.
-  
-  the descriptions of the call arguments are as follows.
-  
-  f      = the name of the user-supplied subroutine defining the
-           ode system.  the system must be put in the first-order
-           form dy/dt = f(t,y), where f is a vector-valued function
-           of the scalar t and the vector y.  subroutine f is to
-           compute the function f.  it is to have the form
-                subroutine f (neq, t, y, ydot)
-                dimension y(1), ydot(1)
-           where neq, t, and y are input, and the array ydot = f(t,y)
-           is output.  y and ydot are arrays of length neq.
-           (in the dimension statement above, 1 is a dummy
-           dimension.. it can be replaced by any value.)
-           subroutine f should not alter y(1),...,y(neq).
-           f must be declared external in the calling program.
-  
-           subroutine f may access user-defined quantities in
-           neq(2),... and/or in y(neq(1)+1),... if neq is an array
-           (dimensioned in f) and/or y has length exceeding neq(1).
-           see the descriptions of neq and y below.
-  
-           if quantities computed in the f routine are needed
-           externally to lsodes, an extra call to f should be made
-           for this purpose, for consistent and accurate results.
-           if only the derivative dy/dt is needed, use intdy instead.
-  
-  neq    = the size of the ode system (number of first order
-           ordinary differential equations).  used only for input.
-           neq may be decreased, but not increased, during the problem.
-           if neq is decreased (with istate = 3 on input), the
-           remaining components of y should be left undisturbed, if
-           these are to be accessed in f and/or jac.
-  
-           normally, neq is a scalar, and it is generally referred to
-           as a scalar in this user interface description.  however,
-           neq may be an array, with neq(1) set to the system size.
-           (the lsodes package accesses only neq(1).)  in either case,
-           this parameter is passed as the neq argument in all calls
-           to f and jac.  hence, if it is an array, locations
-           neq(2),... may be used to store other integer data and pass
-           it to f and/or jac.  subroutines f and/or jac must include
-           neq in a dimension statement in that case.
-  
-  y      = a real array for the vector of dependent variables, of
-           length neq or more.  used for both input and output on the
-           first call (istate = 1), and only for output on other calls.
-           on the first call, y must contain the vector of initial
-           values.  on output, y contains the computed solution vector,
-           evaluated at t.  if desired, the y array may be used
-           for other purposes between calls to the solver.
-  
-           this array is passed as the y argument in all calls to
-           f and jac.  hence its length may exceed neq, and locations
-           y(neq+1),... may be used to store other real data and
-           pass it to f and/or jac.  (the lsodes package accesses only
-           y(1),...,y(neq).)
-  
-  t      = the independent variable.  on input, t is used only on the
-           first call, as the initial point of the integration.
-           on output, after each call, t is the value at which a
-           computed solution y is evaluated (usually the same as tout).
-           on an error return, t is the farthest point reached.
-  
-  tout   = the next value of t at which a computed solution is desired.
-           used only for input.
-  
-           when starting the problem (istate = 1), tout may be equal
-           to t for one call, then should .ne. t for the next call.
-           for the initial t, an input value of tout .ne. t is used
-           in order to determine the direction of the integration
-           (i.e. the algebraic sign of the step sizes) and the rough
-           scale of the problem.  integration in either direction
-           (forward or backward in t) is permitted.
-  
-           if itask = 2 or 5 (one-step modes), tout is ignored after
-           the first call (i.e. the first call with tout .ne. t).
-           otherwise, tout is required on every call.
-  
-           if itask = 1, 3, or 4, the values of tout need not be
-           monotone, but a value of tout which backs up is limited
-           to the current internal t interval, whose endpoints are
-           tcur - hu and tcur (see optional outputs, below, for
-           tcur and hu).
-  
-  itol   = an indicator for the type of error control.  see
-           description below under atol.  used only for input.
-  
-  rtol   = a relative error tolerance parameter, either a scalar or
-           an array of length neq.  see description below under atol.
-           input only.
-  
-  atol   = an absolute error tolerance parameter, either a scalar or
-           an array of length neq.  input only.
-  
-              the input parameters itol, rtol, and atol determine
-           the error control performed by the solver.  the solver will
-           control the vector e = (e(i)) of estimated local errors
-           in y, according to an inequality of the form
-                       rms-norm of ( e(i)/ewt(i) )   .le.   1,
-           where       ewt(i) = rtol(i)*abs(y(i)) + atol(i),
-           and the rms-norm (root-mean-square norm) here is
-           rms-norm(v) = sqrt(sum v(i)**2 / neq).  here ewt = (ewt(i))
-           is a vector of weights which must always be positive, and
-           the values of rtol and atol should all be non-negative.
-           the following table gives the types (scalar/array) of
-           rtol and atol, and the corresponding form of ewt(i).
-  
-              itol    rtol       atol          ewt(i)
-               1     scalar     scalar     rtol*abs(y(i)) + atol
-               2     scalar     array      rtol*abs(y(i)) + atol(i)
-               3     array      scalar     rtol(i)*abs(y(i)) + atol
-               4     array      array      rtol(i)*abs(y(i)) + atol(i)
-  
-           when either of these parameters is a scalar, it need not
-           be dimensioned in the user-s calling program.
-  
-           if none of the above choices (with itol, rtol, and atol
-           fixed throughout the problem) is suitable, more general
-           error controls can be obtained by substituting
-           user-supplied routines for the setting of ewt and/or for
-           the norm calculation.  see part iv below.
-  
-           if global errors are to be estimated by making a repeated
-           run on the same problem with smaller tolerances, then all
-           components of rtol and atol (i.e. of ewt) should be scaled
-           down uniformly.
-  
-  itask  = an index specifying the task to be performed.
-           input only.  itask has the following values and meanings.
-           1  means normal computation of output values of y(t) at
-              t = tout (by overshooting and interpolating).
-           2  means take one step only and return.
-           3  means stop at the first internal mesh point at or
-              beyond t = tout and return.
-           4  means normal computation of output values of y(t) at
-              t = tout but without overshooting t = tcrit.
-              tcrit must be input as rwork(1).  tcrit may be equal to
-              or beyond tout, but not behind it in the direction of
-              integration.  this option is useful if the problem
-              has a singularity at or beyond t = tcrit.
-           5  means take one step, without passing tcrit, and return.
-              tcrit must be input as rwork(1).
-  
-           note..  if itask = 4 or 5 and the solver reaches tcrit
-           (within roundoff), it will return t = tcrit (exactly) to
-           indicate this (unless itask = 4 and tout comes before tcrit,
-           in which case answers at t = tout are returned first).
-  
-  istate = an index used for input and output to specify the
-           the state of the calculation.
-  
-           on input, the values of istate are as follows.
-           1  means this is the first call for the problem
-              (initializations will be done).  see note below.
-           2  means this is not the first call, and the calculation
-              is to continue normally, with no change in any input
-              parameters except possibly tout and itask.
-              (if itol, rtol, and/or atol are changed between calls
-              with istate = 2, the new values will be used but not
-              tested for legality.)
-           3  means this is not the first call, and the
-              calculation is to continue normally, but with
-              a change in input parameters other than
-              tout and itask.  changes are allowed in
-              neq, itol, rtol, atol, iopt, lrw, liw, mf,
-              the conditional inputs ia and ja,
-              and any of the optional inputs except h0.
-              in particular, if miter = 1 or 2, a call with istate = 3
-              will cause the sparsity structure of the problem to be
-              recomputed (or reread from ia and ja if moss = 0).
-           note..  a preliminary call with tout = t is not counted
-           as a first call here, as no initialization or checking of
-           input is done.  (such a call is sometimes useful for the
-           purpose of outputting the initial conditions.)
-           thus the first call for which tout .ne. t requires
-           istate = 1 on input.
-  
-           on output, istate has the following values and meanings.
-            1  means nothing was done, as tout was equal to t with
-               istate = 1 on input.  (however, an internal counter was
-               set to detect and prevent repeated calls of this type.)
-            2  means the integration was performed successfully.
-           -1  means an excessive amount of work (more than mxstep
-               steps) was done on this call, before completing the
-               requested task, but the integration was otherwise
-               successful as far as t.  (mxstep is an optional input
-               and is normally 500.)  to continue, the user may
-               simply reset istate to a value .gt. 1 and call again
-               (the excess work step counter will be reset to 0).
-               in addition, the user may increase mxstep to avoid
-               this error return (see below on optional inputs).
-           -2  means too much accuracy was requested for the precision
-               of the machine being used.  this was detected before
-               completing the requested task, but the integration
-               was successful as far as t.  to continue, the tolerance
-               parameters must be reset, and istate must be set
-               to 3.  the optional output tolsf may be used for this
-               purpose.  (note.. if this condition is detected before
-               taking any steps, then an illegal input return
-               (istate = -3) occurs instead.)
-           -3  means illegal input was detected, before taking any
-               integration steps.  see written message for details.
-               note..  if the solver detects an infinite loop of calls
-               to the solver with illegal input, it will cause
-               the run to stop.
-           -4  means there were repeated error test failures on
-               one attempted step, before completing the requested
-               task, but the integration was successful as far as t.
-               the problem may have a singularity, or the input
-               may be inappropriate.
-           -5  means there were repeated convergence test failures on
-               one attempted step, before completing the requested
-               task, but the integration was successful as far as t.
-               this may be caused by an inaccurate Jacobian matrix,
-               if one is being used.
-           -6  means ewt(i) became zero for some i during the
-               integration.  pure relative error control (atol(i)=0.0)
-               was requested on a variable which has now vanished.
-               the integration was successful as far as t.
-           -7  means a fatal error return flag came from the sparse
-               solver cdrv by way of prjs or slss (numerical
-               factorization or backsolve).  this should never happen.
-               the integration was successful as far as t.
-  
-           note.. an error return with istate = -1, -4, or -5 and with
-           miter = 1 or 2 may mean that the sparsity structure of the
-           problem has changed significantly since it was last
-           determined (or input).  in that case, one can attempt to
-           complete the integration by setting istate = 3 on the next
-           call, so that a new structure determination is done.
-  
-           note..  since the normal output value of istate is 2,
-           it does not need to be reset for normal continuation.
-           also, since a negative input value of istate will be
-           regarded as illegal, a negative output value requires the
-           user to change it, and possibly other inputs, before
-           calling the solver again.
-  
-  iopt   = an integer flag to specify whether or not any optional
-           inputs are being used on this call.  input only.
-           the optional inputs are listed separately below.
-           iopt = 0 means no optional inputs are being used.
-                    default values will be used in all cases.
-           iopt = 1 means one or more optional inputs are being used.
-  
-  rwork  = a work array used for a mixture of real (double precision)
-           and integer work space.
-           the length of rwork (in real words) must be at least
-              20 + nyh*(maxord + 1) + 3*neq + lwm    where
-           nyh    = the initial value of neq,
-           maxord = 12 (if meth = 1) or 5 (if meth = 2) (unless a
-                    smaller value is given as an optional input),
-           lwm = 0                                    if miter = 0,
-           lwm = 2*nnz + 2*neq + (nnz+9*neq)/lenrat   if miter = 1,
-           lwm = 2*nnz + 2*neq + (nnz+10*neq)/lenrat  if miter = 2,
-           lwm = neq + 2                              if miter = 3.
-           in the above formulas,
-           nnz    = number of nonzero elements in the Jacobian matrix.
-           lenrat = the real to integer wordlength ratio (usually 1 in
-                    single precision and 2 in double precision).
-           (see the mf description for meth and miter.)
-           thus if maxord has its default value and neq is constant,
-           the minimum length of rwork is..
-              20 + 16*neq        for mf = 10,
-              20 + 16*neq + lwm  for mf = 11, 111, 211, 12, 112, 212,
-              22 + 17*neq        for mf = 13,
-              20 +  9*neq        for mf = 20,
-              20 +  9*neq + lwm  for mf = 21, 121, 221, 22, 122, 222,
-              22 + 10*neq        for mf = 23.
-           if miter = 1 or 2, the above formula for lwm is only a
-           crude lower bound.  the required length of rwork cannot
-           be readily predicted in general, as it depends on the
-           sparsity structure of the problem.  some experimentation
-           may be necessary.
-  
-           the first 20 words of rwork are reserved for conditional
-           and optional inputs and optional outputs.
-  
-           the following word in rwork is a conditional input..
-             rwork(1) = tcrit = critical value of t which the solver
-                        is not to overshoot.  required if itask is
-                        4 or 5, and ignored otherwise.  (see itask.)
-  
-  lrw    = the length of the array rwork, as declared by the user.
-           (this will be checked by the solver.)
-  
-  iwork  = an integer work array.  the length of iwork must be at least
-              31 + neq + nnz   if moss = 0 and miter = 1 or 2, or
-              30               otherwise.
-           (nnz is the number of nonzero elements in df/dy.)
-  
-           in lsodes, iwork is used only for conditional and
-           optional inputs and optional outputs.
-  
-           the following two blocks of words in iwork are conditional
-           inputs, required if moss = 0 and miter = 1 or 2, but not
-           otherwise (see the description of mf for moss).
-             iwork(30+j) = ia(j)     (j=1,...,neq+1)
-             iwork(31+neq+k) = ja(k) (k=1,...,nnz)
-           the two arrays ia and ja describe the sparsity structure
-           to be assumed for the Jacobian matrix.  ja contains the row
-           indices where nonzero elements occur, reading in columnwise
-           order, and ia contains the starting locations in ja of the
-           descriptions of columns 1,...,neq, in that order, with
-           ia(1) = 1.  thus, for each column index j = 1,...,neq, the
-           values of the row index i in column j where a nonzero
-           element may occur are given by
-             i = ja(k),  where   ia(j) .le. k .lt. ia(j+1).
-           if nnz is the total number of nonzero locations assumed,
-           then the length of the ja array is nnz, and ia(neq+1) must
-           be nnz + 1.  duplicate entries are not allowed.
-  
-  liw    = the length of the array iwork, as declared by the user.
-           (this will be checked by the solver.)
-  
-  Note..  the work arrays must not be altered between calls to lsodes
-  for the same problem, except possibly for the conditional and
-  optional inputs, and except for the last 3*neq words of rwork.
-  the latter space is used for internal scratch space, and so is
-  available for use by the user outside lsodes between calls, if
-  desired (but not for use by f or jac).
-  
-  jac    = name of user-supplied routine (miter = 1 or moss = 1) to
-           compute the Jacobian matrix, df/dy, as a function of
-           the scalar t and the vector y.  It is to have the form
-                subroutine jac (neq, t, y, j, ian, jan, pdj)
-                dimension y(1), ian(1), jan(1), pdj(1)
-           where neq, t, y, j, ian, and jan are input, and the array
-           pdj, of length neq, is to be loaded with column j
-           of the Jacobian on output.  Thus df(i)/dy(j) is to be
-           loaded into pdj(i) for all relevant values of i.
-           here t and y have the same meaning as in subroutine f,
-           and j is a column index (1 to neq).  ian and jan are
-           undefined in calls to jac for structure determination
-           (moss = 1).  otherwise, ian and jan are structure
-           descriptors, as defined under optional outputs below, and
-           so can be used to determine the relevant row indices i, if
-           desired.  (in the dimension statement above, 1 is a
-           dummy dimension.. it can be replaced by any value.)
-                jac need not provide df/dy exactly.  a crude
-           approximation (possibly with greater sparsity) will do.
-                in any case, pdj is preset to zero by the solver,
-           so that only the nonzero elements need be loaded by jac.
-           calls to jac are made with j = 1,...,neq, in that order, and
-           each such set of calls is preceded by a call to f with the
-           same arguments neq, t, and y.  thus to gain some efficiency,
-           intermediate quantities shared by both calculations may be
-           saved in a user common block by f and not recomputed by jac,
-           if desired.  jac must not alter its input arguments.
-           jac must be declared external in the calling program.
-                subroutine jac may access user-defined quantities in
-           neq(2),... and y(neq(1)+1),... if neq is an array
-           (dimensioned in jac) and y has length exceeding neq(1).
-           see the descriptions of neq and y above.
-  
-  mf     = the method flag.  used only for input.
-           mf has three decimal digits-- moss, meth, miter--
-              mf = 100*moss + 10*meth + miter.
-           moss indicates the method to be used to obtain the sparsity
-           structure of the jacobian matrix if miter = 1 or 2..
-             moss = 0 means the user has supplied ia and ja
-                      (see descriptions under iwork above).
-             moss = 1 means the user has supplied jac (see below)
-                      and the structure will be obtained from neq
-                      initial calls to jac.
-             moss = 2 means the structure will be obtained from neq+1
-                      initial calls to f.
-           meth indicates the basic linear multistep method..
-             meth = 1 means the implicit adams method.
-             meth = 2 means the method based on backward
-                      differentiation formulas (bdf-s).
-           miter indicates the corrector iteration method..
-             miter = 0 means functional iteration (no jacobian matrix
-                       is involved).
-             miter = 1 means chord iteration with a user-supplied
-                       sparse jacobian, given by subroutine jac.
-             miter = 2 means chord iteration with an internally
-                       generated (difference quotient) sparse jacobian
-                       (using ngp extra calls to f per df/dy value,
-                       where ngp is an optional output described below.)
-             miter = 3 means chord iteration with an internally
-                       generated diagonal jacobian approximation.
-                       (using 1 extra call to f per df/dy evaluation).
-           if miter = 1 or moss = 1, the user must supply a subroutine
-           jac (the name is arbitrary) as described above under jac.
-           otherwise, a dummy argument can be used.
-  
-           the standard choices for mf are..
-             mf = 10  for a nonstiff problem,
-             mf = 21 or 22 for a stiff problem with ia/ja supplied
-                      (21 if jac is supplied, 22 if not),
-             mf = 121 for a stiff problem with jac supplied,
-                      but not ia/ja,
-             mf = 222 for a stiff problem with neither ia/ja nor
-                      jac supplied.
-           the sparseness structure can be changed during the
-           problem by making a call to lsodes with istate = 3.
-  
-  -----------------------------------------------------------------------------
-  optional inputs.
-  
-  the following is a list of the optional inputs provided for in the
-  call sequence.  (see also part ii.)  for each such input variable,
-  this table lists its name as used in this documentation, its
-  location in the call sequence, its meaning, and the default value.
-  the use of any of these inputs requires iopt = 1, and in that
-  case all of these inputs are examined.  a value of zero for any
-  of these optional inputs will cause the default value to be used.
-  thus to use a subset of the optional inputs, simply preload
-  locations 5 to 10 in rwork and iwork to 0.0 and 0 respectively, and
-  then set those of interest to nonzero values.
-  
-  name    location  meaning and default value
-  
-  h0      rwork(5)  the step size to be attempted on the first step.
-                    the default value is determined by the solver.
-  
-  hmax    rwork(6)  the maximum absolute step size allowed.
-                    the default value is infinite.
-  
-  hmin    rwork(7)  the minimum absolute step size allowed.
-                    the default value is 0.  (this lower bound is not
-                    enforced on the final step before reaching tcrit
-                    when itask = 4 or 5.)
-  
-  seth    rwork(8)  the element threshhold for sparsity determination
-                    when moss = 1 or 2.  if the absolute value of
-                    an estimated jacobian element is .le. seth, it
-                    will be assumed to be absent in the structure.
-                    the default value of seth is 0.
-  
-  maxord  iwork(5)  the maximum order to be allowed.  the default
-                    value is 12 if meth = 1, and 5 if meth = 2.
-                    if maxord exceeds the default value, it will
-                    be reduced to the default value.
-                    if maxord is changed during the problem, it may
-                    cause the current order to be reduced.
-  
-  mxstep  iwork(6)  maximum number of (internally defined) steps
-                    allowed during one call to the solver.
-                    the default value is 500.
-  
-  mxhnil  iwork(7)  maximum number of messages printed (per problem)
-                    warning that t + h = t on a step (h = step size).
-                    this must be positive to result in a non-default
-                    value.  the default value is 10.
-  
-  -----------------------------------------------------------------------------
-  optional outputs.
-  
-  as optional additional output from lsodes, the variables listed
-  below are quantities related to the performance of lsodes
-  which are available to the user.  these are communicated by way of
-  the work arrays, but also have internal mnemonic names as shown.
-  except where stated otherwise, all of these outputs are defined
-  on any successful return from lsodes, and on any return with
-  istate = -1, -2, -4, -5, or -6.  on an illegal input return
-  (istate = -3), they will be unchanged from their existing values
-  (if any), except possibly for tolsf, lenrw, and leniw.
-  on any error return, outputs relevant to the error will be defined,
-  as noted below.
-  
-  name    location      meaning
-  
-  hu      rwork(11) the step size in t last used (successfully).
-  
-  hcur    rwork(12) the step size to be attempted on the next step.
-  
-  tcur    rwork(13) the current value of the independent variable
-                    which the solver has actually reached, i.e. the
-                    current internal mesh point in t.  on output, tcur
-                    will always be at least as far as the argument
-                    t, but may be farther (if interpolation was done).
-  
-  tolsf   rwork(14) a tolerance scale factor, greater than 1.0,
-                    computed when a request for too much accuracy was
-                    detected (istate = -3 if detected at the start of
-                    the problem, istate = -2 otherwise).  if itol is
-                    left unaltered but rtol and atol are uniformly
-                    scaled up by a factor of tolsf for the next call,
-                    then the solver is deemed likely to succeed.
-                    (the user may also ignore tolsf and alter the
-                    tolerance parameters in any other way appropriate.)
-  
-  nst     iwork(11) the number of steps taken for the problem so far.
-  
-  nfe     iwork(12) the number of f evaluations for the problem so far,
-                    excluding those for structure determination
-                    (moss = 2).
-  
-  nje     iwork(13) the number of jacobian evaluations for the problem
-                    so far, excluding those for structure determination
-                    (moss = 1).
-  
-  nqu     iwork(14) the method order last used (successfully).
-  
-  nqcur   iwork(15) the order to be attempted on the next step.
-  
-  imxer   iwork(16) the index of the component of largest magnitude in
-                    the weighted local error vector ( e(i)/ewt(i) ),
-                    on an error return with istate = -4 or -5.
-  
-  lenrw   iwork(17) the length of rwork actually required.
-                    this is defined on normal returns and on an illegal
-                    input return for insufficient storage.
-  
-  leniw   iwork(18) the length of iwork actually required.
-                    this is defined on normal returns and on an illegal
-                    input return for insufficient storage.
-  
-  nnz     iwork(19) the number of nonzero elements in the jacobian
-                    matrix, including the diagonal (miter = 1 or 2).
-                    (this may differ from that given by ia(neq+1)-1
-                    if moss = 0, because of added diagonal entries.)
-  
-  ngp     iwork(20) the number of groups of column indices, used in
-                    difference quotient jacobian aproximations if
-                    miter = 2.  this is also the number of extra f
-                    evaluations needed for each jacobian evaluation.
-  
-  nlu     iwork(21) the number of sparse lu decompositions for the
-                    problem so far.
-  
-  lyh     iwork(22) the base address in rwork of the history array yh,
-                    described below in this list.
-  
-  ipian   iwork(23) the base address of the structure descriptor array
-                    ian, described below in this list.
-  
-  ipjan   iwork(24) the base address of the structure descriptor array
-                    jan, described below in this list.
-  
-  nzl     iwork(25) the number of nonzero elements in the strict lower
-                    triangle of the lu factorization used in the chord
-                    iteration (miter = 1 or 2).
-  
-  nzu     iwork(26) the number of nonzero elements in the strict upper
-                    triangle of the lu factorization used in the chord
-                    iteration (miter = 1 or 2).
-                    the total number of nonzeros in the factorization
-                    is therefore nzl + nzu + neq.
-  
-  the following four arrays are segments of the rwork array which
-  may also be of interest to the user as optional outputs.
-  for each array, the table below gives its internal name,
-  its base address, and its description.
-  for yh and acor, the base addresses are in rwork (a real array).
-  the integer arrays ian and jan are to be obtained by declaring an
-  integer array iwk and identifying iwk(1) with rwork(21), using either
-  an equivalence statement or a subroutine call.  then the base
-  addresses ipian (of ian) and ipjan (of jan) in iwk are to be obtained
-  as optional outputs iwork(23) and iwork(24), respectively.
-  thus ian(1) is iwk(ipian), etc.
-  
-  name    base address      description
-  
-  ian    ipian (in iwk)  structure descriptor array of size neq + 1.
-  jan    ipjan (in iwk)  structure descriptor array of size nnz.
-          (see above)    ian and jan together describe the sparsity
-                         structure of the jacobian matrix, as used by
-                         lsodes when miter = 1 or 2.
-                         jan contains the row indices of the nonzero
-                         locations, reading in columnwise order, and
-                         ian contains the starting locations in jan of
-                         the descriptions of columns 1,...,neq, in
-                         that order, with ian(1) = 1.  thus for each
-                         j = 1,...,neq, the row indices i of the
-                         nonzero locations in column j are
-                         i = jan(k),  ian(j) .le. k .lt. ian(j+1).
-                         note that ian(neq+1) = nnz + 1.
-                         (if moss = 0, ian/jan may differ from the
-                         input ia/ja because of a different ordering
-                         in each column, and added diagonal entries.)
-  
-  yh      lyh            the nordsieck history array, of size nyh by
-           (optional     (nqcur + 1), where nyh is the initial value
-           output)       of neq.  for j = 0,1,...,nqcur, column j+1
-                         of yh contains hcur**j/factorial(j) times
-                         the j-th derivative of the interpolating
-                         polynomial currently representing the solution,
-                         evaluated at t = tcur.  the base address lyh
-                         is another optional output, listed above.
-  
-  acor     lenrw-neq+1   array of size neq used for the accumulated
-                         corrections on each step, scaled on output
-                         to represent the estimated local error in y
-                         on the last step.  this is the vector e in
-                         the description of the error control.  it is
-                         defined only on a successful return from
-                         lsodes.
-  
-  -----------------------------------------------------------------------------
-  part ii.  other routines callable.
-  
-  the following are optional calls which the user may make to
-  gain additional capabilities in conjunction with lsodes.
-  (the routines xsetun and xsetf are designed to conform to the
-  slatec error handling package.)
-  
-      form of call                  function
-    call xsetun(lun)          set the logical unit number, lun, for
-                              output of messages from lsodes, if
-                              the default is not desired.
-                              the default value of lun is 6.
-  
-    call xsetf(mflag)         set a flag to control the printing of
-                              messages by lsodes.
-                              mflag = 0 means do not print. (danger..
-                              this risks losing valuable information.)
-                              mflag = 1 means print (the default).
-  
-                              either of the above calls may be made at
-                              any time and will take effect immediately.
-  
-    call srcms(rsav,isav,job) saves and restores the contents of
-                              the internal common blocks used by
-                              lsodes (see part iii below).
-                              rsav must be a real array of length 224
-                              or more, and isav must be an integer
-                              array of length 75 or more.
-                              job=1 means save common into rsav/isav.
-                              job=2 means restore common from rsav/isav.
-                                 srcms is useful if one is
-                              interrupting a run and restarting
-                              later, or alternating between two or
-                              more problems solved with lsodes.
-  
-    call intdy(,,,,,)         provide derivatives of y, of various
-         (see below)          orders, at a specified point t, if
-                              desired.  it may be called only after
-                              a successful return from lsodes.
-  
-  the detailed instructions for using intdy are as follows.
-  the form of the call is..
-  
-    lyh = iwork(22)
-    call intdy (t, k, rwork(lyh), nyh, dky, iflag)
-  
-  the input parameters are..
-  
-  t         = value of independent variable where answers are desired
-              (normally the same as the t last returned by lsodes).
-              for valid results, t must lie between tcur - hu and tcur.
-              (see optional outputs for tcur and hu.)
-  k         = integer order of the derivative desired.  k must satisfy
-              0 .le. k .le. nqcur, where nqcur is the current order
-              (see optional outputs).  the capability corresponding
-              to k = 0, i.e. computing y(t), is already provided
-              by lsodes directly.  since nqcur .ge. 1, the first
-              derivative dy/dt is always available with intdy.
-  lyh       = the base address of the history array yh, obtained
-              as an optional output as shown above.
-  nyh       = column length of yh, equal to the initial value of neq.
-  
-  the output parameters are..
-  
-  dky       = a real array of length neq containing the computed value
-              of the k-th derivative of y(t).
-  iflag     = integer flag, returned as 0 if k and t were legal,
-              -1 if k was illegal, and -2 if t was illegal.
-              on an error return, a message is also written.
-  
-  -----------------------------------------------------------------------------
-  part iii.  common blocks.
-  
-  if lsodes is to be used in an overlay situation, the user
-  must declare, in the primary overlay, the variables in..
-    (1) the call sequence to lsodes,
-    (2) the three internal common blocks
-          /ls0001/  of length  257  (218 double precision words
-                          followed by 39 integer words),
-          /lss001/  of length  40    ( 6 double precision words
-                          followed by 34 integer words),
-          /eh0001/  of length  2 (integer words).
-  
-  if lsodes is used on a system in which the contents of internal
-  common blocks are not preserved between calls, the user should
-  declare the above three common blocks in his main program to insure
-  that their contents are preserved.
-  
-  if the solution of a given problem by lsodes is to be interrupted
-  and then later continued, such as when restarting an interrupted run
-  or alternating between two or more problems, the user should save,
-  following the return from the last lsodes call prior to the
-  interruption, the contents of the call sequence variables and the
-  internal common blocks, and later restore these values before the
-  next lsodes call for that problem.  to save and restore the common
-  blocks, use subroutine srcms (see part ii above).
-  
-  -----------------------------------------------------------------------------
-  part iv.  optionally replaceable solver routines.
-  
-  below are descriptions of two routines in the lsodes package which
-  relate to the measurement of errors.  either routine can be
-  replaced by a user-supplied version, if desired.  however, since such
-  a replacement may have a major impact on performance, it should be
-  done only when absolutely necessary, and only with great caution.
-  (note.. the means by which the package version of a routine is
-  superseded by the user-s version may be system-dependent.)
-  
-  (a) ewset.
-  the following subroutine is called just before each internal
-  integration step, and sets the array of error weights, ewt, as
-  described under itol/rtol/atol above..
-      subroutine ewset (neq, itol, rtol, atol, ycur, ewt)
-  where neq, itol, rtol, and atol are as in the lsodes call sequence,
-  ycur contains the current dependent variable vector, and
-  ewt is the array of weights set by ewset.
-  
-  if the user supplies this subroutine, it must return in ewt(i)
-  (i = 1,...,neq) a positive quantity suitable for comparing errors
-  in y(i) to.  the ewt array returned by ewset is passed to the
-  vnorm routine (see below), and also used by lsodes in the computation
-  of the optional output imxer, the diagonal jacobian approximation,
-  and the increments for difference quotient jacobians.
-  
-  in the user-supplied version of ewset, it may be desirable to use
-  the current values of derivatives of y.  derivatives up to order nq
-  are available from the history array yh, described above under
-  optional outputs.  in ewset, yh is identical to the ycur array,
-  extended to nq + 1 columns with a column length of nyh and scale
-  factors of h**j/factorial(j).  on the first call for the problem,
-  given by nst = 0, nq is 1 and h is temporarily set to 1.0.
-  the quantities nq, nyh, h, and nst can be obtained by including
-  in ewset the statements..
-      double precision h, rls
-      common /ls0001/ rls(218),ils(39)
-      nq = ils(35)
-      nyh = ils(14)
-      nst = ils(36)
-      h = rls(212)
-  thus, for example, the current value of dy/dt can be obtained as
-  ycur(nyh+i)/h  (i=1,...,neq)  (and the division by h is
-  unnecessary when nst = 0).
-  
-  (b) vnorm.
-  the following is a real function routine which computes the weighted
-  root-mean-square norm of a vector v..
-      d = vnorm (n, v, w)
-  where..
-    n = the length of the vector,
-    v = real array of length n containing the vector,
-    w = real array of length n containing weights,
-    d = sqrt( (1/n) * sum(v(i)*w(i))**2 ).
-  vnorm is called with n = neq and with w(i) = 1.0/ewt(i), where
-  ewt is as set by subroutine ewset.
-  
-  if the user supplies this function, it should return a non-negative
-  value of vnorm suitable for use in the error control in lsodes.
-  none of the arguments should be altered by vnorm.
-  for example, a user-supplied vnorm routine might..
-    -substitute a max-norm of (v(i)*w(i)) for the rms-norm, or
-    -ignore some components of v in the norm, with the effect of
-     suppressing the error control on those components of y.
-  
-  -----------------------------------------------------------------------------
-  other routines in the lsodes package.
-  
-  in addition to subroutine lsodes, the lsodes package includes the
-  following subroutines and function routines..
-   iprep    acts as an iterface between lsodes and prep, and also does
-            adjusting of work space pointers and work arrays.
-   prep     is called by iprep to compute sparsity and do sparse matrix
-            preprocessing if miter = 1 or 2.
-   jgroup   is called by prep to compute groups of jacobian column
-            indices for use when miter = 2.
-   adjlr    adjusts the length of required sparse matrix work space.
-            it is called by prep.
-   cntnzu   is called by prep and counts the nonzero elements in the
-            strict upper triangle of j + j-transpose, where j = df/dy.
-   intdy    computes an interpolated value of the y vector at t = tout.
-   stode    is the core integrator, which does one step of the
-            integration and the associated error control.
-   cfode    sets all method coefficients and test constants.
-   prjs     computes and preprocesses the jacobian matrix j = df/dy
-            and the newton iteration matrix p = i - h*l0*j.
-   slss     manages solution of linear system in chord iteration.
-   ewset    sets the error weight vector ewt before each step.
-   vnorm    computes the weighted r.m.s. norm of a vector.
-   srcms    is a user-callable routine to save and restore
-            the contents of the internal common blocks.
-   odrv     constructs a reordering of the rows and columns of
-            a matrix by the minimum degree algorithm.  odrv is a
-            driver routine which calls subroutines md, mdi, mdm,
-            mdp, mdu, and sro.  see ref. 2 for details.  (the odrv
-            module has been modified since ref. 2, however.)
-   cdrv     performs reordering, symbolic factorization, numerical
-            factorization, or linear system solution operations,
-            depending on a path argument ipath.  cdrv is a
-            driver routine which calls subroutines nroc, nsfc,
-            nnfc, nnsc, and nntc.  see ref. 3 for details.
-            lsodes uses cdrv to solve linear systems in which the
-            coefficient matrix is  p = i - con*j, where i is the
-            identity, con is a scalar, and j is an approximation to
-            the jacobian df/dy.  because cdrv deals with rowwise
-            sparsity descriptions, cdrv works with p-transpose, not p.
-   d1mach   computes the unit roundoff in a machine-independent manner.
-            It has been replaced in C by DBL_EPSILON.
-   xerrwv, xsetun, and xsetf   handle the printing of all error
-            messages and warnings.  xerrwv is machine-dependent.
-  note..  vnorm is a function all the others are procedures.
-  
-  the intrinsic and external routines used by lsodes are..
-  fabs, dmax1, dmin1, dfloat, max0, min0, mod, dsign, dsqrt, and write.
-  
-  a block data subprogram is also included with the package,
-  for loading some of the variables in internal common.
-  -------------------------------------------------------------------------- */
+This is the march 30, 1987 version of lsodes -
+The Livermore solver for ordinary differential equations
+with general sparse jacobian matrices.
+This version is in double precision.
+
+Communication between the user and the lsodes package, for normal
+situations, is summarized here.  this summary describes only a subset
+of the full set of options available.  see the full description for
+details, including optional communication, nonstandard options,
+and instructions for special situations.  see also the example
+problem (with program and output) following this summary.
+
+a. first provide a subroutine of the form..
+              subroutine CalcDeriv (neq, t, y, ydot)
+              dimension y(neq), ydot(neq)
+which supplies the vector function f by loading ydot(i) with f(i).
+
+b. next determine (or guess) whether or not the problem is stiff.
+stiffness occurs when the jacobian matrix df/dy has an eigenvalue
+whose real part is negative and large in magnitude, compared to the
+reciprocal of the t span of interest.  if the problem is nonstiff,
+use a method flag mf = 10.  if it is stiff, there are two standard
+for the method flag, mf = 121 and mf = 222.  in both cases, lsodes
+requires the jacobian matrix in some form, and it treats this matrix
+in general sparse form, with sparsity structure determined internally.
+(for options where the user supplies the sparsity structure, see
+the full description of mf below.)
+
+c. if the problem is stiff, you are encouraged to supply the jacobian
+directly (mf = 121), but if this is not feasible, lsodes will
+compute it internally by difference quotients (mf = 222).
+if you are supplying the jacobian, provide a subroutine of the form..
+              subroutine jac (neq, t, y, j, ian, jan, pdj)
+              (here CalcJacob (t, y, j, pdj))
+              dimension y(1), ian(1), jan(1), pdj(1)
+here neq, t, y, and j are input arguments, and the jac routine is to
+load the array pdj (of length neq) with the j-th column of df/dy.
+i.e., load pdj(i) with df(i)/dy(j) for all relevant values of i.
+the arguments ian and jan should be ignored for normal situations.
+lsodes will call the jac routine with j = 1,2,...,neq.
+only nonzero elements need be loaded.  usually, a crude approximation
+to df/dy, possibly with fewer nonzero elements, will suffice.
+
+d. write a main program which calls subroutine lsodes once for
+each point at which answers are desired.  this should also provide
+for possible use of logical unit 6 for output of error messages
+by lsodes.  on the first call to lsodes, supply arguments as follows..
+f      = name of subroutine for right-hand side vector f.
+         this name must be declared external in calling program.
+neq    = number of first order ode-s.
+y      = array of initial values, of length neq.
+t      = the initial value of the independent variable.
+tout   = first point where output is desired (.ne. t).
+itol   = 1 or 2 according as atol (below) is a scalar or array.
+rtol   = relative tolerance parameter (scalar).
+atol   = absolute tolerance parameter (scalar or array).
+         the estimated local error in y(i) will be controlled so as
+         to be roughly less (in magnitude) than
+            ewt(i) = rtol*abs(y(i)) + atol     if itol = 1, or
+            ewt(i) = rtol*abs(y(i)) + atol(i)  if itol = 2.
+         thus the local error test passes if, in each component,
+         either the absolute error is less than atol (or atol(i)),
+         or the relative error is less than rtol.
+         use rtol = 0.0 for pure absolute error control, and
+         use atol = 0.0 (or atol(i) = 0.0) for pure relative error
+         control.  caution.. actual (global) errors may exceed these
+         local tolerances, so choose them conservatively.
+itask  = 1 for normal computation of output values of y at t = tout.
+istate = integer flag (input and output).  set istate = 1.
+iopt   = 0 to indicate no optional inputs used.
+rwork  = real work array of length at least..
+            20 + 16*neq            for mf = 10,
+            20 + (2 + 1./lenrat)*nnz + (11 + 9./lenrat)*neq
+                                   for mf = 121 or 222,
+         where..
+         nnz    = the number of nonzero elements in the sparse
+                  jacobian (if this is unknown, use an estimate), and
+         lenrat = the real to integer wordlength ratio (usually 1 in
+                  single precision and 2 in double precision).
+         in any case, the required size of rwork cannot generally
+         be predicted in advance if mf = 121 or 222, and the value
+         above is a rough estimate of a crude lower bound.  some
+         experimentation with this size may be necessary.
+         (when known, the correct required length is an optional
+         output, available in iwork(17).)
+lrw    = declared length of rwork (in user-s dimension).
+iwork  = integer work array of length at least 30.
+liw    = declared length of iwork (in user-s dimension).
+jac    = name of subroutine for Jacobian matrix (mf = 121).
+         if used, this name must be declared external in calling
+         program.  if not used, pass a dummy name.
+mf     = method flag.  standard values are..
+         10  for nonstiff (adams) method, no Jacobian used.
+         121 for stiff (bdf) method, user-supplied sparse Jacobian.
+         222 for stiff method, internally generated sparse Jacobian.
+note that the main program must declare arrays y, rwork, iwork,
+and possibly atol.
+
+e. the output from the first call (or any call) is..
+     y = array of computed values of y(t) vector.
+     t = corresponding value of independent variable (normally tout).
+istate = 2  if lsodes was successful, negative otherwise.
+         -1 means excess work done on this call (perhaps wrong mf).
+         -2 means excess accuracy requested (tolerances too small).
+         -3 means illegal input detected (see printed message).
+         -4 means repeated error test failures (check all inputs).
+         -5 means repeated convergence failures (perhaps bad Jacobian
+            supplied or wrong choice of mf or tolerances).
+         -6 means error weight became zero during problem. (solution
+            component i vanished, and atol or atol(i) = 0.)
+         -7 means a fatal error return flag came from the sparse
+            solver cdrv by way of prjs or slss.  should never happen.
+         a return with istate = -1, -4, or -5 may result from using
+         an inappropriate sparsity structure, one that is quite
+         different from the initial structure.  consider calling
+         lsodes again with istate = 3 to force the structure to be
+         reevaluated.  see the full description of istate below.
+
+f. to continue the integration after a successful return, simply
+reset tout and call lsodes again.  no other parameters need be reset.
+
+--------------------------------------------------------------------------------
+full description of user interface to lsodes.
+
+the user interface to lsodes consists of the following parts.
+
+i.   the call sequence to subroutine lsodes, which is a driver
+     routine for the solver.  this includes descriptions of both
+     the call sequence arguments and of user-supplied routines.
+     following these descriptions is a description of
+     optional inputs available through the call sequence, and then
+     a description of optional outputs (in the work arrays).
+
+ii.  descriptions of other routines in the lsodes package that may be
+     (optionally) called by the user.  these provide the ability to
+     alter error message handling, save and restore the internal
+     common, and obtain specified derivatives of the solution y(t).
+
+iii. descriptions of common blocks to be declared in overlay
+     or similar environments, or to be saved when doing an interrupt
+     of the problem and continued solution later.
+
+iv.  description of two routines in the lsodes package, either of
+     which the user may replace with his own version, if desired.
+     these relate to the measurement of errors.
+
+--------------------------------------------------------------------------------
+part i.  call sequence.
+
+the call sequence parameters used for input only are
+    f, neq, tout, itol, rtol, atol, itask, iopt, lrw, liw, jac, mf,
+and those used for both input and output are
+    y, t, istate.
+the work arrays rwork and iwork are also used for conditional and
+optional inputs and optional outputs.  (the term output here refers
+to the return from subroutine lsodes to the user-s calling program.)
+
+the legality of input parameters will be thoroughly checked on the
+initial call for the problem, but not checked thereafter unless a
+change in input parameters is flagged by istate = 3 on input.
+
+the descriptions of the call arguments are as follows.
+
+f      = the name of the user-supplied subroutine defining the
+         ode system.  the system must be put in the first-order
+         form dy/dt = f(t,y), where f is a vector-valued function
+         of the scalar t and the vector y.  subroutine f is to
+         compute the function f.  it is to have the form
+              subroutine f (neq, t, y, ydot)
+              dimension y(1), ydot(1)
+         where neq, t, and y are input, and the array ydot = f(t,y)
+         is output.  y and ydot are arrays of length neq.
+         (in the dimension statement above, 1 is a dummy
+         dimension.. it can be replaced by any value.)
+         subroutine f should not alter y(1),...,y(neq).
+         f must be declared external in the calling program.
+
+         subroutine f may access user-defined quantities in
+         neq(2),... and/or in y(neq(1)+1),... if neq is an array
+         (dimensioned in f) and/or y has length exceeding neq(1).
+         see the descriptions of neq and y below.
+
+         if quantities computed in the f routine are needed
+         externally to lsodes, an extra call to f should be made
+         for this purpose, for consistent and accurate results.
+         if only the derivative dy/dt is needed, use intdy instead.
+
+neq    = the size of the ode system (number of first order
+         ordinary differential equations).  used only for input.
+         neq may be decreased, but not increased, during the problem.
+         if neq is decreased (with istate = 3 on input), the
+         remaining components of y should be left undisturbed, if
+         these are to be accessed in f and/or jac.
+
+         normally, neq is a scalar, and it is generally referred to
+         as a scalar in this user interface description.  however,
+         neq may be an array, with neq(1) set to the system size.
+         (the lsodes package accesses only neq(1).)  in either case,
+         this parameter is passed as the neq argument in all calls
+         to f and jac.  hence, if it is an array, locations
+         neq(2),... may be used to store other integer data and pass
+         it to f and/or jac.  subroutines f and/or jac must include
+         neq in a dimension statement in that case.
+
+y      = a real array for the vector of dependent variables, of
+         length neq or more.  used for both input and output on the
+         first call (istate = 1), and only for output on other calls.
+         on the first call, y must contain the vector of initial
+         values.  on output, y contains the computed solution vector,
+         evaluated at t.  if desired, the y array may be used
+         for other purposes between calls to the solver.
+
+         this array is passed as the y argument in all calls to
+         f and jac.  hence its length may exceed neq, and locations
+         y(neq+1),... may be used to store other real data and
+         pass it to f and/or jac.  (the lsodes package accesses only
+         y(1),...,y(neq).)
+
+t      = the independent variable.  on input, t is used only on the
+         first call, as the initial point of the integration.
+         on output, after each call, t is the value at which a
+         computed solution y is evaluated (usually the same as tout).
+         on an error return, t is the farthest point reached.
+
+tout   = the next value of t at which a computed solution is desired.
+         used only for input.
+
+         when starting the problem (istate = 1), tout may be equal
+         to t for one call, then should .ne. t for the next call.
+         for the initial t, an input value of tout .ne. t is used
+         in order to determine the direction of the integration
+         (i.e. the algebraic sign of the step sizes) and the rough
+         scale of the problem.  integration in either direction
+         (forward or backward in t) is permitted.
+
+         if itask = 2 or 5 (one-step modes), tout is ignored after
+         the first call (i.e. the first call with tout .ne. t).
+         otherwise, tout is required on every call.
+
+         if itask = 1, 3, or 4, the values of tout need not be
+         monotone, but a value of tout which backs up is limited
+         to the current internal t interval, whose endpoints are
+         tcur - hu and tcur (see optional outputs, below, for
+         tcur and hu).
+
+itol   = an indicator for the type of error control.  see
+         description below under atol.  used only for input.
+
+rtol   = a relative error tolerance parameter, either a scalar or
+         an array of length neq.  see description below under atol.
+         input only.
+
+atol   = an absolute error tolerance parameter, either a scalar or
+         an array of length neq.  input only.
+
+            the input parameters itol, rtol, and atol determine
+         the error control performed by the solver.  the solver will
+         control the vector e = (e(i)) of estimated local errors
+         in y, according to an inequality of the form
+                     rms-norm of ( e(i)/ewt(i) )   .le.   1,
+         where       ewt(i) = rtol(i)*abs(y(i)) + atol(i),
+         and the rms-norm (root-mean-square norm) here is
+         rms-norm(v) = sqrt(sum v(i)**2 / neq).  here ewt = (ewt(i))
+         is a vector of weights which must always be positive, and
+         the values of rtol and atol should all be non-negative.
+         the following table gives the types (scalar/array) of
+         rtol and atol, and the corresponding form of ewt(i).
+
+            itol    rtol       atol          ewt(i)
+             1     scalar     scalar     rtol*abs(y(i)) + atol
+             2     scalar     array      rtol*abs(y(i)) + atol(i)
+             3     array      scalar     rtol(i)*abs(y(i)) + atol
+             4     array      array      rtol(i)*abs(y(i)) + atol(i)
+
+         when either of these parameters is a scalar, it need not
+         be dimensioned in the user-s calling program.
+
+         if none of the above choices (with itol, rtol, and atol
+         fixed throughout the problem) is suitable, more general
+         error controls can be obtained by substituting
+         user-supplied routines for the setting of ewt and/or for
+         the norm calculation.  see part iv below.
+
+         if global errors are to be estimated by making a repeated
+         run on the same problem with smaller tolerances, then all
+         components of rtol and atol (i.e. of ewt) should be scaled
+         down uniformly.
+
+itask  = an index specifying the task to be performed.
+         input only.  itask has the following values and meanings.
+         1  means normal computation of output values of y(t) at
+            t = tout (by overshooting and interpolating).
+         2  means take one step only and return.
+         3  means stop at the first internal mesh point at or
+            beyond t = tout and return.
+         4  means normal computation of output values of y(t) at
+            t = tout but without overshooting t = tcrit.
+            tcrit must be input as rwork(1).  tcrit may be equal to
+            or beyond tout, but not behind it in the direction of
+            integration.  this option is useful if the problem
+            has a singularity at or beyond t = tcrit.
+         5  means take one step, without passing tcrit, and return.
+            tcrit must be input as rwork(1).
+
+         note..  if itask = 4 or 5 and the solver reaches tcrit
+         (within roundoff), it will return t = tcrit (exactly) to
+         indicate this (unless itask = 4 and tout comes before tcrit,
+         in which case answers at t = tout are returned first).
+
+istate = an index used for input and output to specify the
+         the state of the calculation.
+
+         on input, the values of istate are as follows.
+         1  means this is the first call for the problem
+            (initializations will be done).  see note below.
+         2  means this is not the first call, and the calculation
+            is to continue normally, with no change in any input
+            parameters except possibly tout and itask.
+            (if itol, rtol, and/or atol are changed between calls
+            with istate = 2, the new values will be used but not
+            tested for legality.)
+         3  means this is not the first call, and the
+            calculation is to continue normally, but with
+            a change in input parameters other than
+            tout and itask.  changes are allowed in
+            neq, itol, rtol, atol, iopt, lrw, liw, mf,
+            the conditional inputs ia and ja,
+            and any of the optional inputs except h0.
+            in particular, if miter = 1 or 2, a call with istate = 3
+            will cause the sparsity structure of the problem to be
+            recomputed (or reread from ia and ja if moss = 0).
+         note..  a preliminary call with tout = t is not counted
+         as a first call here, as no initialization or checking of
+         input is done.  (such a call is sometimes useful for the
+         purpose of outputting the initial conditions.)
+         thus the first call for which tout .ne. t requires
+         istate = 1 on input.
+
+         on output, istate has the following values and meanings.
+          1  means nothing was done, as tout was equal to t with
+             istate = 1 on input.  (however, an internal counter was
+             set to detect and prevent repeated calls of this type.)
+          2  means the integration was performed successfully.
+         -1  means an excessive amount of work (more than mxstep
+             steps) was done on this call, before completing the
+             requested task, but the integration was otherwise
+             successful as far as t.  (mxstep is an optional input
+             and is normally 500.)  to continue, the user may
+             simply reset istate to a value .gt. 1 and call again
+             (the excess work step counter will be reset to 0).
+             in addition, the user may increase mxstep to avoid
+             this error return (see below on optional inputs).
+         -2  means too much accuracy was requested for the precision
+             of the machine being used.  this was detected before
+             completing the requested task, but the integration
+             was successful as far as t.  to continue, the tolerance
+             parameters must be reset, and istate must be set
+             to 3.  the optional output tolsf may be used for this
+             purpose.  (note.. if this condition is detected before
+             taking any steps, then an illegal input return
+             (istate = -3) occurs instead.)
+         -3  means illegal input was detected, before taking any
+             integration steps.  see written message for details.
+             note..  if the solver detects an infinite loop of calls
+             to the solver with illegal input, it will cause
+             the run to stop.
+         -4  means there were repeated error test failures on
+             one attempted step, before completing the requested
+             task, but the integration was successful as far as t.
+             the problem may have a singularity, or the input
+             may be inappropriate.
+         -5  means there were repeated convergence test failures on
+             one attempted step, before completing the requested
+             task, but the integration was successful as far as t.
+             this may be caused by an inaccurate Jacobian matrix,
+             if one is being used.
+         -6  means ewt(i) became zero for some i during the
+             integration.  pure relative error control (atol(i)=0.0)
+             was requested on a variable which has now vanished.
+             the integration was successful as far as t.
+         -7  means a fatal error return flag came from the sparse
+             solver cdrv by way of prjs or slss (numerical
+             factorization or backsolve).  this should never happen.
+             the integration was successful as far as t.
+
+         note.. an error return with istate = -1, -4, or -5 and with
+         miter = 1 or 2 may mean that the sparsity structure of the
+         problem has changed significantly since it was last
+         determined (or input).  in that case, one can attempt to
+         complete the integration by setting istate = 3 on the next
+         call, so that a new structure determination is done.
+
+         note..  since the normal output value of istate is 2,
+         it does not need to be reset for normal continuation.
+         also, since a negative input value of istate will be
+         regarded as illegal, a negative output value requires the
+         user to change it, and possibly other inputs, before
+         calling the solver again.
+
+iopt   = an integer flag to specify whether or not any optional
+         inputs are being used on this call.  input only.
+         the optional inputs are listed separately below.
+         iopt = 0 means no optional inputs are being used.
+                  default values will be used in all cases.
+         iopt = 1 means one or more optional inputs are being used.
+
+rwork  = a work array used for a mixture of real (double precision)
+         and integer work space.
+         the length of rwork (in real words) must be at least
+            20 + nyh*(maxord + 1) + 3*neq + lwm    where
+         nyh    = the initial value of neq,
+         maxord = 12 (if meth = 1) or 5 (if meth = 2) (unless a
+                  smaller value is given as an optional input),
+         lwm = 0                                    if miter = 0,
+         lwm = 2*nnz + 2*neq + (nnz+9*neq)/lenrat   if miter = 1,
+         lwm = 2*nnz + 2*neq + (nnz+10*neq)/lenrat  if miter = 2,
+         lwm = neq + 2                              if miter = 3.
+         in the above formulas,
+         nnz    = number of nonzero elements in the Jacobian matrix.
+         lenrat = the real to integer wordlength ratio (usually 1 in
+                  single precision and 2 in double precision).
+         (see the mf description for meth and miter.)
+         thus if maxord has its default value and neq is constant,
+         the minimum length of rwork is..
+            20 + 16*neq        for mf = 10,
+            20 + 16*neq + lwm  for mf = 11, 111, 211, 12, 112, 212,
+            22 + 17*neq        for mf = 13,
+            20 +  9*neq        for mf = 20,
+            20 +  9*neq + lwm  for mf = 21, 121, 221, 22, 122, 222,
+            22 + 10*neq        for mf = 23.
+         if miter = 1 or 2, the above formula for lwm is only a
+         crude lower bound.  the required length of rwork cannot
+         be readily predicted in general, as it depends on the
+         sparsity structure of the problem.  some experimentation
+         may be necessary.
+
+         the first 20 words of rwork are reserved for conditional
+         and optional inputs and optional outputs.
+
+         the following word in rwork is a conditional input..
+           rwork(1) = tcrit = critical value of t which the solver
+                      is not to overshoot.  required if itask is
+                      4 or 5, and ignored otherwise.  (see itask.)
+
+lrw    = the length of the array rwork, as declared by the user.
+         (this will be checked by the solver.)
+
+iwork  = an integer work array.  the length of iwork must be at least
+            31 + neq + nnz   if moss = 0 and miter = 1 or 2, or
+            30               otherwise.
+         (nnz is the number of nonzero elements in df/dy.)
+
+         in lsodes, iwork is used only for conditional and
+         optional inputs and optional outputs.
+
+         the following two blocks of words in iwork are conditional
+         inputs, required if moss = 0 and miter = 1 or 2, but not
+         otherwise (see the description of mf for moss).
+           iwork(30+j) = ia(j)     (j=1,...,neq+1)
+           iwork(31+neq+k) = ja(k) (k=1,...,nnz)
+         the two arrays ia and ja describe the sparsity structure
+         to be assumed for the Jacobian matrix.  ja contains the row
+         indices where nonzero elements occur, reading in columnwise
+         order, and ia contains the starting locations in ja of the
+         descriptions of columns 1,...,neq, in that order, with
+         ia(1) = 1.  thus, for each column index j = 1,...,neq, the
+         values of the row index i in column j where a nonzero
+         element may occur are given by
+           i = ja(k),  where   ia(j) .le. k .lt. ia(j+1).
+         if nnz is the total number of nonzero locations assumed,
+         then the length of the ja array is nnz, and ia(neq+1) must
+         be nnz + 1.  duplicate entries are not allowed.
+
+liw    = the length of the array iwork, as declared by the user.
+         (this will be checked by the solver.)
+
+Note..  the work arrays must not be altered between calls to lsodes
+for the same problem, except possibly for the conditional and
+optional inputs, and except for the last 3*neq words of rwork.
+the latter space is used for internal scratch space, and so is
+available for use by the user outside lsodes between calls, if
+desired (but not for use by f or jac).
+
+jac    = name of user-supplied routine (miter = 1 or moss = 1) to
+         compute the Jacobian matrix, df/dy, as a function of
+         the scalar t and the vector y.  It is to have the form
+              subroutine jac (neq, t, y, j, ian, jan, pdj)
+              dimension y(1), ian(1), jan(1), pdj(1)
+         where neq, t, y, j, ian, and jan are input, and the array
+         pdj, of length neq, is to be loaded with column j
+         of the Jacobian on output.  Thus df(i)/dy(j) is to be
+         loaded into pdj(i) for all relevant values of i.
+         here t and y have the same meaning as in subroutine f,
+         and j is a column index (1 to neq).  ian and jan are
+         undefined in calls to jac for structure determination
+         (moss = 1).  otherwise, ian and jan are structure
+         descriptors, as defined under optional outputs below, and
+         so can be used to determine the relevant row indices i, if
+         desired.  (in the dimension statement above, 1 is a
+         dummy dimension.. it can be replaced by any value.)
+              jac need not provide df/dy exactly.  a crude
+         approximation (possibly with greater sparsity) will do.
+              in any case, pdj is preset to zero by the solver,
+         so that only the nonzero elements need be loaded by jac.
+         calls to jac are made with j = 1,...,neq, in that order, and
+         each such set of calls is preceded by a call to f with the
+         same arguments neq, t, and y.  thus to gain some efficiency,
+         intermediate quantities shared by both calculations may be
+         saved in a user common block by f and not recomputed by jac,
+         if desired.  jac must not alter its input arguments.
+         jac must be declared external in the calling program.
+              subroutine jac may access user-defined quantities in
+         neq(2),... and y(neq(1)+1),... if neq is an array
+         (dimensioned in jac) and y has length exceeding neq(1).
+         see the descriptions of neq and y above.
+
+mf     = the method flag.  used only for input.
+         mf has three decimal digits-- moss, meth, miter--
+            mf = 100*moss + 10*meth + miter.
+         moss indicates the method to be used to obtain the sparsity
+         structure of the jacobian matrix if miter = 1 or 2..
+           moss = 0 means the user has supplied ia and ja
+                    (see descriptions under iwork above).
+           moss = 1 means the user has supplied jac (see below)
+                    and the structure will be obtained from neq
+                    initial calls to jac.
+           moss = 2 means the structure will be obtained from neq+1
+                    initial calls to f.
+         meth indicates the basic linear multistep method..
+           meth = 1 means the implicit adams method.
+           meth = 2 means the method based on backward
+                    differentiation formulas (bdf-s).
+         miter indicates the corrector iteration method..
+           miter = 0 means functional iteration (no jacobian matrix
+                     is involved).
+           miter = 1 means chord iteration with a user-supplied
+                     sparse jacobian, given by subroutine jac.
+           miter = 2 means chord iteration with an internally
+                     generated (difference quotient) sparse jacobian
+                     (using ngp extra calls to f per df/dy value,
+                     where ngp is an optional output described below.)
+           miter = 3 means chord iteration with an internally
+                     generated diagonal jacobian approximation.
+                     (using 1 extra call to f per df/dy evaluation).
+         if miter = 1 or moss = 1, the user must supply a subroutine
+         jac (the name is arbitrary) as described above under jac.
+         otherwise, a dummy argument can be used.
+
+         the standard choices for mf are..
+           mf = 10  for a nonstiff problem,
+           mf = 21 or 22 for a stiff problem with ia/ja supplied
+                    (21 if jac is supplied, 22 if not),
+           mf = 121 for a stiff problem with jac supplied,
+                    but not ia/ja,
+           mf = 222 for a stiff problem with neither ia/ja nor
+                    jac supplied.
+         the sparseness structure can be changed during the
+         problem by making a call to lsodes with istate = 3.
+
+--------------------------------------------------------------------------------
+optional inputs.
+
+the following is a list of the optional inputs provided for in the
+call sequence.  (see also part ii.)  for each such input variable,
+this table lists its name as used in this documentation, its
+location in the call sequence, its meaning, and the default value.
+the use of any of these inputs requires iopt = 1, and in that
+case all of these inputs are examined.  a value of zero for any
+of these optional inputs will cause the default value to be used.
+thus to use a subset of the optional inputs, simply preload
+locations 5 to 10 in rwork and iwork to 0.0 and 0 respectively, and
+then set those of interest to nonzero values.
+
+name    location  meaning and default value
+
+h0      rwork(5)  the step size to be attempted on the first step.
+                  the default value is determined by the solver.
+
+hmax    rwork(6)  the maximum absolute step size allowed.
+                  the default value is infinite.
+
+hmin    rwork(7)  the minimum absolute step size allowed.
+                  the default value is 0.  (this lower bound is not
+                  enforced on the final step before reaching tcrit
+                  when itask = 4 or 5.)
+
+seth    rwork(8)  the element threshhold for sparsity determination
+                  when moss = 1 or 2.  if the absolute value of
+                  an estimated jacobian element is .le. seth, it
+                  will be assumed to be absent in the structure.
+                  the default value of seth is 0.
+
+maxord  iwork(5)  the maximum order to be allowed.  the default
+                  value is 12 if meth = 1, and 5 if meth = 2.
+                  if maxord exceeds the default value, it will
+                  be reduced to the default value.
+                  if maxord is changed during the problem, it may
+                  cause the current order to be reduced.
+
+mxstep  iwork(6)  maximum number of (internally defined) steps
+                  allowed during one call to the solver.
+                  the default value is 500.
+
+mxhnil  iwork(7)  maximum number of messages printed (per problem)
+                  warning that t + h = t on a step (h = step size).
+                  this must be positive to result in a non-default
+                  value.  the default value is 10.
+
+--------------------------------------------------------------------------------
+optional outputs.
+
+as optional additional output from lsodes, the variables listed
+below are quantities related to the performance of lsodes
+which are available to the user.  these are communicated by way of
+the work arrays, but also have internal mnemonic names as shown.
+except where stated otherwise, all of these outputs are defined
+on any successful return from lsodes, and on any return with
+istate = -1, -2, -4, -5, or -6.  on an illegal input return
+(istate = -3), they will be unchanged from their existing values
+(if any), except possibly for tolsf, lenrw, and leniw.
+on any error return, outputs relevant to the error will be defined,
+as noted below.
+
+name    location      meaning
+
+hu      rwork(11) the step size in t last used (successfully).
+
+hcur    rwork(12) the step size to be attempted on the next step.
+
+tcur    rwork(13) the current value of the independent variable
+                  which the solver has actually reached, i.e. the
+                  current internal mesh point in t.  on output, tcur
+                  will always be at least as far as the argument
+                  t, but may be farther (if interpolation was done).
+
+tolsf   rwork(14) a tolerance scale factor, greater than 1.0,
+                  computed when a request for too much accuracy was
+                  detected (istate = -3 if detected at the start of
+                  the problem, istate = -2 otherwise).  if itol is
+                  left unaltered but rtol and atol are uniformly
+                  scaled up by a factor of tolsf for the next call,
+                  then the solver is deemed likely to succeed.
+                  (the user may also ignore tolsf and alter the
+                  tolerance parameters in any other way appropriate.)
+
+nst     iwork(11) the number of steps taken for the problem so far.
+
+nfe     iwork(12) the number of f evaluations for the problem so far,
+                  excluding those for structure determination
+                  (moss = 2).
+
+nje     iwork(13) the number of jacobian evaluations for the problem
+                  so far, excluding those for structure determination
+                  (moss = 1).
+
+nqu     iwork(14) the method order last used (successfully).
+
+nqcur   iwork(15) the order to be attempted on the next step.
+
+imxer   iwork(16) the index of the component of largest magnitude in
+                  the weighted local error vector ( e(i)/ewt(i) ),
+                  on an error return with istate = -4 or -5.
+
+lenrw   iwork(17) the length of rwork actually required.
+                  this is defined on normal returns and on an illegal
+                  input return for insufficient storage.
+
+leniw   iwork(18) the length of iwork actually required.
+                  this is defined on normal returns and on an illegal
+                  input return for insufficient storage.
+
+nnz     iwork(19) the number of nonzero elements in the jacobian
+                  matrix, including the diagonal (miter = 1 or 2).
+                  (this may differ from that given by ia(neq+1)-1
+                  if moss = 0, because of added diagonal entries.)
+
+ngp     iwork(20) the number of groups of column indices, used in
+                  difference quotient jacobian aproximations if
+                  miter = 2.  this is also the number of extra f
+                  evaluations needed for each jacobian evaluation.
+
+nlu     iwork(21) the number of sparse lu decompositions for the
+                  problem so far.
+
+lyh     iwork(22) the base address in rwork of the history array yh,
+                  described below in this list.
+
+ipian   iwork(23) the base address of the structure descriptor array
+                  ian, described below in this list.
+
+ipjan   iwork(24) the base address of the structure descriptor array
+                  jan, described below in this list.
+
+nzl     iwork(25) the number of nonzero elements in the strict lower
+                  triangle of the lu factorization used in the chord
+                  iteration (miter = 1 or 2).
+
+nzu     iwork(26) the number of nonzero elements in the strict upper
+                  triangle of the lu factorization used in the chord
+                  iteration (miter = 1 or 2).
+                  the total number of nonzeros in the factorization
+                  is therefore nzl + nzu + neq.
+
+the following four arrays are segments of the rwork array which
+may also be of interest to the user as optional outputs.
+for each array, the table below gives its internal name,
+its base address, and its description.
+for yh and acor, the base addresses are in rwork (a real array).
+the integer arrays ian and jan are to be obtained by declaring an
+integer array iwk and identifying iwk(1) with rwork(21), using either
+an equivalence statement or a subroutine call.  then the base
+addresses ipian (of ian) and ipjan (of jan) in iwk are to be obtained
+as optional outputs iwork(23) and iwork(24), respectively.
+thus ian(1) is iwk(ipian), etc.
+
+name    base address      description
+
+ian    ipian (in iwk)  structure descriptor array of size neq + 1.
+jan    ipjan (in iwk)  structure descriptor array of size nnz.
+        (see above)    ian and jan together describe the sparsity
+                       structure of the jacobian matrix, as used by
+                       lsodes when miter = 1 or 2.
+                       jan contains the row indices of the nonzero
+                       locations, reading in columnwise order, and
+                       ian contains the starting locations in jan of
+                       the descriptions of columns 1,...,neq, in
+                       that order, with ian(1) = 1.  thus for each
+                       j = 1,...,neq, the row indices i of the
+                       nonzero locations in column j are
+                       i = jan(k),  ian(j) .le. k .lt. ian(j+1).
+                       note that ian(neq+1) = nnz + 1.
+                       (if moss = 0, ian/jan may differ from the
+                       input ia/ja because of a different ordering
+                       in each column, and added diagonal entries.)
+
+yh      lyh            the nordsieck history array, of size nyh by
+         (optional     (nqcur + 1), where nyh is the initial value
+         output)       of neq.  for j = 0,1,...,nqcur, column j+1
+                       of yh contains hcur**j/factorial(j) times
+                       the j-th derivative of the interpolating
+                       polynomial currently representing the solution,
+                       evaluated at t = tcur.  the base address lyh
+                       is another optional output, listed above.
+
+acor     lenrw-neq+1   array of size neq used for the accumulated
+                       corrections on each step, scaled on output
+                       to represent the estimated local error in y
+                       on the last step.  this is the vector e in
+                       the description of the error control.  it is
+                       defined only on a successful return from
+                       lsodes.
+
+--------------------------------------------------------------------------------
+part ii.  other routines callable.
+
+the following are optional calls which the user may make to
+gain additional capabilities in conjunction with lsodes.
+(the routines xsetun and xsetf are designed to conform to the
+slatec error handling package.)
+
+    form of call                  function
+  call xsetun(lun)          set the logical unit number, lun, for
+                            output of messages from lsodes, if
+                            the default is not desired.
+                            the default value of lun is 6.
+
+  call xsetf(mflag)         set a flag to control the printing of
+                            messages by lsodes.
+                            mflag = 0 means do not print. (danger..
+                            this risks losing valuable information.)
+                            mflag = 1 means print (the default).
+
+                            either of the above calls may be made at
+                            any time and will take effect immediately.
+
+  call srcms(rsav,isav,job) saves and restores the contents of
+                            the internal common blocks used by
+                            lsodes (see part iii below).
+                            rsav must be a real array of length 224
+                            or more, and isav must be an integer
+                            array of length 75 or more.
+                            job=1 means save common into rsav/isav.
+                            job=2 means restore common from rsav/isav.
+                               srcms is useful if one is
+                            interrupting a run and restarting
+                            later, or alternating between two or
+                            more problems solved with lsodes.
+
+  call intdy(,,,,,)         provide derivatives of y, of various
+       (see below)          orders, at a specified point t, if
+                            desired.  it may be called only after
+                            a successful return from lsodes.
+
+the detailed instructions for using intdy are as follows.
+the form of the call is..
+
+  lyh = iwork(22)
+  call intdy (t, k, rwork(lyh), nyh, dky, iflag)
+
+the input parameters are..
+
+t         = value of independent variable where answers are desired
+            (normally the same as the t last returned by lsodes).
+            for valid results, t must lie between tcur - hu and tcur.
+            (see optional outputs for tcur and hu.)
+k         = integer order of the derivative desired.  k must satisfy
+            0 .le. k .le. nqcur, where nqcur is the current order
+            (see optional outputs).  the capability corresponding
+            to k = 0, i.e. computing y(t), is already provided
+            by lsodes directly.  since nqcur .ge. 1, the first
+            derivative dy/dt is always available with intdy.
+lyh       = the base address of the history array yh, obtained
+            as an optional output as shown above.
+nyh       = column length of yh, equal to the initial value of neq.
+
+the output parameters are..
+
+dky       = a real array of length neq containing the computed value
+            of the k-th derivative of y(t).
+iflag     = integer flag, returned as 0 if k and t were legal,
+            -1 if k was illegal, and -2 if t was illegal.
+            on an error return, a message is also written.
+
+--------------------------------------------------------------------------------
+part iii.  common blocks.
+
+if lsodes is to be used in an overlay situation, the user
+must declare, in the primary overlay, the variables in..
+  (1) the call sequence to lsodes,
+  (2) the three internal common blocks
+        /ls0001/  of length  257  (218 double precision words
+                        followed by 39 integer words),
+        /lss001/  of length  40    ( 6 double precision words
+                        followed by 34 integer words),
+        /eh0001/  of length  2 (integer words).
+
+if lsodes is used on a system in which the contents of internal
+common blocks are not preserved between calls, the user should
+declare the above three common blocks in his main program to insure
+that their contents are preserved.
+
+if the solution of a given problem by lsodes is to be interrupted
+and then later continued, such as when restarting an interrupted run
+or alternating between two or more problems, the user should save,
+following the return from the last lsodes call prior to the
+interruption, the contents of the call sequence variables and the
+internal common blocks, and later restore these values before the
+next lsodes call for that problem.  to save and restore the common
+blocks, use subroutine srcms (see part ii above).
+
+--------------------------------------------------------------------------------
+part iv.  optionally replaceable solver routines.
+
+below are descriptions of two routines in the lsodes package which
+relate to the measurement of errors.  either routine can be
+replaced by a user-supplied version, if desired.  however, since such
+a replacement may have a major impact on performance, it should be
+done only when absolutely necessary, and only with great caution.
+(note.. the means by which the package version of a routine is
+superseded by the user-s version may be system-dependent.)
+
+(a) ewset.
+the following subroutine is called just before each internal
+integration step, and sets the array of error weights, ewt, as
+described under itol/rtol/atol above..
+    subroutine ewset (neq, itol, rtol, atol, ycur, ewt)
+where neq, itol, rtol, and atol are as in the lsodes call sequence,
+ycur contains the current dependent variable vector, and
+ewt is the array of weights set by ewset.
+
+if the user supplies this subroutine, it must return in ewt(i)
+(i = 1,...,neq) a positive quantity suitable for comparing errors
+in y(i) to.  the ewt array returned by ewset is passed to the
+vnorm routine (see below), and also used by lsodes in the computation
+of the optional output imxer, the diagonal jacobian approximation,
+and the increments for difference quotient jacobians.
+
+in the user-supplied version of ewset, it may be desirable to use
+the current values of derivatives of y.  derivatives up to order nq
+are available from the history array yh, described above under
+optional outputs.  in ewset, yh is identical to the ycur array,
+extended to nq + 1 columns with a column length of nyh and scale
+factors of h**j/factorial(j).  on the first call for the problem,
+given by nst = 0, nq is 1 and h is temporarily set to 1.0.
+the quantities nq, nyh, h, and nst can be obtained by including
+in ewset the statements..
+    double precision h, rls
+    common /ls0001/ rls(218),ils(39)
+    nq = ils(35)
+    nyh = ils(14)
+    nst = ils(36)
+    h = rls(212)
+thus, for example, the current value of dy/dt can be obtained as
+ycur(nyh+i)/h  (i=1,...,neq)  (and the division by h is
+unnecessary when nst = 0).
+
+(b) vnorm.
+the following is a real function routine which computes the weighted
+root-mean-square norm of a vector v..
+    d = vnorm (n, v, w)
+where..
+  n = the length of the vector,
+  v = real array of length n containing the vector,
+  w = real array of length n containing weights,
+  d = sqrt( (1/n) * sum(v(i)*w(i))**2 ).
+vnorm is called with n = neq and with w(i) = 1.0/ewt(i), where
+ewt is as set by subroutine ewset.
+
+if the user supplies this function, it should return a non-negative
+value of vnorm suitable for use in the error control in lsodes.
+none of the arguments should be altered by vnorm.
+for example, a user-supplied vnorm routine might..
+  -substitute a max-norm of (v(i)*w(i)) for the rms-norm, or
+  -ignore some components of v in the norm, with the effect of
+   suppressing the error control on those components of y.
+
+--------------------------------------------------------------------------------
+other routines in the lsodes package.
+
+in addition to subroutine lsodes, the lsodes package includes the
+following subroutines and function routines..
+ iprep    acts as an iterface between lsodes and prep, and also does
+          adjusting of work space pointers and work arrays.
+ prep     is called by iprep to compute sparsity and do sparse matrix
+          preprocessing if miter = 1 or 2.
+ jgroup   is called by prep to compute groups of jacobian column
+          indices for use when miter = 2.
+ adjlr    adjusts the length of required sparse matrix work space.
+          it is called by prep.
+ cntnzu   is called by prep and counts the nonzero elements in the
+          strict upper triangle of j + j-transpose, where j = df/dy.
+ intdy    computes an interpolated value of the y vector at t = tout.
+ stode    is the core integrator, which does one step of the
+          integration and the associated error control.
+ cfode    sets all method coefficients and test constants.
+ prjs     computes and preprocesses the jacobian matrix j = df/dy
+          and the newton iteration matrix p = i - h*l0*j.
+ slss     manages solution of linear system in chord iteration.
+ ewset    sets the error weight vector ewt before each step.
+ vnorm    computes the weighted r.m.s. norm of a vector.
+ srcms    is a user-callable routine to save and restore
+          the contents of the internal common blocks.
+ odrv     constructs a reordering of the rows and columns of
+          a matrix by the minimum degree algorithm.  odrv is a
+          driver routine which calls subroutines md, mdi, mdm,
+          mdp, mdu, and sro.  see ref. 2 for details.  (the odrv
+          module has been modified since ref. 2, however.)
+ cdrv     performs reordering, symbolic factorization, numerical
+          factorization, or linear system solution operations,
+          depending on a path argument ipath.  cdrv is a
+          driver routine which calls subroutines nroc, nsfc,
+          nnfc, nnsc, and nntc.  see ref. 3 for details.
+          lsodes uses cdrv to solve linear systems in which the
+          coefficient matrix is  p = i - con*j, where i is the
+          identity, con is a scalar, and j is an approximation to
+          the jacobian df/dy.  because cdrv deals with rowwise
+          sparsity descriptions, cdrv works with p-transpose, not p.
+ d1mach   computes the unit roundoff in a machine-independent manner.
+          It has been replaced in C by DBL_EPSILON.
+ xerrwv, xsetun, and xsetf   handle the printing of all error
+          messages and warnings.  xerrwv is machine-dependent.
+note..  vnorm is a function all the others are procedures.
+
+the intrinsic and external routines used by lsodes are..
+fabs, dmax1, dmin1, dfloat, max0, min0, mod, dsign, dsqrt, and write.
+
+a block data subprogram is also included with the package,
+for loading some of the variables in internal common.
+----------------------------------------------------------------------------- */
 
 /* inclusions */
 
@@ -3511,6 +3517,10 @@ int xerrwv (char *msg, long level, long ni, long i1, long i2, long nr,
 L100:
     if (level != 2) return 0;
  
+#ifdef _MACOSLEVEL1_
+    getchar();
+#endif
+
     abort();
     return 0;
 

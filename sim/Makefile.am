@@ -57,7 +57,7 @@ include_HEADERS = \
 	random.h \
 	yourcode.h
 
-AM_CFLAGS = -O3 # -I/usr/include/mpi
+AM_CFLAGS = -O3
 
 simdir=$(datadir)/mcsim/sim
 sim_DATA = $(libmcsim_la_SOURCES)

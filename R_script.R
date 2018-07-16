@@ -1,4 +1,4 @@
-# Download all files form this repository (the current version of MCSim is 6.0.1)
+# Download all files form this repository (the current version of MCSim is 5.6.5)
 Sys.getenv("PATH")
 
 # You have two options to use GNU compiler:
@@ -27,7 +27,6 @@ system(paste("gcc -o ./mod/mod.exe ./mod/*.c ", sep = ""))
 
 # Compile the "simple.model" to "simple.c" 
 system(paste("./mod/mod.exe ", mName, " ", mName, ".c", sep = "")) 
-
 # Compile the "simple.model.c" to the executable program named "mcsim.simple.model.exe"
 system(paste("gcc -O3 -I.. -I./sim -o mcsim_", mName, ".exe ", mName, ".c ./sim/*.c -lm ", sep = ""))
 
