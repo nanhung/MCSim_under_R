@@ -26,6 +26,8 @@ getwd()
 compile_mcsim()
 # file.exists("mod/mod.exe") # check if you compile the "mod.exe" file successfully
 
+
+## simple model #####
 # Define the name of model and input files
 mName <- "simple.model.R" # the model file put in the model folder
 inName <- "simple.in.R" # the input file put in the infile folder
@@ -49,3 +51,24 @@ par(mfrow = c(2,2))
 plot(out[,1], out[,2], type="b", log = "x", xlab = "time", ylab = "", main = "y1")
 plot(out[,1], out[,3], type="b", log = "x", xlab = "time", ylab = "", main = "y2")
 plot(out[,1], out[,4], type="b", log = "x", xlab = "time", ylab = "", main = "y3")
+
+## Digoxin MCMC ####
+# Define the input variable
+mName <- "digoxin.model.R" # the model file put in the model folder
+inName <- "digoxin.mcmc.in.R" # the input file put in the infile folder
+
+# Create the executable file
+compile_mod(mName)
+
+# Run!!
+run_mcsim(mName, inName)
+
+out <- read.delim("digoxin.mcmc1.out")
+par(mfrow= c(2,2))
+names(out)
+plot(out$k_12.1., type = "l")
+plot(out$k_21.1., type = "l")
+plot(out$k_10.1., type = "l")
+plot(out$V_central.1., type = "l")
+
+
