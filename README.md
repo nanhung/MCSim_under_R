@@ -1,6 +1,6 @@
 # MCSim under R
 
-This is a small tutorial that can help the beginner to Run MCSim in R by,
+This is a small tutorial that can help the beginner to Run MCSim (current version 6.0.1) in R by,
 
 (1) Download all files from this repository.
 
