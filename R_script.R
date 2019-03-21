@@ -1,3 +1,6 @@
+# Load functions
+source("functions.R")
+
 # Download all files form this repository (the current version of MCSim is 6.0.1)
 # Check the chek whether the compiler is in the PATH by using
 Sys.getenv("PATH") 
@@ -20,22 +23,19 @@ system('g++ -v')
 getwd()
 
 # Create mod.exe in "mod" folder
-system(paste("gcc -o ./mod/mod.exe ./mod/*.c ", sep = "")) 
-file.exists("mod/mod.exe") # check if you compile the "mod.exe" file successfully
+compile_mcsim()
+# file.exists("mod/mod.exe") # check if you compile the "mod.exe" file successfully
 
 # Define the name of model and input files
-mName <- "simple.model"
-inName <- "simple.in"
+mName <- "simple.model.R" # the model file put in the model folder
+inName <- "simple.in.R" # the input file put in the infile folder
 
-# Compile the "simple.model" to "simple.c" 
-system(paste("./mod/mod.exe model/", mName, " ", mName, ".c", sep = "")) 
-
-# Compile the "simple.model.c" to the executable program named "mcsim.simple.model.exe"
-system(paste("gcc -O3 -I.. -I./sim -o mcsim_", mName, ".exe ", mName, ".c ./sim/*.c -lm ", sep = ""))
-file.exists("mcsim_simple.model.exe") # check if you compile the "mod.exe" file successfully
+# Create the executable file
+compile_mod(mName)
+# file.exists("mcsim_simple.model.R.exe") # check if you create the "mcsim_simple.model.exe" file successfully
 
 # Run!!
-system(paste("./mcsim_", mName, ".exe ", "infile/", inName, sep = ""))
+run_mcsim(mName, inName)
 
 # load output
 out <- read.delim("sim.out", skip = 2)
