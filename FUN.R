@@ -32,6 +32,11 @@ compile_mcsim <- function(){
 set_PATH()
 compile_mcsim()
 
+clear <- function(){
+  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")))
+  invisible(file.remove(files))
+}
+
 compile_mod <- function(mName){
   exe_file <- paste0("mcsim_", mName, ".exe")
   if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
@@ -67,6 +72,7 @@ run_mcsim <- function(mName, inName){
     writeLines(tx, con=paste0("input/", inName))
     message(paste0("* Create '", checkfile, "' from the last iteration."))
     invisible(file.remove(paste0(outfile, ".kernel")))
+    df <- read.delim("sim.out")
   } else {
     system(paste("./mcsim_", mName, ".exe ", "input/", inName, sep = ""))
     df <- read.delim("sim.out", skip = 1)
@@ -77,6 +83,7 @@ run_mcsim <- function(mName, inName){
 pkplot <- function(out, var = i, ...){
   plot(out[,1], out[,var], main = var,...)
 }
+
 
 
 
