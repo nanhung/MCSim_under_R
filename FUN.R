@@ -2,19 +2,24 @@
 # Check the chek whether the compiler is in the PATH by using
 # Sys.getenv("PATH") 
 
-set_PATH <- function(PATH = "c:\\MinGW\\bin"){
-  if(Sys.which("gcc") == ""){
-    Sys.setenv(PATH = paste(PATH, Sys.getenv("PATH"), sep=";")) # Recommend
+if(!require(pkgbuild)) install.packages("pkgbuild")
+
+set_PATH <- function(PATH = "c:\\Rtools\\mingw_32/bin"){
+  
+  if (Sys.info()[['sysname']] == "Windows") {
+    if(!pkgbuild::find_rtools()){
+      warning("Please make sure you had installed Rtools.")
+    }
+    if(Sys.which("gcc") == ""){
+      Sys.setenv(PATH = paste(PATH, Sys.getenv("PATH"), sep=";"))
+    }
   }
   
   # You have two options to use GNU compiler:
   # If you have installed MinGW in your PC you can use
-    
+  # Sys.setenv(PATH = paste("c:\\MinGW\\bin", Sys.getenv("PATH"), sep=";"))  
   # Otherwise, if you have Rtools installed, you can assign the bin location manually,
-  # Sys.setenv(PATH = paste("c:\\Rtools\\bin", Sys.getenv("PATH"), sep=";"))
   # Sys.setenv(PATH = paste("c:\\Rtools\\mingw_32/bin", Sys.getenv("PATH"), sep=";"))
-  # Sys.setenv(PATH = paste("c:\\Rtools\\mingw_64/bin", Sys.getenv("PATH"), sep=";"))
-  # Sys.setenv(BINPREF = "c:\\Rtools\\mingw_64/bin/") # Danger zone
   
   # The macos used clang as default, the following command is used to switch to GCC
   # Sys.setenv(PATH = paste("/usr/local/bin", Sys.getenv("PATH"), sep=";"))

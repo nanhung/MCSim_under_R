@@ -35,9 +35,8 @@ compile_mod(mName)
 
 # Run!!
 set.seed(1111)
-run_mcsim(mName, inName)
+out <- run_mcsim(mName, inName)
 
-out <- read.delim("sim.out")
 par(mfrow= c(2,2))
 names(out)
 plot(out$k_12.1., type = "l")
