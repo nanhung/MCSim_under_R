@@ -7,12 +7,12 @@ Sys.getenv("PATH")
 
 # You have two options to use GNU compiler:
 # If you have installed MinGW in your PC you can use
-Sys.setenv(PATH = paste("c:\\MinGW\\bin", Sys.getenv("PATH"), sep=";"))
+Sys.setenv(PATH = paste("c:\\MinGW\\bin", Sys.getenv("PATH"), sep=";")) # Recommend
 
 # Otherwise, if you have Rtools installed, you can assign the bin location manually,
 # Sys.setenv(PATH = paste("c:\\Rtools\\bin", Sys.getenv("PATH"), sep=";"))
 # Sys.setenv(PATH = paste("c:\\Rtools\\mingw_32/bin", Sys.getenv("PATH"), sep=";"))
-Sys.setenv(PATH = paste("c:\\Rtools\\mingw_64/bin", Sys.getenv("PATH"), sep=";"))
+# Sys.setenv(PATH = paste("c:\\Rtools\\mingw_64/bin", Sys.getenv("PATH"), sep=";"))
 # Sys.setenv(BINPREF = "c:\\Rtools\\mingw_64/bin/") # Danger zone
 
 # Check the GNU compiler 
@@ -71,4 +71,9 @@ plot(out$k_21.1., type = "l")
 plot(out$k_10.1., type = "l")
 plot(out$V_central.1., type = "l")
 
-
+check_df <- read.delim("check.out")
+par(mfrow= c(2,1))
+plot(check_df$Time, check_df$Data)
+lines(check_df$Time, check_df$Prediction, add= T)
+plot(check_df$Data, check_df$Prediction)
+abline(0,1)

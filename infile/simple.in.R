@@ -2,7 +2,7 @@
 # the deSolve example model run with GNU MCSim (simple.in)
 #------------------------------------------------------------------------------
 
-Integrate (Lsodes, 1E-7, 1E-7, 1);
+Integrate (Lsodes, 1E-7, 1E-9, 1);
 
 Simulation {
   
