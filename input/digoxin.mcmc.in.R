@@ -3,7 +3,11 @@
 #-------------------
 Integrate (Lsodes, 1e-4, 1e-6, 1);
 
-MCMC("sim.out","","",50000,0,10,50000,1111);
+MCMC("sim.out","", # name of output and restart file
+     "",           # name of data file
+     50000,0,      # iterations, print predictions flag,
+     10,50000,     # printing frequency, iters to print
+     10101010);    # random seed (default )
 
 Level { # top
   Distrib(k_12, TruncLogNormal, 0.2, 4, 0.001, 2);

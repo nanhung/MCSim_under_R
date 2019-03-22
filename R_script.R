@@ -1,30 +1,6 @@
-# Load functions
-source("functions.R")
-
-# Download all files form this repository (the current version of MCSim is 6.0.1)
-# Check the chek whether the compiler is in the PATH by using
-Sys.getenv("PATH") 
-
-# You have two options to use GNU compiler:
-# If you have installed MinGW in your PC you can use
-Sys.setenv(PATH = paste("c:\\MinGW\\bin", Sys.getenv("PATH"), sep=";")) # Recommend
-
-# Otherwise, if you have Rtools installed, you can assign the bin location manually,
-# Sys.setenv(PATH = paste("c:\\Rtools\\bin", Sys.getenv("PATH"), sep=";"))
-# Sys.setenv(PATH = paste("c:\\Rtools\\mingw_32/bin", Sys.getenv("PATH"), sep=";"))
-# Sys.setenv(PATH = paste("c:\\Rtools\\mingw_64/bin", Sys.getenv("PATH"), sep=";"))
-# Sys.setenv(BINPREF = "c:\\Rtools\\mingw_64/bin/") # Danger zone
-
-# Check the GNU compiler 
-Sys.which("gcc")
-system('g++ -v')
-
-# Make sure you are in the correct working directory 
-getwd()
-
-# Create mod.exe in "mod" folder
-compile_mcsim()
-# file.exists("mod/mod.exe") # check if you compile the "mod.exe" file successfully
+# Pre-setting and load functions
+source("FUN.R") 
+# make sure to put the model and input files to "input folder"
 
 ## simple model #####
 # Define the name of model and input files
@@ -36,20 +12,16 @@ compile_mod(mName)
 # file.exists("mcsim_simple.model.R.exe") # check if you create the "mcsim_simple.model.exe" file successfully
 
 # Run!!
-run_mcsim(mName, inName)
+out <- run_mcsim(mName, inName)
 
-# load output
-out <- read.delim("sim.out", skip = 2)
-
-# Print
-head (out)
+# Print result
+out
 
 # Plot 
 out <- out[2:13,] # omit 0
-par(mfrow = c(2,2))
-plot(out[,1], out[,2], type="b", log = "x", xlab = "time", ylab = "", main = "y1")
-plot(out[,1], out[,3], type="b", log = "x", xlab = "time", ylab = "", main = "y2")
-plot(out[,1], out[,4], type="b", log = "x", xlab = "time", ylab = "", main = "y3")
+pkplot(out, var = "y0", log = "x", xlab = "", ylab = "", type = "b")
+pkplot(out, var = "y1", log = "x", xlab = "", ylab = "", type = "b")
+pkplot(out, var = "y2", log = "x", xlab = "", ylab = "", type = "b")
 
 ## Digoxin MCMC ####
 # Define the input variable
@@ -60,6 +32,7 @@ inName <- "digoxin.mcmc.in.R" # the input file put in the infile folder
 compile_mod(mName)
 
 # Run!!
+set.seed(1111)
 run_mcsim(mName, inName)
 
 out <- read.delim("sim.out")
