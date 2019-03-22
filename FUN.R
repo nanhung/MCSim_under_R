@@ -3,22 +3,29 @@
 # Sys.getenv("PATH") 
 
 set_PATH <- function(PATH = "c:\\MinGW\\bin"){
-  if(Sys.which("gcc") == "")
-    Sys.which("gcc")
+  if(Sys.which("gcc") == ""){
+    Sys.setenv(PATH = paste(PATH, Sys.getenv("PATH"), sep=";")) # Recommend
+  }
+  
   # You have two options to use GNU compiler:
   # If you have installed MinGW in your PC you can use
-  Sys.setenv(PATH = paste(PATH, Sys.getenv("PATH"), sep=";")) # Recommend
-  
+    
   # Otherwise, if you have Rtools installed, you can assign the bin location manually,
   # Sys.setenv(PATH = paste("c:\\Rtools\\bin", Sys.getenv("PATH"), sep=";"))
   # Sys.setenv(PATH = paste("c:\\Rtools\\mingw_32/bin", Sys.getenv("PATH"), sep=";"))
   # Sys.setenv(PATH = paste("c:\\Rtools\\mingw_64/bin", Sys.getenv("PATH"), sep=";"))
   # Sys.setenv(BINPREF = "c:\\Rtools\\mingw_64/bin/") # Danger zone
   
+  # The macos used clang as default, the following command is used to switch to GCC
+  # Sys.setenv(PATH = paste("/usr/local/bin", Sys.getenv("PATH"), sep=";"))
+  # port select --list gcc
+  # sudo port select --set gcc mp-gcc8
+  
   # Check the GNU compiler 
   Sys.which("gcc")
   system('g++ -v')
 }
+
 compile_mcsim <- function(){
   if(Sys.which("gcc") == ""){
     stop("Please setting the PATH of compiler")
@@ -83,8 +90,6 @@ run_mcsim <- function(mName, inName){
 pkplot <- function(out, var = i, ...){
   plot(out[,1], out[,var], main = var,...)
 }
-
-
 
 
 
