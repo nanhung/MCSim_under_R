@@ -26,7 +26,6 @@ getwd()
 compile_mcsim()
 # file.exists("mod/mod.exe") # check if you compile the "mod.exe" file successfully
 
-
 ## simple model #####
 # Define the name of model and input files
 mName <- "simple.model.R" # the model file put in the model folder
@@ -63,7 +62,7 @@ compile_mod(mName)
 # Run!!
 run_mcsim(mName, inName)
 
-out <- read.delim("digoxin.mcmc1.out")
+out <- read.delim("sim.out")
 par(mfrow= c(2,2))
 names(out)
 plot(out$k_12.1., type = "l")
@@ -71,9 +70,9 @@ plot(out$k_21.1., type = "l")
 plot(out$k_10.1., type = "l")
 plot(out$V_central.1., type = "l")
 
-check_df <- read.delim("check.out")
+check_df <- read.delim("chk.out")
 par(mfrow= c(2,1))
 plot(check_df$Time, check_df$Data)
-lines(check_df$Time, check_df$Prediction, add= T)
+lines(check_df$Time, check_df$Prediction)
 plot(check_df$Data, check_df$Prediction)
 abline(0,1)

@@ -3,7 +3,7 @@
 #-------------------
 Integrate (Lsodes, 1e-4, 1e-6, 1);
 
-MCMC ("digoxin.mcmc.out","","",50000,0,10,50000,1111);
+MCMC("sim.out","","",50000,0,10,50000,1111);
 
 Level { # top
   Distrib(k_12, TruncLogNormal, 0.2, 4, 0.001, 2);
