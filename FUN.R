@@ -4,7 +4,8 @@
 
 if(!require(pkgbuild)) install.packages("pkgbuild")
 
-set_PATH <- function(PATH = "c:\\Rtools\\mingw_32/bin"){
+set_PATH <- function(){
+  PATH <- "c:/Rtools/mingw_32/bin"
   
   if (Sys.info()[['sysname']] == "Windows") {
     if(!pkgbuild::find_rtools()){
@@ -50,19 +51,27 @@ clear <- function(){
 }
 
 compile_mod <- function(mName){
-  exe_file <- paste0("mcsim_", mName, ".exe")
+  exe_file <- paste0("mcsim.", mName, ".exe")
   if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
+  if(file.exists(mName)) {
+    invisible(file.copy(from = paste0(getwd(),"/", mName), to = paste0(getwd(),"/input/", mName)))
+    invisible(file.remove(mName))
+  }
     
   # Compile the "simple.model" to "simple.c"   
   system(paste("./MCSim/mod.exe input/", mName, " ", mName, ".c", sep = "")) 
   # Compile the "simple.model.c" to the executable program named "mcsim.simple.model.exe"
-  system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim_", mName, ".exe ", mName, ".c ./MCSim/sim/*.c -lm ", sep = ""))
+  system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", mName, ".exe ", mName, ".c ./MCSim/sim/*.c -lm ", sep = ""))
   
   if(file.exists(exe_file)) message(paste0("* Created executable file '", exe_file, "'."))
   invisible(file.remove(paste0(mName, ".c")))
 }
 
 run_mcsim <- function(mName, inName){
+  if(file.exists(inName)) {
+    invisible(file.copy(from = paste0(getwd(),"/", inName), to = paste0(getwd(),"/input/", inName)))
+    invisible(file.remove(inName))
+  }
   tx  <- readLines(paste0("input/", inName))
   MCMC_line <- grep("MCMC", x=tx)
   if (length(MCMC_line) != 0){
@@ -70,7 +79,7 @@ run_mcsim <- function(mName, inName){
     RandomSeed <- runif(1, 0, 2147483646)
     tx2 <- gsub(pattern = "10101010", replace = paste(RandomSeed), x = tx)
     writeLines(tx2, con=paste0("input/", inName))
-    system(paste("./mcsim_", mName, ".exe ", "input/", inName, sep = ""))
+    system(paste("./mcsim.", mName, ".exe ", "input/", inName, sep = ""))
     #file_after <- list.files() # exist a bug if file had been created
     #outfile <- setdiff(file_after,file_defore)[1]
     outfile <- "sim.out"
@@ -80,13 +89,13 @@ run_mcsim <- function(mName, inName){
                 replace = paste0("\"", checkfile, "\",\"", outfile, "\""), 
                 x = tx2)
     writeLines(tx3, con=paste0("input/", inName))
-    system(paste("./mcsim_", mName, ".exe ", "input/", inName, sep = ""))
+    system(paste("./mcsim.", mName, ".exe ", "input/", inName, sep = ""))
     writeLines(tx, con=paste0("input/", inName))
     message(paste0("* Create '", checkfile, "' from the last iteration."))
     invisible(file.remove(paste0(outfile, ".kernel")))
     df <- read.delim("sim.out")
   } else {
-    system(paste("./mcsim_", mName, ".exe ", "input/", inName, sep = ""))
+    system(paste("./mcsim.", mName, ".exe ", "input/", inName, sep = ""))
     df <- read.delim("sim.out", skip = 1)
   }
   return(df)

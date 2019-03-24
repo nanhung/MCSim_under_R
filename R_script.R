@@ -50,3 +50,15 @@ plot(check_df$Time, check_df$Data)
 lines(check_df$Time, check_df$Prediction)
 plot(check_df$Data, check_df$Prediction)
 abline(0,1)
+
+# 
+
+mName <- "linear.model.R" 
+inName <- "linear.mcmc.in.R" 
+clear()
+compile_mod(mName)
+
+# Run!!
+set.seed(1111)
+out <- run_mcsim(mName, inName)
+
