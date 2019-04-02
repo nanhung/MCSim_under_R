@@ -11,14 +11,13 @@ MCMC("sim.out","", # name of output and restart file
 
 Level {
   
-  Distrib(A, Normal, 0, 10); # exact mean
-  Distrib(B, Normal, 1, 10); # exact mean
+  Distrib(A, Normal, 0, 10); # prior of intercept coefficient
+  Distrib(B, Normal, 1, 10); # prior of slope coefficient
   
-  #Distrib(Sigma2, InvGamma, 0.01, 0.01);
-  Likelihood(y, Normal, Prediction(y), 0.05);
+  Likelihood(y, Normal, Prediction(y), 0.05); #  # exact SD
   
   Simulation {
-    PrintStep (y, 0, 10, 1);
+    PrintStep (y, 0, 10, 1); #seq(0, 10 1)
     Data  (y, -0.0289654, 1.15968, 2.32502, 3.33289, 4.61105, 5.6818, 
            6.89044, 8.13242, 9.27033, 10.4522, 11.6703);
   }

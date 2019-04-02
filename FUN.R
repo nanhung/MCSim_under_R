@@ -101,6 +101,22 @@ run_mcsim <- function(mName, inName){
   return(df)
 }
 
+plot_sim <- function(filename, sim = 1, ...){
+  ncols <- max(count.fields(filename, sep = "\t"))
+  tmp <- read.delim(filename, col.names=1:ncols, sep="\t", fill=T, header=F)
+  index <- which(tmp[,1] == "Time")
+  tmp$simulation <- ""
+  for(i in seq(index)){
+    str <- index[i]+1
+    end <- ifelse(i == length(index), nrow(tmp),index[i+1]-2)
+    tmp$simulation[c(str:end)] <- i
+  }
+  df <- (subset(tmp, simulation == sim))
+  x <- as.numeric(as.character(df$X1))
+  y <- as.numeric(as.character(df$X2))
+  plot(x, y, ...)
+}
+
 pkplot <- function(out, var = i, ...){
   plot(out[,1], out[,var], main = var,...)
 }

@@ -3,7 +3,6 @@
 # make sure to put the model and input files to "input folder"
 source("FUN.R") 
 
-
 ## simple model #####
 # Define the name of model and input files
 mName <- "simple.model.R" # the model file put in the model folder
@@ -52,13 +51,25 @@ plot(check_df$Data, check_df$Prediction)
 abline(0,1)
 
 # 
-
 mName <- "linear.model.R" 
-inName <- "linear.mcmc.in.R" 
+inName <- "linear.in.R" 
 clear()
 compile_mod(mName)
 
 # Run!!
-set.seed(1111)
 out <- run_mcsim(mName, inName)
+plot_sim(filename = "sim.out", sim = 1)
+plot_sim(filename = "sim.out", sim = 2)
+
+
+
+set.seed(1111)
+inName <- "linear.mcmc.in.R" 
+
+
+
+
+
+
+
 
