@@ -46,7 +46,7 @@ set_PATH()
 makemod()
 
 clear <- function(){
-  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.exe")))
+  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.perks")))
   invisible(file.remove(files))
 }
 
@@ -65,6 +65,11 @@ makemcsim <- function(mName){
 }
 
 mcsim <- function(mName, inName){
+  exc = paste0("mcsim.", mName, ".exe")
+  if (file.exists(exc) == F) {
+    stop("* '", exc, "' is not exist .")
+  }
+  
   if(file.exists(inName)) {
     invisible(file.copy(from = paste0(getwd(),"/", inName), to = paste0(getwd(),"/input/", inName)))
     invisible(file.remove(inName))
@@ -89,7 +94,7 @@ mcsim <- function(mName, inName){
     system(paste("./mcsim.", mName, ".exe ", "input/", inName, sep = ""))
     writeLines(tx, con=paste0("input/", inName))
     message(paste0("* Create '", checkfile, "' from the last iteration."))
-    invisible(file.remove(paste0(outfile, ".kernel")))
+    #invisible(file.remove(paste0(outfile, ".kernel")))
     df <- read.delim("sim.out")
   } else {
     system(paste("./mcsim.", mName, ".exe ", "input/", inName, sep = ""))

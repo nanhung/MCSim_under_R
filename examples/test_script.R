@@ -3,21 +3,6 @@
 # make sure to put the model and input files to "input folder"
 source("function.R") 
 
-## Linear regression ####
-mName <- "linear.model.R" 
-inName <- "linear.in.R" # simple simulation w/ given parameters
-
-# Create the executable file 'mcsim.linear.model.R.exe'
-makemcsim(mName)
-
-# Run!!
-out <- mcsim(mName, inName) #'./mcsim.linear.model.R.exe linear.in.R'
-out
-
-set.seed(1111)
-inName <- "linear.mcmc.in.R" 
-
-
 ## Digoxin MCMC ####
 # Define the input variable
 mName <- "digoxin.model.R" # the model file put in the model folder
