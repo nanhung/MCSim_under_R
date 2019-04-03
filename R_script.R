@@ -3,26 +3,22 @@
 # make sure to put the model and input files to "input folder"
 source("function.R") 
 
-## simple model #####
-# Define the name of model and input files
-mName <- "simple.model.R" # the model file put in the model folder
-inName <- "simple.in.R" # the input file put in the infile folder
+## Linear regression ####
+mName <- "linear.model.R" 
+inName <- "linear.in.R" # simple simulation w/ given parameters
 
-# Create the executable file
-compile_mod(mName)
-# file.exists("mcsim_simple.model.R.exe") # check if you create the "mcsim_simple.model.exe" file successfully
+# Create the executable file 'mcsim.linear.model.R.exe'
+makemcsim(mName)
 
 # Run!!
-out <- run_mcsim(mName, inName)
+out <- mcsim(mName, inName) #'./mcsim.linear.model.R.exe linear.in.R'
 
-# Print result
-out
+plotmcsim(filename = "sim.out", sim = 1)
+plotmcsim(filename = "sim.out", sim = 2)
 
-# Plot 
-out <- out[2:13,] # omit 0
-pkplot(out, var = "y0", log = "x", xlab = "", ylab = "", type = "b")
-pkplot(out, var = "y1", log = "x", xlab = "", ylab = "", type = "b")
-pkplot(out, var = "y2", log = "x", xlab = "", ylab = "", type = "b")
+set.seed(1111)
+inName <- "linear.mcmc.in.R" 
+
 
 ## Digoxin MCMC ####
 # Define the input variable
@@ -30,11 +26,12 @@ mName <- "digoxin.model.R" # the model file put in the model folder
 inName <- "digoxin.mcmc.in.R" # the input file put in the infile folder
 
 # Create the executable file
-compile_mod(mName)
+makemcsim(mName)
 
 # Run!!
 set.seed(1111)
-out <- run_mcsim(mName, inName)
+out <- mcsim(mName, inName)
+out
 
 par(mfrow= c(2,2))
 names(out)
@@ -44,28 +41,34 @@ plot(out$k_10.1., type = "l")
 plot(out$V_central.1., type = "l")
 
 check_df <- read.delim("chk.out")
-par(mfrow= c(2,1))
+par(mfrow= c(1,1))
 plot(check_df$Time, check_df$Data)
 lines(check_df$Time, check_df$Prediction)
 plot(check_df$Data, check_df$Prediction)
 abline(0,1)
 
-# 
-mName <- "linear.model.R" 
-inName <- "linear.in.R" 
-clear()
-compile_mod(mName)
+
+## simple model #####
+# Define the name of model and input files
+mName <- "simple.model.R" # the model file put in the model folder
+inName <- "simple.in.R" # the input file put in the infile folder
+
+# Create the executable file
+makemcsim(mName)
+# file.exists("mcsim_simple.model.R.exe") # check if you create the "mcsim_simple.model.exe" file successfully
 
 # Run!!
-out <- run_mcsim(mName, inName)
-plot_sim(filename = "sim.out", sim = 1)
-plot_sim(filename = "sim.out", sim = 2)
+out <- mcsim(mName, inName)
 
+# Print result
+out
 
-
-set.seed(1111)
-inName <- "linear.mcmc.in.R" 
-
+# Plot 
+out <- out[2:13,] # omit 0
+par(mfrow=c(2,2))
+plot(out$Time, out$y0, log = "x", type = "b")
+plot(out$Time, out$y1, log = "x", type = "b")
+plot(out$Time, out$y2, log = "x", type = "b")
 
 
 
