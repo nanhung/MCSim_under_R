@@ -49,19 +49,13 @@
 /* ----------------------------------------------------------------------------
    Prototypes  */
 
-/* Initialize the random generators, optional but recommended */
-void InitRandom (double dSeed, int bWarmUp);
+/* Initialize the random generators, mandatory */
+void InitRandom (int rank, double dSeed, int bWarmUp);
 
-/* Two random generators */
-/*     one that shuffles its output, */
-double RandomShuffle (void);
-
-/*     and one that doesn't */
+/* Fundamental random generator */
 double Randoms (void);
 
-
 /* Several types of random variates */
-
 double BetaRandom (double alpha, double beta, double a, double b);
 double BinomialBetaRandom (double Expectation, double alpha, double beta);
 double BinomialRandom (double p, long n);

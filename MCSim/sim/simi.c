@@ -62,8 +62,7 @@ KM vrgkmKeywordMap[] = { /* Global Keyword - code map */
 
   {"OutputFile",    KM_OUTPUTFILE,  CN_GLOBAL},    /* Output file name spec */
 
-  {"Gibbs",         KM_MCMC,        CN_GLOBAL},    /* Gibbs estim spec */
-  {"MCMC",          KM_MCMC,        CN_GLOBAL},    /* Metrop estim spec */
+  {"MCMC",          KM_MCMC,        CN_GLOBAL},    /* Metropolis spec */
 
   {"OptimalDesign", KM_OPTDESIGN,   CN_GLOBAL},    /* Optimal design spec */
   {"MonteCarlo",    KM_MONTECARLO,  CN_GLOBAL},    /* Monte Carlo spec */
@@ -72,7 +71,8 @@ KM vrgkmKeywordMap[] = { /* Global Keyword - code map */
   {"Likelihood",    KM_MCVARY,      CN_GLOBAL},    /* special MC Variable */
   {"Density",       KM_MCVARY,      CN_GLOBAL},    /* special MC Variable */
   {"MCVary",        KM_MCVARY,      CN_GLOBAL},    /* Obsolete!! */
-  {"InvTemperature",KM_TEMPERATURE, CN_GLOBAL},    /* tempered MCMC option */
+  {"InvTemperature",KM_TEMPERATURE, CN_GLOBAL},    /* Obsolete!! */
+  {"Perks",         KM_TEMPERATURE, CN_GLOBAL},    /* tempered MCMC option */
 
   {"SetPoints",     KM_SETPOINTS,   CN_GLOBAL},    /* Forced point runs*/
 
@@ -106,7 +106,7 @@ KM vrgkmKeywordMap[] = { /* Global Keyword - code map */
   {"Chi2",            KM_CHI2,            CN_FUNCARG},
   {"Exponential",     KM_EXPONENTIAL,     CN_FUNCARG},
   {"Gamma",           KM_GGAMMA,          CN_FUNCARG},
-  {"GenLogNormal",    KM_GENLOGNORMAL,    CN_FUNCARG}, 
+  {"GenLogNormal",    KM_GENLOGNORMAL,    CN_FUNCARG},
   {"HalfCauchy",      KM_HALFCAUCHY,      CN_FUNCARG},
   {"HalfNormal",      KM_HALFNORMAL,      CN_FUNCARG},
   {"InvGamma",        KM_INVGGAMMA,       CN_FUNCARG},
@@ -126,6 +126,7 @@ KM vrgkmKeywordMap[] = { /* Global Keyword - code map */
   {"TruncNormal_cv",  KM_TRUNCNORMALCV,   CN_FUNCARG},
   {"TruncNormal_v",   KM_TRUNCNORMALV,    CN_FUNCARG},
   {"Uniform",         KM_UNIFORM,         CN_FUNCARG},
+  {"UserSpecifiedLL", KM_USERLL,          CN_FUNCARG},
 
   {"Prediction",      KM_PREDICTION,      CN_FUNCARG},
   {"Data",            KM_DATA,            CN_FUNCARG},
@@ -306,10 +307,11 @@ int McvFromLex (PSTR szLex)
              : ikwcode == KM_TRUNCNORMALCV  ? MCV_TRUNCNORMALCV
              : ikwcode == KM_TRUNCLOGNORMALV? MCV_TRUNCLOGNORMALV
              : ikwcode == KM_BINOMIALBETA   ? MCV_BINOMIALBETA
-             : ikwcode == KM_GENLOGNORMAL   ? MCV_GENLOGNORMAL 
-             : ikwcode == KM_STUDENTT       ? MCV_STUDENTT 
-             : ikwcode == KM_CAUCHY         ? MCV_CAUCHY 
-             : ikwcode == KM_HALFCAUCHY     ? MCV_HALFCAUCHY 
+             : ikwcode == KM_GENLOGNORMAL   ? MCV_GENLOGNORMAL
+             : ikwcode == KM_STUDENTT       ? MCV_STUDENTT
+             : ikwcode == KM_CAUCHY         ? MCV_CAUCHY
+             : ikwcode == KM_HALFCAUCHY     ? MCV_HALFCAUCHY
+             : ikwcode == KM_USERLL         ? MCV_USERLL
              : (-1));
 
   return iReturn;
@@ -397,7 +399,7 @@ BOOL GetSimType (PINPUTBUF pibIn)
 
 
 /* ----------------------------------------------------------------------------
-   GetInvTemperature
+   GetPerks
 
    In case of tempered MCMC, read in a user-defined inverse
    temperature schedule.
@@ -405,7 +407,8 @@ BOOL GetSimType (PINPUTBUF pibIn)
    command syntax includes the number of inverse temperatures then the list of
    them (numbers in [0,inf] interval).
 */
-BOOL GetInvTemperature (PINPUTBUF pibIn, PSTR szLex, PGIBBSDATA pgd)
+
+BOOL GetPerks (PINPUTBUF pibIn, PSTR szLex, PGIBBSDATA pgd)
 {
   int iType;
   int i;
@@ -413,30 +416,32 @@ BOOL GetInvTemperature (PINPUTBUF pibIn, PSTR szLex, PGIBBSDATA pgd)
   BOOL bErr = FALSE; /* Return value flags error condition */
 
   if ((bErr = EGetPunct (pibIn, szLex, CH_LPAREN)))
-    goto Exit_GetInvTemperatures;
+    goto Exit_GetPerks;
 
   if ((bErr = ENextLex (pibIn, szLex, LX_INTEGER)))
-    goto Exit_GetInvTemperatures;
+    goto Exit_GetPerks;
 
-  pgd->nInvTemperatures = atoi(szLex);
+  pgd->nPerks = atoi(szLex);
 
-  if ((bErr = (pgd->nInvTemperatures <= 0))) {
+  if ((bErr = (pgd->nPerks <= 0))) {
     ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "positive-integer", szLex);
-    goto Exit_GetInvTemperatures;
+    goto Exit_GetPerks;
   }
 
+  pgd->endT = pgd->nPerks - 1;
+
   /* allocate inverse temperature array */
-  if (!(pgd->rgInvTemperatures = InitdVector (pgd->nInvTemperatures)))
-    ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "GetInvTemperatures", NULL);
+  if (!(pgd->rgdPerks = InitdVector (pgd->nPerks)))
+    ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "GetPerks", NULL);
 
   /* allocate working arrays */
-  if (!(pgd->rgdlnPi = InitdVector (pgd->nInvTemperatures)) || 
-      !(pgd->rglTemp = InitlVector (pgd->nInvTemperatures)))
-    ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "GetInvTemperatures", NULL);
+  if (!(pgd->rgdlnPi  = InitdVector (pgd->nPerks)) ||
+      !(pgd->rglCount = InitlVector (pgd->nPerks)))
+    ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "GetPerks", NULL);
 
   /* try to get temperatures list: */
 
-  for (i = 0; i < pgd->nInvTemperatures && bOK; i++) {
+  for (i = 0; i < pgd->nPerks && bOK; i++) {
 
     /* get comma */
     if (!(bOK = GetOptPunct (pibIn, szLex, ','))) {
@@ -450,29 +455,29 @@ BOOL GetInvTemperature (PINPUTBUF pibIn, PSTR szLex, PGIBBSDATA pgd)
     if (!(bOK &= (iType & LX_NUMBER) > 0))
       ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "number", szLex);
     /* assign */
-    pgd->rgInvTemperatures[i] = atof(szLex);
+    pgd->rgdPerks[i] = atof(szLex);
     /* initialize */
-    pgd->rgdlnPi[i] = 0;
-    pgd->rglTemp[i] = 0; /* temperature count*/
-    if (pgd->rgInvTemperatures[i] < 0)
-      ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, 
+    pgd->rgdlnPi[i]  = 0; /* perks */
+    pgd->rglCount[i] = 0; /* temperature counts */
+    if (pgd->rgdPerks[i] < 0)
+      ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL,
                    "positive inverse temperature", szLex);
-    if ((i > 0) && (pgd->rgInvTemperatures[i] <= pgd->rgInvTemperatures[i-1]))
-      ReportError (pibIn, RE_SPECERR | RE_FATAL, 
+    if ((i > 0) && (pgd->rgdPerks[i] <= pgd->rgdPerks[i-1]))
+      ReportError (pibIn, RE_SPECERR | RE_FATAL,
                    "Inverse temperatures out of order", NULL);
   } /* for */
 
   bErr = EGetPunct (pibIn, szLex, CH_RPAREN);
 
-Exit_GetInvTemperatures:
+Exit_GetPerks:
 
   if (bErr)
-    printf ("Syntax: Inverse temperatures (nInvTemperatures, "
+    printf ("Syntax: Inverse temperatures (nPerks, "
             "<n increasing inverse temperature values >= 0>)\n\n");
 
   return (!bErr);
 
-} /* GetInvTemperature */
+} /* GetPerks */
 
 
 /* ----------------------------------------------------------------------------
@@ -531,7 +536,7 @@ BOOL GetIntegrate (PINPUTBUF pibIn, PINTSPEC pis)
         else {
           printf ("Warning: last flag for Cvodes is currently ignored.\n\n");
           pis->iMf = 0;
-        } 
+        }
       }
       else {
         if (pis->iAlgo  == IAL_EULER) {
@@ -554,7 +559,7 @@ BOOL GetIntegrate (PINPUTBUF pibIn, PINTSPEC pis)
             "        or %s (CVODES, Relative tolerance, Absolute tolerance, "
             "0)\n"
             "        or %s (Euler, Time step, 0, 0)\n\n",
-            GetKeyword (KM_INTEGRATE), GetKeyword (KM_INTEGRATE), 
+            GetKeyword (KM_INTEGRATE), GetKeyword (KM_INTEGRATE),
             GetKeyword (KM_INTEGRATE));
     exit (0);
   }
@@ -630,7 +635,7 @@ BOOL GetListOfTimes (PINPUTBUF pibIn, int nRecs, PPRINTREC *ppr, PSTR szLex)
     ReportError (pibIn, RE_LEXEXPECTED, "number", szLex);
   }
 
-  if (!bErr) 
+  if (!bErr)
     for (i = 0; i < nRecs; ++i)
       DListToArray (plistTimes, &ppr[i]->cTimes, &ppr[i]->pdTimes);
 
@@ -739,7 +744,7 @@ BOOL GetPrint (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos)
       else { /* array */
 
         for (i = iLB; i < iUB; i++) {
-          sprintf (szTmp, "%s_%ld", szLex, i); /* create names */          
+          sprintf (szTmp, "%s_%ld", szLex, i); /* create names */
 
           if (nVars == MAX_PRINT_VARS)
             ReportError (pibIn, RE_TOOMANYPVARS | RE_FATAL, "GetPrint", NULL);
@@ -800,8 +805,8 @@ BOOL GetPrint (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos)
    GetPrintStep
 
    Gets the arguments to a PrintStep() statement. They are: a list of
-   identifiers, a start time, an end time, a time step. 
-   If the time period is not congruent with the time step the last step 
+   identifiers, a start time, an end time, a time step.
+   If the time period is not congruent with the time step the last step
    will be shortened.
 */
 BOOL bGavePrintStepUsage = FALSE; /* prevent multiple diagnostics */
@@ -824,7 +829,7 @@ BOOL GetPrintStep (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos)
   for (;;) {
     NextLex (pibIn, szLex, &iLex);
 
-    if (iLex != LX_IDENTIFIER) 
+    if (iLex != LX_IDENTIFIER)
       break; /* hitting the list of times, stop reading variable names */
 
     /* check if it is a scalar or an array and act accordingly */
@@ -833,7 +838,7 @@ BOOL GetPrintStep (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos)
       GetArrayBounds (pibIn, &iLB, &iUB);
 
     if (iUB == -1) { /* scalar */
-      
+
       if (nVars == MAX_PRINT_VARS)
         ReportError (pibIn, RE_TOOMANYPVARS | RE_FATAL, "GetPrint", NULL);
 
@@ -854,7 +859,7 @@ BOOL GetPrintStep (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos)
     else { /* array */
 
       for (i = iLB; i < iUB; i++) {
-        sprintf (szTmp, "%s_%ld", szLex, i); /* create names */          
+        sprintf (szTmp, "%s_%ld", szLex, i); /* create names */
 
         if (nVars == MAX_PRINT_VARS)
           ReportError (pibIn, RE_TOOMANYPVARS | RE_FATAL, "GetPrint", NULL);
@@ -940,7 +945,7 @@ BOOL GetPrintStep (PINPUTBUF pibIn, PSTR szLex, POUTSPEC pos)
 
 Exit_GetPrintStep:
 
-  if (bErr) 
+  if (bErr)
     if (!bGavePrintStepUsage) {
       printf ("Syntax: %s (<Identifiers>, Start_time, End_time, Time_step)\n\n",
               GetKeyword(KM_PRINTSTEP));
@@ -1084,7 +1089,7 @@ BOOL GetSimulate ()
 {
 
   if (!bGaveSimulateUsage) {
-    printf ("Warning: %s statements are obsolete and ignored.\n\n", 
+    printf ("Warning: %s statements are obsolete and ignored.\n\n",
             GetKeyword (KM_SIMULATE));
     bGaveSimulateUsage = TRUE;
   }
@@ -1136,16 +1141,15 @@ BOOL GetStartTime (PINPUTBUF pibIn, PEXPERIMENT pexp)
 */
 BOOL GetMCMCSpec (PINPUTBUF pibIn, PEXPERIMENT pexp)
 {
-#define NGIBBS_ARGS 8 /* # Func args to gibbs spec */
+#define NMCMC_ARGS 8 /* # Function arguments for MCMC spec */
 
-static int vrgiGibbsArgTypes[NGIBBS_ARGS] = { LX_STRING, LX_STRING, LX_STRING,
-                                              LX_INTEGER, LX_INTEGER, 
-                                              LX_INTEGER, LX_INTEGER, 
-                                              LX_NUMBER};
+static int vrgiGibbsArgTypes[NMCMC_ARGS] = {LX_STRING,  LX_STRING,  LX_STRING,
+                                            LX_INTEGER, LX_INTEGER, LX_INTEGER,
+                                            LX_INTEGER, LX_NUMBER};
 
   PANALYSIS panal = (PANALYSIS) pibIn->pInfo;
 
-  BOOL bErr= !GetFuncArgs(pibIn, NGIBBS_ARGS,
+  BOOL bErr= !GetFuncArgs(pibIn, NMCMC_ARGS,
                           vrgiGibbsArgTypes, vrgszlexArgs[0]);
 
   static char vszGibbsOutDefault[] = "MCMC.default.out";
@@ -1186,17 +1190,20 @@ static int vrgiGibbsArgTypes[NGIBBS_ARGS] = { LX_STRING, LX_STRING, LX_STRING,
 
     panal->dSeed = atof(vrgszlexArgs[7]);
 
-    if (((panal->gd.nSimTypeFlag==1) && (panal->gd.szGrestart == NULL)) || 
+    if (((panal->gd.nSimTypeFlag==1) && (panal->gd.szGrestart == NULL)) ||
         ((panal->gd.nSimTypeFlag==2) && (panal->gd.szGrestart == NULL))) {
       printf ("Error: if simTypeFlag is one or two a restart file must be "
               "given - Exiting\n\n");
       exit (0);
     }
   } /* if */
-  else
-    printf ("Syntax: %s (szOut, szRestart, szDat, \n"
-            "nMaxIters, [0,1], nPrintFreq, nIterToPrint, dSeed)\n\n",
+  else {
+    printf ("Syntax:\n%s (szOut, szRestart, szData, "
+            "nMaxIters, simTypeFlag, nPrintFreq,\n"
+            "      nIterToPrint, dSeed)\nExiting.\n\n",
             GetKeyword (KM_MCMC));
+    exit(0);
+  }
 
   if (!bErr)
    panal->iType = AT_MCMC;
@@ -1210,9 +1217,9 @@ static int vrgiGibbsArgTypes[NGIBBS_ARGS] = { LX_STRING, LX_STRING, LX_STRING,
    GetOptDSpec
 
    get the optimal design specification. It is based on the GetSetPointsSpec
-   routine. 
-   The modification list is kept in MCVAR variation records, although this is 
-   not really a Monte Carlo analysis. This structure should eventually be 
+   routine.
+   The modification list is kept in MCVAR variation records, although this is
+   not really a Monte Carlo analysis. This structure should eventually be
    changed to reflect a more general variation specification.
 */
 BOOL GetOptDSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex)
@@ -1224,7 +1231,7 @@ BOOL GetOptDSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex)
   int ikwcode;
 
   /* Try to get open paren and filenames */
-  if ((iErr = EGetPunct (pibIn, szLex, CH_LPAREN)                   || 
+  if ((iErr = EGetPunct (pibIn, szLex, CH_LPAREN)                   ||
               GetStringArg (pibIn, &panal->gd.szGout, szLex, FALSE) ||
               GetStringArg (pibIn, &panal->gd.szGrestart, szLex, TRUE))) {
     goto Exit_GetOptDSpec;
@@ -1288,7 +1295,7 @@ BOOL GetOptDSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex)
     "\nError: you must specify a list of parameters to read.\n\n");
     goto Exit_GetOptDSpec;
   }
-  
+
   if (!iNLI) /* List terminator */
     iErr = EGetPunct (pibIn, szLex, CH_RPAREN);
   else {
@@ -1329,7 +1336,7 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
   int n, iErr = 0;
   PSTRLEX szDummy;
 
-  /* if we are not doing Monte Carlo, SetPoints, Optimal Design or 
+  /* if we are not doing Monte Carlo, SetPoints, Optimal Design or
      MCMC sampling, then ignore this specification */
   if (panal->iType && !((panal->iType == AT_MONTECARLO) ||
                         (panal->iType == AT_SETPOINTS)  ||
@@ -1340,13 +1347,13 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
   }
 
   /* Get the Distrib() spec. Check syntax at each element. */
-  
+
   /* Get the parameter to be varied */
-  if ((iErr = (EGetPunct (pibIn, szLex, CH_LPAREN) || 
+  if ((iErr = (EGetPunct (pibIn, szLex, CH_LPAREN) ||
                ENextLex (pibIn, szLex, LX_IDENTIFIER))))
     goto Done_GetMCVary;
 
-  if (GetKeywordCode (szLex, NULL) == KM_DATA) { /* Data keyword used */ 
+  if (GetKeywordCode (szLex, NULL) == KM_DATA) { /* Data keyword used */
     /* try to get opening parenthesis */
     if (EGetPunct (pibIn, szLex, CH_LPAREN))
       exit (0); /* error */ /* this should be more graceful */
@@ -1354,9 +1361,9 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
     /* get the name of variable predicted */
     ENextLex (pibIn, szLex, LX_IDENTIFIER);
 
-    /* Data variable must exist and be input, state or output */
+    /* Data variable must exist and must be an input, state or output */
     if (!(hvar = GetVarHandle (szLex)) || IsParm (hvar))
-      ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, 
+      ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL,
                   "input, output or state variable", szLex);
 
     /* try to read off closing parenthesis */
@@ -1372,12 +1379,12 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
     } /* if */
 
   /* Find the list in which pMCVar will be queued */
-  if (panal->iCurrentDepth == 0) /* not an MCMC simulation */ 
+  if (panal->iCurrentDepth == 0) /* not an MCMC simulation */
     plist = panal->mc.plistMCVars;
   else { /* an MCMC simulation */
     if (!IsParm (hvar)) /* Distrib is for a likelihood definition */
       plist = panal->pCurrentLevel[panal->iCurrentDepth-1]->plistLikes;
-    else 
+    else
       plist = panal->pCurrentLevel[panal->iCurrentDepth-1]->plistMCVars;
   }
 
@@ -1405,13 +1412,13 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
   }
 
   /* Get the distribution type */
-  GetOptPunct (pibIn, szLex, ',');
+  GetOptPunct(pibIn, szLex, ',');
   iErr |= ENextLex (pibIn, szLex, LX_IDENTIFIER);
-  pMCVar->iType = McvFromLex (szLex);
+  pMCVar->iType = McvFromLex(szLex);
   if (iErr |= pMCVar->iType < 0) {
-    ReportError (pibIn, RE_LEXEXPECTED, "distribution-type", szLex);
+    ReportError(pibIn, RE_LEXEXPECTED, "distribution-type", szLex);
     goto Done_GetMCVary;
-  } 
+  }
 
   /* Get parameters of the distribution. These vary by distribution type.
      No value checking is made because assignements can be symbolic
@@ -1421,14 +1428,14 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
     case MCV_UNIFORM:
     case MCV_LOGUNIFORM: /* 2 parameters: min and max */
 
-      if((iErr = GetDistribParam(pibIn, szLex, plist, 0, pMCVar)))
+      if ((iErr = GetDistribParam(pibIn, szLex, plist, 0, pMCVar)))
         goto Done_GetMCVary;
 
-      if((iErr = GetDistribParam(pibIn, szLex, plist, 1, pMCVar)))
+      if ((iErr = GetDistribParam(pibIn, szLex, plist, 1, pMCVar)))
         goto Done_GetMCVary;
 
-      pMCVar->dParm[2] = -DBL_MAX;
-      pMCVar->dParm[3] = DBL_MAX;
+      pMCVar->dParm[2] = -DBL_MAX * 0.5;
+      pMCVar->dParm[3] =  DBL_MAX * 0.5;
 
       break;
 
@@ -1438,7 +1445,7 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
     case MCV_NORMALCV:   /* 2 parameters, mean and coefficient of variation */
     case MCV_NORMALV:    /* 2 parameters, mean and VARIANCE */
     case MCV_LOGNORMALV: /* ~ */
-      
+
       if ((iErr = GetDistribParam (pibIn, szLex, plist, 0, pMCVar)))
         goto Done_GetMCVary;
 
@@ -1448,19 +1455,19 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
       /* set the range */
       if ((pMCVar->iType == MCV_NORMAL) || (pMCVar->iType == MCV_NORMALCV) ||
 	  (pMCVar->iType == MCV_NORMALV)) {
-        pMCVar->dParm[2] = -DBL_MAX;
-        pMCVar->dParm[3] =  DBL_MAX;
+        pMCVar->dParm[2] = -DBL_MAX * 0.5;
+        pMCVar->dParm[3] =  DBL_MAX * 0.5;
       }
       else {
         pMCVar->dParm[2] = 0.0;
         pMCVar->dParm[3] = DBL_MAX;
       }
 
-      break; 
+      break;
 
     /* ----------------------------------------------------------------------*/
     case MCV_HALFNORMAL: /* 1 parameter: SD; mean is set to zero */
-      
+
       if ((iErr = GetDistribParam (pibIn, szLex, plist, 1, pMCVar)))
         goto Done_GetMCVary;
 
@@ -1471,7 +1478,7 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
       pMCVar->dParm[2] = 0.0;
       pMCVar->dParm[3] = DBL_MAX;
 
-      break; 
+      break;
 
     /* ----------------------------------------------------------------------*/
     case MCV_BETA:            /* 2 or 4 parameters */
@@ -1480,7 +1487,7 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
     case MCV_TRUNCNORMALCV:   /* Coefficient of variation instead of SD */
     case MCV_TRUNCNORMALV:    /* VARIANCE instead of SD */
     case MCV_TRUNCLOGNORMALV: /* ~ */
-      
+
       if ((iErr = GetDistribParam (pibIn, szLex, plist, 0, pMCVar)))
         goto Done_GetMCVary;
 
@@ -1493,8 +1500,8 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
       if ((pMCVar->iType == MCV_TRUNCNORMAL)   ||
           (pMCVar->iType == MCV_TRUNCNORMALCV) ||
           (pMCVar->iType == MCV_TRUNCNORMALV)) {
-        pMCVar->dParm[2] = -DBL_MAX;
-        pMCVar->dParm[3] =  DBL_MAX;
+        pMCVar->dParm[2] = -DBL_MAX * 0.5;
+        pMCVar->dParm[3] =  DBL_MAX * 0.5;
       }
       else if ((pMCVar->iType == MCV_TRUNCLOGNORMAL) ||
                (pMCVar->iType == MCV_TRUNCLOGNORMALV))
@@ -1538,11 +1545,11 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
 
       /* set the range */
       pMCVar->dParm[2] = 0.0; /* minimum */
-      /* check if the parameter N is symbolic */ 
-      if (pMCVar->iParmType[1] != MCVP_FIXD) 
+      /* check if the parameter N is symbolic */
+      if (pMCVar->iParmType[1] != MCVP_FIXD)
         /* N symbolic: could be anything: assign DBL_MAX as maximum */
         pMCVar->dParm[3] = DBL_MAX; /* FB 18/07/97 */
-      else 
+      else
         /* N numeric: assign it as maximum */
         pMCVar->dParm[3] = pMCVar->dParm[1];
 
@@ -1578,9 +1585,9 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
       break;
 
     /* ----------------------------------------------------------------------*/
-    case MCV_GGAMMA:   
+    case MCV_GGAMMA:
     case MCV_INVGGAMMA: /* 2 parameter: shape and inverse scale */
-      
+
       if ((iErr = GetDistribParam (pibIn, szLex, plist, 0, pMCVar)))
         goto Done_GetMCVary;
 
@@ -1654,9 +1661,9 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
        if ((iErr = GetDistribParam (pibIn, szLex, plist, 0, pMCVar)))
         goto Done_GetMCVary;
 
-      pMCVar->dParm[1] = DBL_MAX;
-      pMCVar->dParm[2] = -DBL_MAX;
-      pMCVar->dParm[3] = DBL_MAX;
+      pMCVar->dParm[1] =  DBL_MAX;
+      pMCVar->dParm[2] = -DBL_MAX * 0.5;
+      pMCVar->dParm[3] =  DBL_MAX * 0.5;
 
       break;
 
@@ -1666,7 +1673,26 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
        if ((iErr = GetDistribParam (pibIn, szLex, plist, 0, pMCVar)))
         goto Done_GetMCVary;
 
-      pMCVar->dParm[1] = DBL_MAX / 2;
+      pMCVar->dParm[1] = DBL_MAX * 0.5;
+      pMCVar->dParm[2] = 0;
+      pMCVar->dParm[3] = DBL_MAX;
+
+      break;
+
+    /* ----------------------------------------------------------------------*/
+    case MCV_USERLL: /* one parameter: the model computed likelihood */
+
+      if (!panal->pCurrentLevel[panal->iCurrentDepth-1] ||
+          (plist != panal->pCurrentLevel[panal->iCurrentDepth-1]->plistLikes)) {
+        printf("UserSpecifiefLL can only be used in Likelihood().");
+        iErr = 1;
+        goto Done_GetMCVary;
+      }
+
+       if ((iErr = GetDistribParam (pibIn, szLex, plist, 0, pMCVar)))
+        goto Done_GetMCVary;
+
+      pMCVar->dParm[1] = DBL_MAX * 0.5;
       pMCVar->dParm[2] = 0;
       pMCVar->dParm[3] = DBL_MAX;
 
@@ -1681,10 +1707,10 @@ int GetDistribSpec (PINPUTBUF pibIn, PANALYSIS panal, PSTR szLex)
 
   EGetPunct (pibIn, szLex, CH_RPAREN);
 
-  /* Check for a range error if the bounds are numeric. If there is a problem, 
+  /* Check for a range error if the bounds are numeric. If there is a problem,
      correct it, but issue a warning in case this is wrong. */
   if ((pMCVar->iParmType[2] == MCVP_FIXD) &&
-      (pMCVar->iParmType[3] == MCVP_FIXD) && 
+      (pMCVar->iParmType[3] == MCVP_FIXD) &&
       (pMCVar->dParm[3] < pMCVar->dParm[2])) {
     double dTmp = pMCVar->dParm[3];    /* Swap ranges */
     pMCVar->dParm[3] = pMCVar->dParm[2];
@@ -1702,12 +1728,12 @@ Done_GetMCVary: ;
 
   if (iErr) {
     if (pMCVar) free (pMCVar);
-    
+
     if (!bGaveMCVaryUsage) {
       printf ("\nSyntax: Check the syntax of %s.\n", GetKeyword (KM_MCVARY));
       bGaveMCVaryUsage = TRUE;
     }
-    
+
     ReportError (pibIn, RE_SYNTAXERR | RE_FATAL, NULL, NULL);
   }
 
@@ -1721,9 +1747,9 @@ Exit_MCVarySpec: ;
 /* ----------------------------------------------------------------------------
    CheckDistribParam
 
-   If the nth distribution parameter for hvar2 is a parameter and the same as 
-   the variable hvar1 for which the Distrib statement is specified, 
-   check false. Used to check that you don't have parameter self-dependency 
+   If the nth distribution parameter for hvar2 is a parameter and the same as
+   the variable hvar1 for which the Distrib statement is specified,
+   check false. Used to check that you don't have parameter self-dependency
    at level 0.
 */
 BOOL CheckDistribParam (PLIST plist, HVAR hvar1, HVAR hvar2) {
@@ -1761,7 +1787,7 @@ BOOL CheckDistribParam (PLIST plist, HVAR hvar1, HVAR hvar2) {
 
    If the argument is a variable, set a pointer to its MC structure
 */
-int GetDistribParam (PINPUTBUF pibIn, PSTR szLex, PLIST plist, int n, 
+int GetDistribParam (PINPUTBUF pibIn, PSTR szLex, PLIST plist, int n,
                      PMCVAR pMCVar) {
   PANALYSIS panal = (PANALYSIS) pibIn->pInfo;
   int iLex, iCode;
@@ -1781,7 +1807,7 @@ int GetDistribParam (PINPUTBUF pibIn, PSTR szLex, PLIST plist, int n,
 
     iCode = GetKeywordCode_in_context (szLex, CN_FUNCARG);
 
-    if ((iCode == KM_PREDICTION) || (iCode == KM_DATA)) { 
+    if ((iCode == KM_PREDICTION) || (iCode == KM_DATA)) {
       /* Prediction or Data keywords used */
 
       /* Only inputs, states and outputs can have predicted or data
@@ -1798,7 +1824,7 @@ int GetDistribParam (PINPUTBUF pibIn, PSTR szLex, PLIST plist, int n,
 
       /* Specified variable must exist and be input, state or output */
       if (!(hvar = GetVarHandle (szLex)) || IsParm (hvar))
-        ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, 
+        ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL,
                     "input, output or state variable", szLex);
 
       /* Try to get closing parenthesis */
@@ -1822,7 +1848,7 @@ int GetDistribParam (PINPUTBUF pibIn, PSTR szLex, PLIST plist, int n,
       ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "valid parameter", szLex);
 
     /* Declare it a symbolic parameter */
-    if (iCode == KM_PREDICTION) 
+    if (iCode == KM_PREDICTION)
       pMCVar->iParmType[n] = MCVP_PRED;
     else if (iCode == KM_DATA)
       pMCVar->iParmType[n] = MCVP_DATA;
@@ -1879,9 +1905,9 @@ int GetSetPointsSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex)
   }
 
   /* Try to get open paren and filenames */
-  if ((iErr = EGetPunct (pibIn, szLex, CH_LPAREN) || 
+  if ((iErr = EGetPunct (pibIn, szLex, CH_LPAREN) ||
               GetStringArg (pibIn, &panal->mc.szMCOutfilename, szLex, FALSE) ||
-              GetStringArg (pibIn, &panal->mc.szSetPointsFilename, szLex, 
+              GetStringArg (pibIn, &panal->mc.szSetPointsFilename, szLex,
                             TRUE))) {
     goto Exit_GetSetPointsSpec;
   }
@@ -1928,7 +1954,7 @@ int GetSetPointsSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex)
     else { /* array */
 
       for (j = iLB; j < iUB; j++) {
-        sprintf(szTmp, "%s_%ld", szLex, j); /* create names */          
+        sprintf(szTmp, "%s_%ld", szLex, j); /* create names */
 
         hvar = GetVarHandle (szTmp);
         if ((iErr = (!hvar || IsInput(hvar))))
@@ -1956,7 +1982,7 @@ int GetSetPointsSpec (PINPUTBUF pibIn, PANALYSIS  panal, PSTR szLex)
     "\nError: you must specify a list of parameters to read.\n\n");
     goto Exit_GetSetPointsSpec;
   }
-  
+
   if (!iNLI) /* List terminator */
     iErr = ((szTmp[0] != CH_RPAREN) && (EGetPunct (pibIn, szLex, CH_RPAREN))) || InitSetPoints (&panal->mc);
   else {
@@ -2001,14 +2027,14 @@ static int vrgiMCArgTypes[NMC_ARGS] = {LX_STRING, LX_INTEGER, LX_NUMBER};
         ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "GetMonteCarloSpec", NULL);
 
       MyStrcpy (panal->mc.szMCOutfilename, vrgszlexArgs[0]);
-      panal->bAllocatedFileName = TRUE;      
+      panal->bAllocatedFileName = TRUE;
     }
 
     panal->mc.nRuns = atol(vrgszlexArgs[1]);
     panal->dSeed = atof(vrgszlexArgs[2]);
   } /* if */
   else
-    printf ("Syntax: %s (szOutfilename, nRuns, dSeed)\n\n", 
+    printf ("Syntax: %s (szOutfilename, nRuns, dSeed)\n\n",
             GetKeyword (KM_MONTECARLO));
 
   if (!iErr)
@@ -2022,7 +2048,7 @@ static int vrgiMCArgTypes[NMC_ARGS] = {LX_STRING, LX_INTEGER, LX_NUMBER};
 /* ----------------------------------------------------------------------------
    GetParmMod
 
-   Reads a variable assignment and store the assigned value (or link if 
+   Reads a variable assignment and store the assigned value (or link if
    symbolic assignment)
 */
 BOOL GetParmMod (PINPUTBUF pibIn, PSTRLEX szLex)
@@ -2156,7 +2182,7 @@ void NewExperiment (PINPUTBUF pibIn)
   /* Allocate new experiment and assign list and current pointers */
 
   if (panal->iCurrentDepth < 0) { /* something is real wrong - FB 03/08/97 */
-     ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "Level statement", 
+     ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "Level statement",
                   "Simulation");
   }
 
@@ -2167,7 +2193,8 @@ void NewExperiment (PINPUTBUF pibIn)
     if (!panal->pexpCurrent)
       ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "NewExperiment()", NULL);
 
-    printf ("Reading experiment %d.\n", panal->expGlobal.iExp);
+    if (panal->rank == 0)
+      printf ("Reading experiment %d.\n", panal->expGlobal.iExp);
   }
   else {
     plevel = panal->pLevels[panal->iInstances - 1];
@@ -2198,9 +2225,10 @@ void NewExperiment (PINPUTBUF pibIn)
     panal->pexpCurrent->iExp = panal->expGlobal.iExp = ++panal->iExpts;
     panal->wContext = CN_EXPERIMENT;
 
-    printf ("Simulation %d - depth %d, instance %d\n", panal->iExpts,
-            panal->iCurrentDepth,
-            panal->pCurrentLevel[panal->iCurrentDepth-2]->iInstances);
+    if (panal->rank == 0)
+      printf ("Simulation %d - depth %d, instance %d\n", panal->iExpts,
+              panal->iCurrentDepth,
+              panal->pCurrentLevel[panal->iCurrentDepth-2]->iInstances);
   }
 
   memcpy (panal->pexpCurrent, &panal->expGlobal, sizeof(EXPERIMENT));
@@ -2256,7 +2284,7 @@ BOOL EndExperiment (PINPUTBUF pibIn, PANALYSIS panal)
    Encountered `Level' keyword, increments number of levels, allocates
    structure, initializes
 */
-int SetLevel(PINPUTBUF pibIn) 
+int SetLevel(PINPUTBUF pibIn)
 {
   PSTRLEX szPunct;
   PANALYSIS panal = (PANALYSIS)pibIn->pInfo;
@@ -2277,7 +2305,7 @@ int SetLevel(PINPUTBUF pibIn)
 
   if (panal->iCurrentDepth == 0) {
 
-    plevel = panal->pLevels[panal->iInstances++] 
+    plevel = panal->pLevels[panal->iInstances++]
            = (PLEVEL) malloc (sizeof (LEVEL));
     if (plevel == NULL)
       ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "SetLevel", NULL);
@@ -2289,7 +2317,8 @@ int SetLevel(PINPUTBUF pibIn)
     }
 
     plevel->iSequence = panal->iInstances;
-    printf ("New level - depth 1, instance %d\n", panal->iInstances);
+    if (panal->rank == 0)
+      printf ("New level - depth 1, instance %d\n", panal->iInstances);
 
   }
   else {
@@ -2304,15 +2333,16 @@ int SetLevel(PINPUTBUF pibIn)
 
     n = panal->pCurrentLevel[panal->iCurrentDepth-1]->iInstances++;
 
-    plevel = plevel->pLevels[n] 
+    plevel = plevel->pLevels[n]
            = (PLEVEL)malloc(sizeof(LEVEL));
 
     if (plevel == NULL)
       ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "SetLevel", NULL);
 
     plevel->iSequence = n + 1;
-    printf("New level - depth %d, instance %d\n", panal->iCurrentDepth + 1,
-           panal->pCurrentLevel[panal->iCurrentDepth-1]->iInstances);
+    if (panal->rank == 0)
+      printf("New level - depth %d, instance %d\n", panal->iCurrentDepth + 1,
+             panal->pCurrentLevel[panal->iCurrentDepth-1]->iInstances);
   }
 
   plevel->iInstances = 0;
@@ -2329,7 +2359,7 @@ int SetLevel(PINPUTBUF pibIn)
   plevel->pexpt = NULL;
 
   return 0;
-  
+
 } /* SetLevel */
 
 
@@ -2362,35 +2392,44 @@ void FreeLevels (PANALYSIS panal)
   FreeList (&panal->mc.plistMCVars, NULL, TRUE);
   FreeList (&panal->expGlobal.plistParmMods, NULL, TRUE);
 
+  free(panal->expGlobal.is.iwork);
+  free(panal->expGlobal.is.rwork);
+
   free(panal->modelinfo.pStateHvar);
+  free(panal);
 
 } /* FreeLevels */
 
 
 /* ----------------------------------------------------------------------------
-   FreeMCLists
+   FreeMCVar
 */
-int FreeMCLists (PVOID pData, PVOID pUserInfo)
+int FreeMCVar (PVOID pData, PVOID pUserInfo)
 {
   PMCVAR pMCVar = (PMCVAR) pData;
   FreeList (&pMCVar->plistDependents, NULL, TRUE);
   free (pMCVar->pszName);
   /* dummy */
   return 0;
-}
+
+} /* FreeMCVar */
 
 
 /* ----------------------------------------------------------------------------
    FreeDataRec
+
+   Partial freeing (pdData is left in memory)
 */
 int FreeDataRec (PVOID pData, PVOID pUserInfo)
 {
   PDATAREC pDataRecord = (PDATAREC) pData;
-  free (pDataRecord->pdData);
-  free (pDataRecord->szDataName);
-  free (pDataRecord);
+
+  /* do not free(pDataRecord->pdData); */
+  free(pDataRecord->szDataName);
+  free(pDataRecord);
   return 0;
-}
+
+} /* FreeDataRec */
 
 
 /* ----------------------------------------------------------------------------
@@ -2399,11 +2438,13 @@ int FreeDataRec (PVOID pData, PVOID pUserInfo)
 int FreePrintRec (PVOID pData, PVOID pUserInfo)
 {
   PPRINTREC pPrintRecord = (PPRINTREC) pData;
+
   free (pPrintRecord->pdTimes);
   free (pPrintRecord->szOutputName);
   free (pPrintRecord);
   return 0;
-}
+
+} /* FreePrintRec */
 
 
 /* ----------------------------------------------------------------------------
@@ -2415,44 +2456,61 @@ void FreeOneLevel (PLEVEL plevel)
 
   for (n = 0; n < plevel->iInstances; n++)
     if (plevel->pLevels[n] != NULL)
-      FreeOneLevel (plevel->pLevels[n]);
+      FreeOneLevel(plevel->pLevels[n]);
 
-  FreeList (&plevel->plistVars, NULL, TRUE);
+  FreeList(&plevel->plistVars, NULL, TRUE);
 
-  ForAllList (plevel->plistMCVars, &FreeMCLists, NULL);
-  FreeList (&plevel->plistMCVars, NULL, TRUE);
+  ForAllList(plevel->plistMCVars, &FreeMCVar, NULL);
+  FreeList(&plevel->plistMCVars, NULL, TRUE);
 
-  ForAllList (plevel->plistLikes, &FreeMCLists, NULL);
-  FreeList (&plevel->plistLikes, NULL, TRUE);
+  ForAllList(plevel->plistLikes, &FreeMCVar, NULL);
+  FreeList(&plevel->plistLikes, NULL, TRUE);
 
   if (plevel->pexpt != NULL) {
+    FreeList(&plevel->pexpt->plistParmMods, &FreeVarMod, FALSE);
+
     POUTSPEC pos = &plevel->pexpt->os;
-    free (pos->pszOutputNames);
-    free (pos->phvar_out);
-    free (pos->pcOutputTimes);
-    free (pos->piCurrentOut);
-    free (pos->prgdOutputTimes);
+    free(pos->pszOutputNames);
+    free(pos->phvar_out);
+    free(pos->pcOutputTimes);
+    free(pos->piCurrentOut);
+    free(pos->prgdOutputTimes);
     for (n = 0; n < pos->nOutputs; n++)
       free(pos->prgdOutputVals[n]);
-    free (pos->prgdOutputVals);
-    free (pos->rgdDistinctTimes);
-    ForAllList (pos->plistPrintRecs, &FreePrintRec, NULL);
-    FreeList (&pos->plistPrintRecs, NULL, FALSE);  
-    free (pos->plistPrintRecs);
-    ForAllList (pos->plistDataRecs, &FreeDataRec, NULL);
-    FreeList (&pos->plistDataRecs, NULL, FALSE);  
-    free (pos->plistDataRecs);
-    /* free (panal->rgpExps[i]); */
-    free (plevel->pexpt);
+    free(pos->prgdOutputVals);
+    free(pos->rgdDistinctTimes);
+    ForAllList(pos->plistPrintRecs, &FreePrintRec, NULL);
+    FreeList(&pos->plistPrintRecs, NULL, FALSE);
+    free(pos->plistPrintRecs);
+
+    free(pos->pcData);
+    free(pos->phvar_dat);
+    free(pos->pszDataNames);
+    for (n = 0; n < pos->nData; n++)
+      free(pos->prgdDataVals[n]);
+    free(pos->prgdDataVals);
+    //ForAllList(pos->plistDataRecs, &FreeDataRec, NULL);
+    //FreeList(&pos->plistDataRecs, NULL, FALSE);
+    //free(pos->plistDataRecs);
+
+    free(plevel->pexpt);
   }
   if (plevel->nFixedVars > 0)
-    free (plevel->rgpFixedVars);
-  for (n = 0; n < plevel->nMCVars; n++) 
-    FreeList (&plevel->rgpMCVars[n]->plistDependents, NULL, TRUE);
+    free(plevel->rgpFixedVars);
+  /* for (n = 0; n < plevel->nMCVars; n++)  */
+  /*   FreeList(&plevel->rgpMCVars[n]->plistDependents, NULL, TRUE); */
   if (plevel->nMCVars > 0)
-    free (plevel->rgpMCVars);
-  if (plevel->nLikes > 0)
-    free (plevel->rgpLikes);
+    free(plevel->rgpMCVars);
+    //if (plevel->nLikes > 0) {
+    //printf("plevel->nLikes %ld\n", plevel->nLikes);
+    //for (n = 0; n < plevel->nLikes; n++) {
+      //printf("plevel->rgpLikes[n]-> %lu\n", &plevel->rgpLikes[n]);
+      /* clean array of MCVars */
+      //if (&plevel->rgpLikes[n] != NULL)
+      //FreeMCVar ((PVOID) (plevel->rgpLikes[n]), NULL);
+    //}
+  free(plevel->rgpLikes);
+  //}
 
   free(plevel);
 
@@ -2503,6 +2561,9 @@ void ProcessWord (PINPUTBUF pibIn, PSTR szLex, PSTR szEqn)
       iLB = iUB = -1;
       if (GetPunct (pibIn, szTmp, '[')) /* array found, read bounds */
         GetArrayBounds (pibIn, &iLB, &iUB);
+      else
+        if (!strcmp(szTmp, "=")) /* put it back... */
+          pibIn->pbufCur--;
 
       if (iUB == -1) { /* scalar */
         iErr = GetParmMod (pibIn, szLex);
@@ -2510,9 +2571,9 @@ void ProcessWord (PINPUTBUF pibIn, PSTR szLex, PSTR szEqn)
       else { /* array */
 
         if (GetPunct (pibIn, szTmp, '=')) { /* read assignment */
-          GetStatement (pibIn, szEqn);	 
+          GetStatement (pibIn, szEqn);	
           for (i = iLB; i < iUB; i++) {
-            sprintf (szTmp, "%s_%ld", szLex, i); /* create names */          
+            sprintf (szTmp, "%s_%ld", szLex, i); /* create names */
             UnrollEquation (pibIn, i, szEqn, szEqnU);
             iErr = GetParmMod2 (pibIn, szTmp, szEqnU);
             if (iErr)
@@ -2521,7 +2582,7 @@ void ProcessWord (PINPUTBUF pibIn, PSTR szLex, PSTR szEqn)
         }
         else {
           ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "= or [", NULL);
-        }  
+        }
       }
       break;
 
@@ -2592,7 +2653,7 @@ void ProcessWord (PINPUTBUF pibIn, PSTR szLex, PSTR szEqn)
       break;
 
     case KM_TEMPERATURE:
-      iErr = GetInvTemperature (pibIn, szLex, &panal->gd);
+      iErr = GetPerks (pibIn, szLex, &panal->gd);
       break;
 
     case KM_END:

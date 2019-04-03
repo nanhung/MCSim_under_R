@@ -1052,7 +1052,7 @@ int lsodes_(long *neq, double *y,
   /* Initialized data */
 
   static long mord[2] = { 12,5 };
-  static long mxstp0 = 500;
+  static long mxstp0 = 5000;
   static long mxhnl0 = 10;
 
   

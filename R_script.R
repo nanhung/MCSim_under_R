@@ -1,7 +1,7 @@
 ## Pre-setting and load functions ####
 # clear() # use to clear the exe and out file
 # make sure to put the model and input files to "input folder"
-source("FUN.R") 
+source("function.R") 
 
 ## simple model #####
 # Define the name of model and input files

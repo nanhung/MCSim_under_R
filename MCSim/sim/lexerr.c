@@ -36,7 +36,7 @@
    ReportError
 
    Reports error iCode to terminal (one of RE_) and optional
-   szMessage.   If iSeverity is set to RE_FATAL, exits program.
+   szMessage. If iSeverity is set to RE_FATAL, exits program.
 */
 
 void ReportError (PINPUTBUF pibIn, WORD wCode, PSTR szMsg, PSTR szAltMsg)

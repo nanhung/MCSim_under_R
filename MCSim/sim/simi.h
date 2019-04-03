@@ -43,7 +43,7 @@ void DListToArray (PLIST plist, PLONG pcDouble, PDOUBLE *ppDouble);
 BOOL EndExperiment (PINPUTBUF pibIn, PANALYSIS panal);
 BOOL EndLevel (PANALYSIS panal);
 void FreeLevels (PANALYSIS panal);
-int  FreeMCLists (PVOID pData, PVOID pUserInfo);
+int  FreeMCVar (PVOID pData, PVOID pUserInfo);
 int  FreeDataRec (PVOID pData, PVOID pUserInfo);
 int  FreePrintRec (PVOID pData, PVOID pUserInfo);
 void FreeOneLevel (PLEVEL plevel);

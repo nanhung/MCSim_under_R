@@ -39,7 +39,7 @@
 void CloseMCFiles (PANALYSIS);
 void SaveOutputs (PEXPERIMENT, PDOUBLE);
 void NextOutputTime (PEXPERIMENT, PDOUBLE, PINT);
-int OpenMCFiles (PANALYSIS panal);
+void OpenMCFiles (PANALYSIS panal);
 void WriteMCHeader (PFILE, PANALYSIS);
 void WriteMCOutput (PANALYSIS, PMCPREDOUT);
 void WriteNormalOutput (PANALYSIS, PEXPERIMENT);

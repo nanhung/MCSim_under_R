@@ -30,8 +30,8 @@
 /* ----- Constants  */
 
 /* Version and copyright */
-#define VSZ_VERSION "v6.0.1"
-#define VSZ_COPYRIGHT "Copyright (c) 1993-2018 Free Software Foundation, Inc."
+#define VSZ_VERSION "v6.1.0"
+#define VSZ_COPYRIGHT "Copyright (c) 1993-2019 Free Software Foundation, Inc."
 
 /* The time variable accessible to the user */
 #define VSZ_TIME "t"

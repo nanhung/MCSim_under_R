@@ -612,7 +612,7 @@ char NextChar (PINPUTBUF pibIn)
 int GetOptPunct (PINPUTBUF pibIn, PSTR szLex, char chPunct)
 {
   int iReturn, iType;
-                    /* Assigning iReturn makes optional */
+
   iReturn = SkipWhitespace (pibIn);
   if (NextChar (pibIn) == chPunct) {
     iReturn = TRUE;
@@ -790,31 +790,33 @@ BOOL GetFuncArgs (PINPUTBUF pibIn,
   int i, iType;
   PSTRLEX szPunct;
 
-  if (!(bOK = GetPunct (pibIn, szPunct, CH_LPAREN))) {
+  if (!(bOK = GetPunct(pibIn, szPunct, CH_LPAREN))) {
     szPunct[1] = CH_LPAREN;
-    ReportError (pibIn, RE_EXPECTED, szPunct, NULL);
+    ReportError(pibIn, RE_EXPECTED, szPunct, NULL);
   } /* if */
 
   for (i = 0; i < nArgs && bOK; i++, szArgs += MAX_LEX) {
     if (i)
-      if (!(bOK = GetOptPunct (pibIn, szArgs, ','))) {
+      if (!(bOK = GetOptPunct(pibIn, szArgs, ','))) {
         *(szArgs+1) = ',';
-        ReportError (pibIn, RE_EXPECTED, szArgs, NULL);
-        break; /* Error: Stop getting args */
+        ReportError(pibIn, RE_EXPECTED, szArgs, NULL);
+        return(bOK); /* Error: Stop getting args */
       }
 
     NextLex (pibIn, szArgs, &iType);
-    if (!(bOK &= (iType & rgiArgTypes[i]) > 0))
-      ReportError (pibIn, RE_LEXEXPECTED,
-                   vrgszLexTypes[rgiArgTypes[i]], szArgs);
+    if (!(bOK &= (iType & rgiArgTypes[i]) > 0)) {
+      ReportError(pibIn, RE_LEXEXPECTED,
+                  vrgszLexTypes[rgiArgTypes[i]], szArgs);
+      return(bOK); /* Error: Stop getting args */
+    }
   } /* for */
 
   if (!(bOK = GetPunct (pibIn, szPunct, CH_RPAREN))) {
     szPunct[1] = CH_RPAREN;
-    ReportError (pibIn, RE_EXPECTED, szPunct, NULL);
+    ReportError(pibIn, RE_EXPECTED, szPunct, NULL);
   } /* if */
 
-  return (bOK);
+  return(bOK);
 
 } /* GetFuncArgs */
 

@@ -48,7 +48,7 @@
 #include "strutil.h"
 #include "config.h"
 
-// CVODES specific includes and routines
+/* CVODES specific includes and routines */
 
 #ifdef HAVE_LIBSUNDIALS_CVODES
 
@@ -63,8 +63,7 @@
 
 
 typedef struct {
-  int nVars; // number of state and output variables
-  int npes, my_pe;
+  int nVars; /* number of state and output variables */
 } UserData;
 
 /* Check function return value...
@@ -145,6 +144,12 @@ static int f_for_cvodes(realtype t, N_Vector u, N_Vector udot, void *user_data)
 
 #endif
 
+/* MPI specific includes */
+
+#ifdef USEMPI
+#include "mpi.h"
+#endif
+
 
 /* ----------------------------------------------------------------------------
    CorrectInputToTransition
@@ -203,7 +208,7 @@ int Euler (long neq, double *y, double *t, double tout, double dTStep)
     for (i = 0; i < neq; i++)
       y[i] = y[i] + dTmp_step * rgdDeriv[i];
 
-    if (bDelays) 
+    if (bDelays)
       StoreDelayed(*t);
 
     DoStep_by_Step();
@@ -220,21 +225,24 @@ int Euler (long neq, double *y, double *t, double tout, double dTStep)
 /* ----------------------------------------------------------------------------
    FreeVarMod
 
-   Callback for FreeList().
-
-   Frees the memory for one parameter modification.  If the parameter
-   is an input, the memory allocated for the input function is also
-   free'd.  Note that FreeList() will pass the data as a PVOID which
-   needs to be re-cast.
+   Frees a VARMOD structure
 */
 void FreeVarMod (PVOID pData)
 {
   PVARMOD pvarmod = (PVARMOD) pData;
 
   if (IsInput (pvarmod->hvar))
-    if (pvarmod->uvar.pifn) free (pvarmod->uvar.pifn);
+    if (pvarmod->uvar.pifn)
+      free (pvarmod->uvar.pifn);
 
   free (pvarmod);
+
+  /* we might have to free those too... */
+  /* PDOUBLE rgT0s;           /\* Array of start times *\/ */
+  /* PDOUBLE rgMags;          /\* Array of magnitudes *\/ */
+  /* HANDLE *rghT0s;          /\* Handles to start times *\/ */
+  /* HANDLE *rghMags;         /\* Handles to magnitudes *\/ */
+  /* PINT   rgOper;           /\* Array of operation types *\/ */
 
 } /* FreeVarMod */
 
@@ -311,18 +319,18 @@ int DoOneExperiment (PEXPERIMENT pexp)
    /* Resolve dependent inputs, which calls ScaleModel */
   UpdateInputs (&pexp->dT0, &dTtrans);
 
-  if (bDelays) 
+  if (bDelays)
     InitDelays(pexp->hT0);
 
   if (pexp->dT0 > dTtrans) {
     printf ("\nError: starting time is greater than first discontinuity,"
-            "       check your inputs - Exiting.\n");
+            "       check your inputs - Exiting.\n\n");
     exit (0);
   }
 
   if (pexp->dT0 > dTout) {
     printf ("\nError: starting time is greater than first output time,"
-            "       check your outputs - Exiting.\n");
+            "       check your outputs - Exiting.\n\n");
     exit (0);
   }
 
@@ -344,7 +352,7 @@ int DoOneExperiment (PEXPERIMENT pexp)
         u = N_VNew_Serial(pmod->nStates);  /* Allocate u vector */
         if (check_flag((void*)u, "N_VNew_Serial", 0)) return(1);
 
-        /* Call CVodeCreate to create the solver memory and specify the 
+        /* Call CVodeCreate to create the solver memory and specify the
          * Backward Differentiation Formula and the use of a Newton iteration */
         cvode_mem = CVodeCreate(CV_BDF, CV_NEWTON);
         if (check_flag((void *)cvode_mem, "CVodeCreate", 0)) return(1);
@@ -352,7 +360,7 @@ int DoOneExperiment (PEXPERIMENT pexp)
         /* set initial state values */
         for (i = 0; i < pmod->nStates; i++)
           NV_Ith_S(u, i) = pmod->pdModelVars[i];
-    
+
         /* Call CVodeInit to initialize the integrator memory and specify the
          * user's right hand side function in u'=f(t,u), the inital time T0, and
          * the initial dependent variable vector u. */
@@ -361,11 +369,11 @@ int DoOneExperiment (PEXPERIMENT pexp)
 
         /* Call CVodeSStolerances to specify the scalar relative tolerance
          * and scalar absolute tolerance */
-        flag = CVodeSStolerances(cvode_mem, 
+        flag = CVodeSStolerances(cvode_mem,
                                  RCONST(pis->dRtol), RCONST(pis->dAtol));
         if (check_flag(&flag, "CVodeSStolerances", 1)) return(1);
 
-        /* Set the pointer to user-defined data used to store the total 
+        /* Set the pointer to user-defined data used to store the total
            number of state and output variables */
         user_data.nVars = pmod->nModelVars;
         flag = CVodeSetUserData(cvode_mem, &user_data);
@@ -374,7 +382,7 @@ int DoOneExperiment (PEXPERIMENT pexp)
         /* Call CVDense to specify the CVDENSE dense linear solver */
         flag = CVDense(cvode_mem, pmod->nStates);
         if (check_flag(&flag, "CVDense", 1)) return(1);
-    
+
         /* Set the user-supplied Jacobian routine Jac, not used now
         flag = CVDlsSetBandJacFn(cvode_mem, Jac);
         if(check_flag(&flag, "CVDlsSetBandJacFn", 1)) return(1); */
@@ -399,17 +407,17 @@ int DoOneExperiment (PEXPERIMENT pexp)
 
       /* the upper limit of integration dTup should be either dTout
          or dTtrans, whichever is smaller */
-      /* F. Bois, 08 April 2007: before that, if the difference between dTout 
+      /* F. Bois, 08 April 2007: before that, if the difference between dTout
          and dTtrans is too small make dTtrans = dTout to avoid problems with
          the integration */
-      if (fabs(dTout - dTtrans) < DBL_EPSILON * 2.0 * 
+      if (fabs(dTout - dTtrans) < DBL_EPSILON * 2.0 *
                                   mymax(fabs(dTout), fabs(dTtrans)))
         dTtrans = dTout;
 
       dTup = (dTout < dTtrans) ? dTout : dTtrans;
 
       /* F. Bois, 07 October 2008: same rounding problem fix: */
-      if (fabs(dTup - pexp->dTime) < DBL_EPSILON * 2.0 * 
+      if (fabs(dTup - pexp->dTime) < DBL_EPSILON * 2.0 *
                                      mymax(fabs(dTup), fabs(pexp->dTime)))
         pexp->dTime = dTup;
 
@@ -488,7 +496,7 @@ int DoOneExperiment (PEXPERIMENT pexp)
   if (pis->iAlgo == IAL_CVODES) { /* cleanup Sundials CVODE algorithm */
 #ifdef HAVE_LIBSUNDIALS_CVODES
     /* Free vector u */
-    N_VDestroy_Serial(u);    
+    N_VDestroy_Serial(u);
     CVodeFree(&cvode_mem);  /* Free the integrator memory */
 #endif
   }
@@ -600,76 +608,149 @@ void DoNormal (PANALYSIS panal)
 /* ----------------------------------------------------------------------------
    DoMonteCarlo
 
-   Does a Monte Carlo analysis or a Set Points analysis.  The latter is
-   handled here because the looping is basically the same, with one
-   difference.
-
-   If the number of runs (nRuns) for SetPoints() analysis is
-   specified to be zero, set points are read from the set points file
-   until end of file is reached.  Otherwise, the number of runs
-   explicity stated are read.  Not having enough points in the file
-   in this latter case yields an error.
-
-   If nRuns == 0, the test at the end of the while{} loop is not
-   used, and the decision to continue is made by the return value of
-   GetMCMods().  Since for MonteCarlo analyses, this return value is
-   always TRUE (i.e. you can always pick another random number),
-   nRuns is locally modified to 1, if it has been spec'd to zero,
-   thus preventing the the Monte Carlo's from accidentaly running
-   forever.
+   Does Monte Carlo simulations.
 */
 void DoMonteCarlo (PANALYSIS panal)
 {
-  int nExps = panal->expGlobal.iExp;
-  long nRuns = panal->mc.nRuns;
+  int       nExps = panal->expGlobal.iExp;
+  long      nRuns = panal->mc.nRuns;
   MCPREDOUT mcpredout;
-  BOOL bOK = FALSE, bNotDone; /* Not finished with analysis */
-  int i;
+  BOOL      bOK;
+  long      i, j;
+
+  if (panal->rank == 0) {
+    printf("Doing %ld Monte Carlo simulation%c, %d experiment%c%s\n",
+           nRuns, (nRuns != 1 ? 's' : ' '),
+           nExps, (nExps > 1 ? 's' : ' '), (nRuns != 1 ? " each" : "."));
+    if (panal->size > 1)
+      printf("Split between %d processors\n", panal->size);
+  }
+  else
+    printf("\n");
+
+  SetParents(&panal->mc, 0); /* do all requested simulations */
+
+  OpenMCFiles(panal);
+  mcpredout.pred = NULL;
+
+#ifdef USEMPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
+  /* split the work between processors */
+  for (i = panal->rank; i < nRuns; i += panal->size) {
+
+    /* output to screen, if required as a command-line option */
+    if (i == 0)
+      printf("\n");
+    if (panal->bOutputIter && ((i+1) % panal->nOutputFreq == 0)) {
+      if (panal->size > 1)
+        printf("Processor %d, Iteration %ld\n", panal->rank, i + 1);
+      else
+        printf("Iteration %ld\n", i + 1);
+    }
+
+    panal->mc.lRun = i;
+
+    CalcMCParms (&panal->mc, NULL, 0); /* start at 0, do them all */
+
+    for (j = 0; j < nExps; j++) { /* do all experiments */
+      bOK = DoOneMCExp (panal, panal->rgpExps[j]);
+      if (!bOK)
+        break;
+    }
+
+    if (bOK) { /* if successful write results */
+      TransformPred(panal, &mcpredout); /* transform output run */
+      WriteMCOutput(panal, &mcpredout);
+    }
+    else
+      printf("Warning: Integration failed on iteration %ld, experiment %ld:\n"
+             "         No output generated\n", panal->mc.lRun+1, j+1);
+
+  } /* for i */
+
+  CloseMCFiles(panal);
+  if (mcpredout.pred)
+    free(mcpredout.pred);
+
+} /* DoMonteCarlo */
+
+
+/* ----------------------------------------------------------------------------
+   DoSetPoints
+
+   Does Set Points analysis.
+
+   If the number of runs (nRuns) is specified to be zero, set points
+   are read from the set points file until end of file is reached.
+   Otherwise, the number of runs explicity stated are read.  Not
+   having enough points in the file in this latter case yields an
+   error.
+
+   If nRuns == 0, the test at the end of the while{} loop is not
+   used, and the decision to continue is made by the return value of
+   GetMCMods().
+*/
+void DoSetPoints (PANALYSIS panal)
+{
+  int       nExps = panal->expGlobal.iExp;
+  long      nRuns = panal->mc.nRuns;
+  MCPREDOUT mcpredout;
+  BOOL      bOK = FALSE, bNotDone; /* Not finished with analysis */
+  int       i;
 
   mcpredout.pred = NULL;
 
-  if (panal->iType == AT_MONTECARLO && nRuns <= 0)
-    nRuns = 1; /* Don't let MonteCarlo run forever */
+  OpenMCFiles(panal);
 
-  /* if cannot open files, Abort */
-  if (OpenMCFiles (panal)) exit(0);
-
-  printf ("\nDoing analysis - %ld %s run%c... %d experiment%c%s\n",
-          nRuns,
-          (panal->iType == AT_MONTECARLO ? "Monte Carlo" : "Set point"),
-          (nRuns != 1 ? 's' : ' '),
-          nExps, (nExps > 1 ? 's' : ' '),
-          (nRuns != 1 ? " each" : " "));
-
-  if (!nRuns)
-    printf ("0 runs specified for SetPoint().  Reading entire file.\n\n");
-
-  /* FB 21/07/97: dependencies between parameters are handled here. Pointers 
-     to the parent parameters are stored in hparm of the pmcvar structure for
-     each parameter. We now have to make pdParms point to the parent's dVals. */
-  if (panal->iType == AT_MONTECARLO) {
-    SetParents (&panal->mc, 0); /* start at 0, do them all */
+  if (panal->rank == 0) {
+    printf ("Doing analysis - %ld SetPoints run%c... %d experiment%c%s\n",
+            nRuns, (nRuns != 1 ? 's' : ' '), nExps, (nExps > 1 ? 's' : ' '),
+            (nRuns != 1 ? " each" : " "));
+    if (panal->size > 1)
+      printf("Split between %d processors\n", panal->size);
   }
-  else { /* panal->iType == AT_SETPOINTS */
-    SetParents (&panal->mc, panal->mc.nSetParms);
-  }
+  else
+    printf("\n");
 
-  panal->mc.lRun = 0; /* First run */
+  if ((!nRuns) && panal->rank == 0)
+    printf("0 runs specified for SetPoint(). Reading entire file.\n\n");
+
+  SetParents(&panal->mc, panal->mc.nSetParms);
+
+#ifdef USEMPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
+  panal->mc.lRun = 0; /* first run */
   bNotDone = TRUE;
 
   while (bNotDone) {
 
-    bNotDone = GetMCMods (panal, NULL); /* Mods for this run */
+    bNotDone = GetSPMods (panal, NULL);
 
-    if (bNotDone) {
-      /* Do analysis if not finished */
-      for (i = 0; i < nExps; i++) { /* Do all experiments */
+    /* split the work between processors */
+    if ((bNotDone) && (panal->mc.lRun % panal->size == panal->rank)) {
+
+      /* output to screen, if required as a command-line option */
+      if (panal->bOutputIter &&
+          ((panal->mc.lRun+1) % panal->nOutputFreq == 0)) {
+        if (panal->size > 1)
+          printf("Processor %d, Iteration %ld\n",
+                 panal->rank, panal->mc.lRun + 1);
+        else
+          printf("Iteration %ld\n", panal->mc.lRun + 1);
+      }
+
+      /* do analysis if not finished */
+      for (i = 0; i < nExps; i++) { /* do all experiments */
         bOK = DoOneMCExp (panal, panal->rgpExps[i]);
         if (!bOK) break;
       }
 
       if (bOK) {
-        /* If successful write results */
+        /* if successful write results */
         TransformPred (panal, &mcpredout); /* transform output run */
         WriteMCOutput (panal, &mcpredout);
       }
@@ -678,8 +759,8 @@ void DoMonteCarlo (PANALYSIS panal)
                 "         No output generated\n", panal->mc.lRun+1, i+1);
     } /* if bNotDone */
 
-    panal->mc.lRun++; /* Next run */
-    if (nRuns) /* If a number of runs spec'd... */
+    panal->mc.lRun++; /* next run */
+    if (nRuns) /* if a number of runs spec'd... */
       bNotDone = (panal->mc.lRun < nRuns);
 
   } /* while */
@@ -688,7 +769,7 @@ void DoMonteCarlo (PANALYSIS panal)
 
   if (mcpredout.pred) free(mcpredout.pred);
 
-} /* DoMonteCarlo */
+} /* DoSetPoints */
 
 
 /* ----------------------------------------------------------------------------
@@ -699,16 +780,23 @@ void DoMonteCarlo (PANALYSIS panal)
 void DoAnalysis (PANALYSIS panal)
 {
 
-  InitRandom (panal->dSeed, TRUE);
-
+  if (panal->size == 1)
+    InitRandom (panal->rank, panal->dSeed, TRUE);
+  else
+    InitRandom (panal->rank, panal->dSeed + panal->rank, TRUE);
+  
   switch (panal->iType) {
 
     default:
     case AT_DEFAULTSIM:
-      DoNormal (panal);
+      if (panal->rank == 0) /* not parallel */
+        DoNormal (panal);
       break;
 
-    case AT_SETPOINTS: /* Not really Monte Carlo */
+    case AT_SETPOINTS:
+      DoSetPoints (panal);
+      break;
+
     case AT_MONTECARLO:
       DoMonteCarlo (panal);
       break;
@@ -718,7 +806,8 @@ void DoAnalysis (PANALYSIS panal)
       break;
 
     case AT_OPTDESIGN:
-      DoOptimalDesign (panal);
+      if (panal->rank == 0) /* not parallel */
+        DoOptimalDesign (panal);
       break;
 
   } /* switch */
@@ -754,9 +843,9 @@ void FreeMemory (PANALYSIS panal)
 
   for (i = 0; i < panal->expGlobal.iExp; i++) {
     if (panal->rgpExps[i] != NULL) {
-      POUTSPEC pos = &panal->rgpExps[i]->os;
+      FreeList (&panal->rgpExps[i]->plistParmMods, &FreeVarMod, TRUE);
 
-      FreeList (&panal->rgpExps[i]->plistParmMods, NULL, TRUE);  
+      POUTSPEC pos = &panal->rgpExps[i]->os;
       free (pos->pszOutputNames);
       free (pos->phvar_out);
       free (pos->pcOutputTimes);
@@ -767,10 +856,10 @@ void FreeMemory (PANALYSIS panal)
       free (pos->prgdOutputVals);
       free (pos->rgdDistinctTimes);
       ForAllList (pos->plistPrintRecs, &FreePrintRec, NULL);
-      FreeList (&pos->plistPrintRecs, NULL, FALSE);  
+      FreeList (&pos->plistPrintRecs, NULL, FALSE);
       free (pos->plistPrintRecs);
       ForAllList (pos->plistDataRecs, &FreeDataRec, NULL);
-      FreeList (&pos->plistDataRecs, NULL, FALSE);  
+      FreeList (&pos->plistDataRecs, NULL, FALSE);
       free (pos->plistDataRecs);
       free (panal->rgpExps[i]);
     }
@@ -780,7 +869,7 @@ void FreeMemory (PANALYSIS panal)
     if (panal->mc.szMCOutfilename)      free (panal->mc.szMCOutfilename);
     if (panal->gd.szGout)               free (panal->gd.szGout);
   }
-  
+
   if (panal->mc.szSetPointsFilename)  free (panal->mc.szSetPointsFilename);
   if (panal->gd.szGrestart)           free (panal->gd.szGrestart);
   if (panal->gd.szGdata)              free (panal->gd.szGdata);
@@ -828,7 +917,7 @@ void PrepAnalysis (PANALYSIS panal)
      malloc. If pmc->nParms is zero  no use is going to be made of these
      arrays anyway */
   if (pmc->nParms == 0) return;
-  
+
   pmc->rgdParms = InitdVector (pmc->nParms);
   pmc->rgpMCVar = (MCVAR **) malloc((pmc->nParms)*sizeof(MCVAR *));
   if (!(pmc->rgdParms && pmc->rgpMCVar))
@@ -852,30 +941,6 @@ void PrepAnalysis (PANALYSIS panal)
     ReportError (NULL, RE_OUTOFMEM | RE_FATAL, "PrepAnalysis", NULL);
 
 } /* PrepAnalysis */
-
-
-/* Get the command line argument stuff */
-
-/* ----------------------------------------------------------------------------
-   SansPath
-
-   returns a pointer to just the filename of a full path.
-*/
-/*
-char *SansPath (char *szFullPathname)
-{
-  register char *szFile;
-
-  if ((szFile = szFullPathname))
-    while (*szFullPathname) {
-      if (*szFullPathname == '/')
-        szFile = szFullPathname+1;
-      szFullPathname++;
-    }
-
-  return szFile;
-
-} */ /* SansPath */
 
 
 /* ----------------------------------------------------------------------------
@@ -923,27 +988,6 @@ void PromptFilenames (PSTR *pszFileIn, PSTR *pszFileOut)
 
 
 /* ----------------------------------------------------------------------------
-   Command Line Parsing
-
-*/
-
-/*
-#define WarnArgumentReqd(szOption, szArg) \
-  printf ("* Command-line option \"%s\" requires an argument \"%s\"\n",\
-          szOption, szArg);
-
-#define WarnUnknownArg(szOption, szArg) \
-  printf ( "* Unknown argument \"%s\" to option \"%s\"\n", szArg, szOption);
-
-
-void GetOutputFlagOption (PANALYSIS panal, char *optarg)
-{
-  WarnUnknownArg ("-O", optarg);
-
-} */ /* GetOutputFlagOption */
-
-
-/* ----------------------------------------------------------------------------
    GetCmdLineArgs
 
    retrieves options and filenames from the command line arguments passed to
@@ -951,7 +995,7 @@ void GetOutputFlagOption (PANALYSIS panal, char *optarg)
 
    The command line syntax is:
 
-     mcsim [-options | --options] [input-file [output-file]]
+     mcsim [-options] [input-file [output-file]]
 
    If the output filename is not given a default is used.
    If neither the input, nor output filenames are given, the
@@ -963,18 +1007,21 @@ void GetOutputFlagOption (PANALYSIS panal, char *optarg)
    the args in rgszArg have been permuted so that non-option args are
    first, which in this case means the filenames.
 
-   Uses the following globals:
-
+   Uses the following globals (see getopt.c comments):
      char *optarg;    -- Contains the string argument to each option in turn
-     int   optind;    -- Index in ARGV of the next elem to be scanned
-     char *nextchar;  -- The next char to be scanned in the option-element
-     int   opterr;    -- 0 value flags to inhibit GNU error messages
 
+   The following options are defined:
+   -c (without argument)             : print MCMC convergence check to stdout,
+                                       inhibits -i option if set (redundant)
+   -h or -H (without argument)       : give minimal help
+   -i (with integer argument)        : print one in every x MCMC iteration
+                                       counter to stdout; x is given by the
+                                       argument
+   -D (with argument print-hierarchy): print the MCMC Level structure
 */
+static char vszOptions[] = "c::h::H::i:D:";
 
-static char vszOptions[] = "h:H:D:";
-
-void GetCmdLineArgs (int cArg, char *const *rgszArg, PSTR *pszFileIn, 
+void GetCmdLineArgs (int cArg, char *const *rgszArg, PSTR *pszFileIn,
                      PSTR *pszFileOut, PANALYSIS panal)
 {
   int c;
@@ -984,31 +1031,74 @@ void GetCmdLineArgs (int cArg, char *const *rgszArg, PSTR *pszFileIn,
   while (1) {
 
     c = _getopt (cArg, rgszArg, vszOptions);
-    if (c == EOF) /* Finish with option args */
+    if (c == EOF) /* finished with option args */
       break;
 
     switch (c) {
-      case '?':
-        optarg = 0;
-        /* Fall through! */
-
-      case 'H':
-      case 'h':
-        /* if (optarg && *optarg) disabled for now, not up to date
-          ShowHelp (optarg);
-        else
-          ShowHelpMessage (SansPath (rgszArg[0])); */
-        exit (-1);
+      case 'c':
+#ifdef USEMPI
+        panal->bPrintConvergence = TRUE;
+        if (optarg)
+          printf(">> Option -c argument %s will be ignored\n\n", optarg);
+#else
+        printf(">> MPI parallelization not active: option -c is ignored\n\n");
+#endif
         break;
 
       case 'D':
-        printf (">> Debug mode: Using option '%s'\n", optarg);
-        /* Could setup to run with certain debug flags, not enabled  */
+        /* remove optional leading '=' character */
+        if (optarg[0] == '=')
+          optarg++;
+        if (!strcmp(optarg, "print-hierarchy")) {
+          printf (">> Debug option %s\n\n", optarg);
+          panal->bDependents = TRUE;
+        }
+        else {
+          printf(">> A known debugging code must follow -D\nExiting.\n\n");
+          exit(-1);
+        }
+        break;
+
+      case 'H':
+      case 'h':
+        printf("Usage: %s [options] <input-file> [<output-file>]\n",
+               rgszArg[0]);
+        printf("Options:\n");
+        printf("  -c                   "
+               "Display MCMC convergence (if MPI is used)\n");
+        printf("  -D=print-hierarchy   "
+               "Print out the hierarchy for debugging\n");
+        printf("  -h                   "
+               "Display this information\n");
+        printf("  -H                   "
+               "Display this information\n");
+        printf("  -i=<arg>             "
+               "Print out every <arg> iteration\n");
+        printf("\nFor further help on GNU MCSim please see:\n"
+               "http://www.gnu.org/software/mcsim.\n\n");
+        exit(-1);
+        break;
+
+      case 'i':
+        /* remove optional leading '=' character */
+        if (optarg[0] == '=')
+          optarg++;
+        /* convert argument to base 10 */
+        panal->nOutputFreq = strtol(optarg, NULL, 10);
+        if (panal->nOutputFreq > 0) {
+          if (panal->rank == 0)
+            printf (">> Print iteration frequency %d\n\n", panal->nOutputFreq);
+          panal->bOutputIter = TRUE;
+        }
+        else {
+          printf(">> An integer print step must follow -i\nExiting.\n\n");
+          exit(-1);
+        }
         break;
 
       default:
-        printf ("Unknown option in command-line, %c = code 0%o ?\n", c, c);
-        break;
+        printf("Exiting.\n\n");
+        exit(-1);
 
     } /* switch */
 
@@ -1017,7 +1107,6 @@ void GetCmdLineArgs (int cArg, char *const *rgszArg, PSTR *pszFileIn,
   switch (cArg - optind) { /* Remaining args are filenames */
     case 2: /* Output and input file specificed */
       *pszFileOut = rgszArg[optind + 1];
-
       /* Fall through! */
 
     case 1: /* Input file specificed */
@@ -1029,21 +1118,19 @@ void GetCmdLineArgs (int cArg, char *const *rgszArg, PSTR *pszFileIn,
       break;
 
     default:
-      /* ShowHelp ("Usage"); */ /* disabled for now, not updated */
       exit (-1);
       break;
+
   } /* switch */
 
-  while (*pszFileIn && (*pszFileIn)[0] &&      /* Files specified   */
-         !MyStrcmp(*pszFileIn, *pszFileOut)) { /* and not different */
-
+  while (*pszFileIn && (*pszFileIn)[0] &&      /* files specified   */
+         !MyStrcmp(*pszFileIn, *pszFileOut)) { /* but not different */
     printf ("\n** Input and output filename must be different.\n");
     PromptFilenames (pszFileIn, pszFileOut);
-
-  } /* while */
+  }
 
   if (!(*pszFileIn && (*pszFileIn)[0])) { /* no input name given is an error */
-    printf ("Error: an input file name must be specified - Exiting\n\n");
+    printf ("Error: an input file name must be specified - Exiting.\n\n");
     exit (-1);
   }
 
@@ -1073,14 +1160,30 @@ void AnnounceProgram (void)
 
    Entry point for simulation and analysis program.
 */
-
 int main (int nArg, char **rgszArg)
 {
+
+#ifdef USEMPI
+  MPI_Init(&nArg,&rgszArg);
+#endif
+
+  int rank = 0;
+  int size = 1;
+
+#ifdef USEMPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+#endif
+
   PSTR szFileIn, szFileOut;
   INPUTBUF ibIn;
   PANALYSIS panal = (PANALYSIS) malloc (sizeof(ANALYSIS));
 
-  AnnounceProgram ();
+  panal->rank = rank;
+  panal->size = size;
+
+  if (panal->rank == 0)
+    AnnounceProgram ();
 
   if (!panal)
     ReportError (NULL, RE_OUTOFMEM | RE_FATAL,
@@ -1104,12 +1207,19 @@ int main (int nArg, char **rgszArg)
     DoAnalysis (panal);
   }
 
+  if (panal->rank == 0)
+    printf("Done.\n\n");
+
   if (panal->iType == AT_MCMC)
     FreeLevels (panal);
   else {
     FreeMemory (panal);
     free (ibIn.pbufOrg);
   }
+
+#ifdef USEMPI
+  MPI_Finalize();
+#endif
 
   return 0;
 

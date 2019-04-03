@@ -28,7 +28,7 @@
 void CalcMCParms (PMONTECARLO pMC, double rgParms[], long iStart);
 int  CalculateOneMCParm (PMCVAR pMCVar);
 double GetParm (PMCVAR pMCVar, int iIndex);
-BOOL GetMCMods (PANALYSIS panal, double rgdOptionalParms[]);
+BOOL GetSPMods (PANALYSIS panal, double rgdOptionalParms[]);
 BOOL InitSetPoints (PMONTECARLO pMC);
 BOOL ReadSetPoints (PMONTECARLO pMC, double rgParms[]);
 void SetParents (PMONTECARLO pMC, long iStart);

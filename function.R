@@ -46,7 +46,7 @@ set_PATH()
 compile_mcsim()
 
 clear <- function(){
-  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")))
+  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.exe")))
   invisible(file.remove(files))
 }
 

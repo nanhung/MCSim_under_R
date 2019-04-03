@@ -1,6 +1,6 @@
 /* random.c
 
-   Copyright (c) 1992-2008 Free Software Foundation, Inc.
+   Copyright (c) 1992-2018 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -23,15 +23,14 @@
 
    The GSL version provides:
    Randoms(), which in fact call gsl_rng_uniform()
-   InitRandom(seed, f), which must be called to initializes the generator
+   InitRandom(rank, seed, f), must be called to initializes the generator
    SetSeed(seed), which sets the seed of Randoms()
    GetSeed(seed), not implemented in fact and exits with an error message
 
    The independent (non-GSL) code provides two basic uniform random number
    generators and associated functions:
    Randoms(), yielding uniform random variates between 0 and 1
-   RandomShuffle(), which shuffles the output of Randoms().
-   InitRandom(seed, f), which initializes RandomShuffle()
+   InitRandom(rank, seed, f), which initializes the seed
    SetSeed(seed), which sets the seed of Randoms()
    GetSeed(seed), which gets the current seed
 
@@ -158,7 +157,7 @@ double Randoms (void)
    Selects a generator and sets the gsl seed to given dSeed, silently
    corrects an invalid dSeed.
 */
-void InitRandom (double dSeed, int rdm_gen_name)
+void InitRandom (int rank, double dSeed, int rdm_gen_name)
 {
   static int bInit = 0;
 
@@ -182,8 +181,9 @@ void InitRandom (double dSeed, int rdm_gen_name)
     /* set the seed */
     gsl_rng_set(rGenerator, (unsigned long int) dSeed);
 
-    printf ("\n* Using GNU Scientific Library (GSL) '%s' "
-            "random number generator.\n\n", gsl_rng_name(rGenerator));
+    if (rank == 0)
+      printf ("\n* Using GNU Scientific Library (GSL) '%s' "
+              "random number generator\n\n", gsl_rng_name(rGenerator));
 
     vbSwitchGauss = FALSE; /* Force a reset of the normal variate sampler */
     
@@ -201,8 +201,7 @@ void InitRandom (double dSeed, int rdm_gen_name)
 */
 
 typedef struct tagRANDREC {
-  double seed, last;
-  double mem[50];
+  double seed;
 } RANDREC, *PRANDREC;
 
 
@@ -273,27 +272,22 @@ void SetSeed (double dSeed)
    If an invalid seed is given, SetSeed() silently corrects it.
 
    If the boolean bWarmUp is non-zero, the random number generator is
-   "warmed up" by running it a number of times.  After this, a memory
-   array is filled from which shuffled random values will be drawn.
+   "warmed up" by running it a number of times.
    Also, a flag used by the Normal() routine is initialized.
 */
-void InitRandom (double dSeed, int bWarmUp)
+void InitRandom (int rank, double dSeed, int bWarmUp)
 {
   long i;
 
   /* Prevent nuking user's seed if not initd */
   if (vbNoSeed || dSeed != SEED_DEFAULT) 
-    SetSeed (dSeed);
+    SetSeed(dSeed);
 
   if (bWarmUp) {
     /* Warm up generator */
     for (i = 0; i < 50; i++) (void) Randoms();
 
-    /* Fill the shuffle array */
-    for (i = 0; i < 50; i++) vRandRec.mem[i] = Randoms();
-
-    vRandRec.last = Randoms(); /* Draw first number */
-    vbNotInitd = FALSE;        /* Flag as initialized */
+    vbNotInitd = FALSE; /* Flag as initialized */
   }
 
 } /* InitRandom, non-gsl version */
@@ -345,35 +339,6 @@ double Randoms (void)
 #undef r
 
 } /* Randoms, non-gsl version */
-
-
-/* ----------------------------------------------------------------------------
-   RandomShuffle
-
-   Assumes that the random number generator is Randoms ().
-   RandomShuffle() shuffles the output of this generator.
-
-   The routine is initialized by calling InitRandom().  A check is
-   done to assure that initialization is performed.
-
-   Adapted from the algorithm described in the book Numerical Recipes by
-   Press et al. 
-*/
-
-double RandomShuffle (void)
-{
-  long i;
-
-  if (vbNotInitd)
-    InitRandom (SEED_DEFAULT, TRUE);
-
-  i = (long) (50.0 * vRandRec.last); /* Randomly shuffle output */
-  vRandRec.last = vRandRec.mem[i];
-  vRandRec.mem[i] = Randoms();
-
-  return (vRandRec.last);
-
-} /* RandomShuffle */
 
 #endif
 
@@ -1185,6 +1150,18 @@ void WishartRandom (long n, long p, double *t, double *w, double *work)
 */
 
 /* ----------------------------------------------------------------------------
+   Boolean "AND" logical function.
+
+   Return TRUE if both its two arguments are TRUE. This is just for 
+   compatibility with SBML.
+*/
+BOOL and (BOOL A, BOOL B)
+{
+  return (A && B);
+} /* piecewise */
+
+
+/* ----------------------------------------------------------------------------
    CalcCumulative
 
    Approximates to an iOrder the cumulative distribution rg_Cdf
@@ -1365,16 +1342,6 @@ double lnGamma (double x)
   return dTemp;
 
 } /* lnGamma */
-
-
-/* ----------------------------------------------------------------------------
-   Boolean "AND" logical function.
-
-   Return TRUE if both its two arguments are TRUE. This is just for 
-   compatibility with SBML.
-*/
-BOOL and (BOOL A, BOOL B)
-{ return (A && B); } /* piecewise */
 
 
 #ifdef ndef

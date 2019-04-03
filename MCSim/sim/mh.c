@@ -1,9 +1,8 @@
 /* mh.c
 
    Written by Frederic Bois
-   5 January 1996
 
-   Copyright (c) 1996-2017 Free Software Foundation, Inc.
+   Copyright (c) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of GNU MCSim.
 
@@ -29,6 +28,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <time.h>
+#include <sys/time.h>
+
+#ifdef USEMPI
+#include <mpi.h>
+#endif
 
 #include "mh.h"
 #include "lsodes.h"
@@ -41,46 +46,201 @@
 
 
 /* Function -------------------------------------------------------------------
+   CalculateMeanAndVariance
+
+   Calculate mean and variance of each component of array x, incrementally.
+   Index parameter n must be received as 0 at the start of a sequence.
+*/
+#ifdef NDEF
+/* Frederic's version */
+void CalculateMeanAndVariance (long *n, double x, double *mean, double *var)
+{
+  static double K   = 0.0;
+  static double Ex  = 0.0;
+  static double Ex2 = 0.0;
+
+  double dTmp;
+
+  /* shifted data algorithm */
+  if (*n == 0) {
+    K = x;
+    Ex  = 0.0;
+    Ex2 = 0.0;
+  }
+  else {
+    dTmp = x - K;
+    Ex  += dTmp;
+    Ex2 += dTmp * dTmp;
+  }
+
+  (*n)++;
+
+  dTmp = Ex / *n;
+  *mean = K + dTmp;
+
+  *var = (Ex2 - Ex * dTmp) / (*n - 1);
+
+#ifdef NDEF
+  // or Welford algorithm:
+
+  // for a new value newValue, compute the new count, new mean, the new M2.
+  // mean accumulates the mean of the entire dataset
+  // M2 aggregates the squared distance from the mean
+  // count aggregates the number of samples seen so far
+def update(existingAggregate, newValue):
+    (count, mean, M2) = existingAggregate
+    count = count + 1
+    delta = newValue - mean
+    mean = mean + delta / count
+    delta2 = newValue - mean
+    M2 = M2 + delta * delta2
+
+    return (count, mean, M2)
+
+# retrieve the mean, variance and sample variance from an aggregate
+def finalize(existingAggregate):
+    (count, mean, M2) = existingAggregate
+    (mean, variance, sampleVariance) = (mean, M2/count, M2/(count - 1))
+    if count < 2:
+      return float('nan')
+    else:
+      return (mean, variance, sampleVariance)
+#endif
+
+} /* CalculateMeanAndVariance */
+#endif
+
+ /* Cathie's version
+ * Variance is calculated using a method described by Knuth
+ * m_k = m_k-1 + (x_k - m_k-1)/k
+ * v_k = v_k-1 + (x_k - m_k-1)(x_k - m_k)
+ * sigma^2 = v_k / (k-1)
+ * This portion of the code only calculates the itermediate
+ * values - before the variance is sent along the final
+ * calculation should be executed (CollectConvInfo)
+ */
+void CalculateMeanAndVariance (long n, double x, double *xi_bari,
+                               double *si_2i) {
+
+  if (n == 1) {
+    *xi_bari = x; // mean
+    *si_2i = 0;
+    return;
+  }
+
+  double mTmp = *xi_bari;
+  *xi_bari = *xi_bari + (x - *xi_bari)/n;
+  *si_2i = *si_2i + (x - mTmp) * (x - *xi_bari);
+
+} /* End CalculateMeanAndVariance */
+
+
+int checkConvergence (int nOut, int variableCount, int p_count,
+                      double **meansForAll, double **varsForAll, double *Rhat)
+{
+  int vi, pi;
+  int converged = 0;
+  double varsofvars, meansofmeans, varsofmeans, meansofvars;
+
+  // first calculate the means x_bar = Mean(nChains, xi_bar);
+  // calculate the mean of the variances W = Mean (nChains, si_2);
+  for (vi = 0; vi < variableCount; vi++) {
+    meansofmeans = 0.0;
+    for (pi = 0; pi < p_count; pi++) {
+      // use the function we already wrote for consistency
+      CalculateMeanAndVariance((pi+1),meansForAll[pi][vi],&meansofmeans,
+                               &varsofmeans);
+      CalculateMeanAndVariance((pi+1),varsForAll[pi][vi],&meansofvars,
+                               &varsofvars);
+    }
+
+    if ((meansofvars == 0) && (varsofmeans == 0)) {
+      *Rhat = 1;
+      converged++;
+    } else {
+      // calculate Vhat and Rhat together (to save memory)
+      // s_2 = ((nOut - 1) * W + B) / nOut; // intra-chain variance part 1
+      double s2 = ((nOut-1) * meansofvars + varsofmeans) / nOut;
+      //  Vhat = s_2 + B / (nOut * dChains); // part 2
+      double Vhat = s2 + varsofmeans /(nOut * p_count);
+      //  Rhat = Vhat / W; // convergence criterion
+      *Rhat = Vhat / meansofvars;
+      if (*Rhat < 1.05) // we should parameterize this 1.05 criterion
+        converged++;
+    }
+  }
+
+  return converged;
+
+} /* end checkConvergence */
+
+
+void CollectConvInfo (PLEVEL plevel, char **args)
+{
+  double **mean_dest = (double **) args[0];
+  double **var_dest  = (double **) args[1];
+  long *n = (long *) args[2];
+  long  i;
+  PMCVAR pMCVar;
+
+  /* For all MC vars at this level */
+  for (i = 0; i < plevel->nMCVars; i++) {
+    pMCVar = plevel->rgpMCVars[i];
+    **mean_dest = pMCVar->dVal_mean;
+ // Keep in mind that the running variance calculation is an
+ // intermediate value and we want to communicate the variance here
+ // That means that we need to do the final step before sending
+ // sigma^2 = v_k / (k-1)
+    **var_dest = pMCVar->dVal_var/(*n-1);
+    (*mean_dest)++;
+    (*var_dest)++;
+  }
+} /* end CollectConvInfo */
+
+
+/* Function -------------------------------------------------------------------
    AnnounceMarkov
 
    Print out the type of simulations to be performed.
 */
-void AnnounceMarkov (int nSimTypeFlag, long nIter)
+void AnnounceMarkov (int size, int nSimTypeFlag, long nIter)
 {
 
   switch (nSimTypeFlag) {
 
   case 0:
-    printf ("\nDoing %ld Metropolis within Gibbs simulation",
-            nIter);
-    printf ((nIter != 1 ? "s\n" : "\n"));
+    printf("\nDoing %ld Metropolis within Gibbs simulation", nIter);
+    printf((nIter != 1 ? "s" : ""));
+    if (size > 1)
+      printf(" on each of %d processors\n", size);
+    else
+      printf("\n");
     break;
 
   case 1:
-    printf ("\nPrinting data and predictions for the last line of the "
-            "restart file\n");
+    printf("\nPrinting data and predictions for the last line of the "
+           "restart file\n");
     break;
 
   case 2:
-    printf ("\nDoing %ld Metropolis simulation",
-            nIter);
-    printf ((nIter != 1 ? "s\n" : "\n"));
+    printf("\nDoing %ld Metropolis-Hastings simulation", nIter);
+    printf((nIter != 1 ? "s" : ""));
+    if (size > 1)
+      printf(" on each of %d processors\n", size);
+    else
+      printf("\n");
     break;
 
   case 3:
-    printf ("\nDoing %ld Metropolis within Gibbs posterior "
-            "tempered simulation",
-            nIter);
-    printf ((nIter != 1 ? "s\n" : "\n"));
-
+    printf("\nDoing %ld Metropolis within Gibbs posterior "
+           "tempered simulation", nIter);
+    printf((nIter != 1 ? "s\n" : "\n"));
     break;
 
   case 4:
-    printf ("\nDoing %ld Metropolis within Gibbs likelihood "
-            "tempered simulation",
-            nIter);
-    printf ((nIter != 1 ? "s\n" : "\n"));
-
+    printf("\nDoing %ld Metropolis within Gibbs likelihood "
+           "tempered simulation", nIter);
+    printf((nIter != 1 ? "s\n" : "\n"));
     break;
 
   case 5:
@@ -97,7 +257,6 @@ void AnnounceMarkov (int nSimTypeFlag, long nIter)
    Find total prior, likelihood for all MC vars
    Called from TraverseLevels
 */
-
 void CalculateTotals (PLEVEL plevel, char **args)
 {
   PANALYSIS panal = (PANALYSIS)args[0];
@@ -194,6 +353,71 @@ void CheckPrintStatements (PLEVEL plevel, char **args)
       }
 
 } /* CheckPrintStatements */
+
+
+/* Function -------------------------------------------------------------------
+   CheckAllTransitions
+
+   Check whether all perk transitions rates are high enough.
+*/
+BOOL CheckAllTransitions (PGIBBSDATA pgd)
+{
+  BOOL   bOK;
+  double AcceptRate;
+  int    i;
+
+  i = pgd->startT;
+  bOK = TRUE;
+  while ((i <= pgd->endT - 1) && bOK) {
+    if (pgd->rglTransAttempts[i] < 10) {
+      bOK = FALSE;
+      break;
+    }
+    else
+      AcceptRate = pgd->rglTransAccepts[i] /
+                   ((double) pgd->rglTransAttempts[i]);
+
+    bOK = (AcceptRate > 0.15);
+    i++;
+  }
+
+  return bOK;
+
+} /* end CheckAllTransitions */
+
+
+/* Function -------------------------------------------------------------------
+   CheckTransitions
+
+   Check whether the first perk transition rate is between reasonable bounds
+   and that enough attemps have been made
+   Return -1 if too low or too few attempts, 0 if OK, +1 if too high
+*/
+int CheckTransitions (PGIBBSDATA pgd)
+{
+  double AcceptRate;
+  int    i;
+
+  i = pgd->startT;
+  if (pgd->rglTransAttempts[i] < 10)
+    return (-1);   /* too low */
+  else
+    AcceptRate = pgd->rglTransAccepts[i] /
+                 ((double) pgd->rglTransAttempts[i]);
+
+  if (AcceptRate < 0.30) {
+    return (-1);   /* too low */
+  }
+  else {
+    if (AcceptRate < 1) {
+      return (0);  /* OK */
+    }
+    else {
+      return (+1); /* too high */
+    }
+  }
+
+} /* end CheckTransitions */
 
 
 /* Function -------------------------------------------------------------------
@@ -356,12 +580,22 @@ void CloneMCVarsL (PVOID pData, PVOID pUser1, PVOID pUser2, PVOID pUser3)
    The restart file has already been closed by the ReadRestart
 
 */
-void CloseMarkovFiles (PANALYSIS panal)
+void CloseMarkovFiles (PGIBBSDATA pgd)
 {
-  if (panal->gd.pfileOut) {
-    fclose (panal->gd.pfileOut);
-    printf ("\nWrote results to \"%s\"\n", panal->gd.szGout);
+  /* If tempered MCMC, close perk scale recording file */
+  if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
+    char szFileName[MAX_FILENAMESIZE+6];
+    sprintf(szFileName, "%s%s", pgd->szGout, ".perks");
+    fclose(pgd->pfilePerks);
+    printf("\nWrote perks to \"%s\"\n", szFileName);
   }
+
+  if (pgd->pfileOut) {
+    fclose(pgd->pfileOut);
+    printf("Wrote MCMC sample to \"%s\"\n", pgd->szGout);
+  }
+
+  printf("\n");
 
 } /* CloseMarkovFiles */
 
@@ -411,54 +645,15 @@ void ConvertLists(PLEVEL plevel, char **args)
 
 
 /* Function -------------------------------------------------------------------
-   SetdInvTemperatures
-
-   Set default values for inverse temperatures of tempered MCMC algorithms, if
-   the user has not specified values.
-*/
-void SetInvTemperatures (PGIBBSDATA pgd) {
-
-  /* inverse temperatures not set by the user: use the default */
-  if (((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) &&
-      (pgd->nInvTemperatures == 0)) {
-
-    int i;
-
-    pgd->nInvTemperatures = NTEMP;
-
-    /* allocate inverse temperature array */
-    if (!(pgd->rgInvTemperatures = InitdVector (NTEMP)))
-      ReportError (NULL, RE_OUTOFMEM | RE_FATAL, "SetInvTemperatures", NULL);
-
-    /* allocate working arrays */
-    if (!(pgd->rgdlnPi = InitdVector (NTEMP)) ||
-        !(pgd->rglTemp = InitlVector (NTEMP)))
-      ReportError (NULL, RE_OUTOFMEM | RE_FATAL, "SetInvTemperatures", NULL);
-
-    /* initialize rglTemp, counting perk visits */
-    for (i = 0; i < NTEMP; i++)
-      pgd->rglTemp[i] = 0;
-
-    /* initialize the inverse temperatures */
-    pgd->rgInvTemperatures[0] = 0.4;                         /* hot */
-
-    for (i = 1; i < NTEMP - 1; i++)
-      pgd->rgInvTemperatures[i] = pow(0.8, (NTEMP - 1 - i)); /* medium... */
-
-    pgd->rgInvTemperatures[NTEMP - 1] = 1;                   /* cold */
-
-  } /* end if */
-
-} /* SetInvTemperatures */
-
-
-/* Function -------------------------------------------------------------------
    DoMarkov
 
    Core routine of the MCMC sampler
 */
 void DoMarkov (PANALYSIS panal)
 {
+#ifdef USEMPI
+  //double     startMarkov = time(NULL);
+#endif
   PGIBBSDATA pgd = &panal->gd;
   PLEVEL     pLevel0 = panal->pLevels[0];
   long       nThetas, nUpdateAt, nTotal;
@@ -469,276 +664,364 @@ void DoMarkov (PANALYSIS panal)
   double     **prgdSumProd = NULL;   /* column sums of thetas cross-products */
   double     dTmp, dLnPrior = 0, dLnData = 0;
 
-  AnnounceMarkov (pgd->nSimTypeFlag, nIter);
+  if (panal->rank == 0)
+    AnnounceMarkov(panal->size, pgd->nSimTypeFlag, nIter);
 
-  SetInvTemperatures (pgd); /* (if needed) */
+  OpenMarkovFiles(panal);
 
-  OpenMarkovFiles (panal);
-
-  ReadDataFile (panal);     /* (if needed) */
+  ReadDataFile(panal); /* (if needed) */
 
   /* MC variables must be placed in arrays at the next lower level */
-  TraverseLevels (pLevel0, CloneMCVars, NULL);
+  TraverseLevels(pLevel0, CloneMCVars, NULL);
 
-  /* Likelihoods must percolate down to the experiment level */
-  TraverseLevels (pLevel0, CloneLikes, NULL);
+  /* likelihoods must percolate down to the experiment level */
+  TraverseLevels(pLevel0, CloneLikes, NULL);
 
-  /* Find the parents and dependents of the MC vars */
-  TraverseLevels (pLevel0, FindMCParents,    panal, NULL);
-  TraverseLevels (pLevel0, FindMCDependents, panal, NULL);
+  /* find the parents and dependents of the MC vars */
+  TraverseLevels(pLevel0, FindMCParents,    panal, NULL);
+  TraverseLevels(pLevel0, FindMCDependents, panal, NULL);
 
-  /* Find the parents of the parameters in likelihood statements */
-  TraverseLevels (pLevel0, FindLikeParents, panal, NULL);
+  /* find the parents of the parameters in likelihood statements */
+  TraverseLevels(pLevel0, FindLikeParents, panal, NULL);
 
-  /* Now that we have the MC vars right, write the output file header
-     unless it's just a run for fit checking */
-  if (pgd->nSimTypeFlag != 1) {
-    fprintf (pgd->pfileOut, "iter\t");
-    TraverseLevels (pLevel0, WriteHeader, panal, pgd->pfileOut, NULL);
-    if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) { /* tempered */
-      fprintf (pgd->pfileOut, "IndexT\t");
-      for (i = 0; i < pgd->nInvTemperatures; i++)
-        fprintf (pgd->pfileOut, "LnPseudoPrior(%ld)\t",i);
-      fprintf (pgd->pfileOut, "LnPrior\tLnData\tLnPosterior\n");
-    }
-    else {
-      fprintf (pgd->pfileOut, "LnPrior\tLnData\tLnPosterior\n");
-    }
-    fflush (pgd->pfileOut);
-  }
+  /* convert the rest of the lists to arrays */
+  TraverseLevels(pLevel0, ConvertLists, panal, NULL);
 
-  /* Convert the rest of the lists to arrays */
-  TraverseLevels (pLevel0, ConvertLists, panal, NULL);
+  /* check for MC vars that have been fixed */
+  TraverseLevels(pLevel0, CheckForFixed, NULL);
 
-  /* Check for MC vars that have been fixed */
-  TraverseLevels (pLevel0, CheckForFixed, NULL);
-
-  /* Check variables in statements of type
+  /* check variables in statements of type
      'Distrib(<var1>, <distrib>, Prediction, <var2>)'
      for identical 'Print' statements */
-  TraverseLevels (pLevel0, CheckPrintStatements, panal, NULL);
+  TraverseLevels(pLevel0, CheckPrintStatements, panal, NULL);
 
-  /* Print out the structure for debugging */
-  if (panal->bDependents) {
-    TraverseLevels (pLevel0, PrintDeps, NULL);
-    CloseMarkovFiles (panal);
+  /* if required, print out the structure for debugging */
+  if ((panal->rank == 0) && (panal->bDependents)) {
+    printf("Hierarchical structure:\n\n");
+    TraverseLevels(pLevel0, PrintDeps, NULL);
+    printf("\nDone.\n\n");
     return;
   }
 
-  /* Change the MC vars hvar pointers from pointing to model parameters to
+  /* change the MC vars hvar pointers from pointing to model parameters to
      pointing to the parents' dVal */
-  TraverseLevels (pLevel0, SetPointers, panal, NULL);
+  TraverseLevels(pLevel0, SetPointers, panal, NULL);
 
-  /* Get the initial values of the MC vars by reading th restart file if
+  /* get the initial values of the MC vars by reading the restart file if
      one is given */
   if (pgd->szGrestart) {
 
-    /* Read them from the restart file */
+    /* count the variables to read */
     nThetas = 0;
-    TraverseLevels (pLevel0, GetNumberOfMCVars, &nThetas, NULL);
+    TraverseLevels(pLevel0, GetNumberOfMCVars, &nThetas);
 
-    if ( !(pdMCVarVals = InitdVector (nThetas)) ||
-         !(pdSum       = InitdVector (nThetas)) ||
-         !(prgdSumProd = InitdMatrix (nThetas, nThetas))) {
-      /* FB 6/4/98 */
-      /* lack of memory can be severe here, free immediately some space */
-      if (pdMCVarVals) free (pdMCVarVals);
-      if (pdSum) free (pdSum);
-      ReportRunTimeError (panal, RE_OUTOFMEM | RE_FATAL, "DoMarkov");
-    }
-
-    /* Read the starting values in the order they are printed and
+    /* read the starting values in the order they are printed and
        close the file when finished */
-
-    if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4))
-      ReadRestartTemper (pgd->pfileRestart, nThetas, pgd->nInvTemperatures,
-                         pdMCVarVals, pdSum, prgdSumProd, &iter,
-                         &pgd->indexT, pgd->rgdlnPi);
+    if (((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) &&
+        (pgd->nPerks != 0)) {
+      /* if the user has required tempering and specified a perk scale,
+         then read also the pseudo-priors */
+      ReadRestartTemper(pgd->pfileRestart, nThetas, pgd->nPerks,
+                        &pdMCVarVals, &pdSum, &prgdSumProd, &iter,
+                        &pgd->indexT, pgd->rgdlnPi);
+    }
     else
-      ReadRestart (pgd->pfileRestart, nThetas, pdMCVarVals, pdSum, prgdSumProd,
-                   &iter);
+      ReadRestart(pgd->pfileRestart, nThetas, &pdMCVarVals, &pdSum,
+                  &prgdSumProd, &iter);
 
-    /* Set the dVals of the variables to the values read in */
-    nThetas = 0;
+    /* set the dVals of the variables to the values read in */
+    nThetas = 0; /* variables will be recounted */
     if (!TraverseLevels1 (pLevel0, SetMCVars, pdMCVarVals, &nThetas, NULL)) {
-      printf ("\nError: some read-in parameters are out of bounds - "
-              "Exiting\n\n");
+      printf("\nError: some read-in parameters are out of bounds - "
+             "Exiting\n\n");
       exit(0);
     }
 
     /* If nSimTypeFlag is 1 print just the predictions and data and exit */
     if (pgd->nSimTypeFlag == 1) {
-      PrintAllExpts (pLevel0, panal, pgd->pfileOut);
-      CloseMarkovFiles (panal);
+      if (panal->rank == 0) { /* do it on only one processor */
+        PrintAllExpts(pLevel0, panal, pgd->pfileOut);
+        CloseMarkovFiles (pgd);
+      }
       return;
     }
 
-    /* If component jumps, tempered or stochastic optimization */
+    /* If component jumps, tempered or stochastic optimization: read eventually
+       the kernel file */
     if ((pgd->nSimTypeFlag == 0) || (pgd->nSimTypeFlag >= 3)) {
 
-      char szKernelFile[MAX_FILENAMESIZE+7];
-      sprintf(szKernelFile, "%s%s", panal->gd.szGrestart, ".kernel");
-
-      FILE *pfile = fopen (szKernelFile, "r");
-
-      if (pfile) {
-        printf("Reading kernel file %s\n", szKernelFile);
-        TraverseLevels (pLevel0, ReadKernel, pfile, NULL);
+      char szKernelFile[MAX_FILENAMESIZE+12];
+      /* prefix the filename with the rank of the process if more than one
+         process is used, postfix it with .kernel in any case */
+      if (panal->size > 1) {
+        sprintf(szKernelFile, "%04d_%s%s", panal->rank, panal->gd.szGrestart,
+                ".kernel");
       }
       else {
-        /* Set the jumping kernel's SD */
-        TraverseLevels (pLevel0, SetKernel, 1, pdMCVarVals, NULL);
+        sprintf(szKernelFile, "%s%s", panal->gd.szGrestart, ".kernel");
+      }
+
+      FILE *pfile = fopen(szKernelFile, "r");
+
+      if (pfile) {
+        /* Read kernel sizes from file */
+        printf("Reading kernel file %s\n", szKernelFile);
+        TraverseLevels(pLevel0, ReadKernel, pfile, NULL);
+      }
+      else {
+        /* Set the jumping kernel's SD automatically */
+        TraverseLevels(pLevel0, SetKernel, 1, pdMCVarVals, NULL);
 
         /* Free the now useless array */
-        free (pdMCVarVals);
+        free(pdMCVarVals);
       }
     }
     else { /* vector jumping, initialize prior */
-      TraverseLevels (pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
+      TraverseLevels(pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
     }
 
-    /* Initialize the predictions arrays by running all experiments and
-       save the likelihood */
+    /* Initialize the predictions arrays by running all experiments */
     if (!RunAllExpts (panal, &dLnData)) {
       /* error, cannot compute */
-      printf ("\nError: cannot compute at the starting point - Exiting\n\n");
+      printf("\nError: cannot compute at the starting point - Exiting\n\n");
       exit(0);
     }
-  }
+
+    /* Save the data likelihoods */
+    TraverseLevels1 (pLevel0, SaveLikelihoods, NULL);
+
+    /* If tempered MCMC and no user-specified perks, set the perk
+       scale and the pseudo-priors automatically */
+    InitPerks(panal);
+
+    /* Now that we have the MC vars etc. right, write the output file header */
+    WriteHeader(panal);
+
+  } /* end if restart file */
 
   else { /* no restart file, init by sampling */
 
     /* If nSimTypeFlag is 1 print an error message and exit */
     if (pgd->nSimTypeFlag == 1) {
-      printf ("\nError: a restart file must be given to print data and"
-              "         predictions - Exiting.\n\n");
-      exit (0);
-    }
-
-    /* Set the jumping kernel's SD */
-    TraverseLevels (pLevel0, SetKernel, 2, pdMCVarVals, NULL);
-
-    /* Initialize the thetas by sampling from the prior,
-       and write them out at the same time */
-    fprintf (pgd->pfileOut, "0\t");
-    TraverseLevels (pLevel0, InitMCVars, pgd->pfileOut, NULL);
-
-    /* Calculate the total prior */
-    TraverseLevels (pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
-    /* Initialize the predictions arrays by running all experiments */
-    if (!RunAllExpts (panal, &dLnData)) {
-      /* Error, cannot compute */
-      printf ("\nError: cannot compute at the starting point - Exiting\n\n");
+      printf("\nError: a restart file must be given to print data and"
+             "         predictions - Exiting.\n\n");
       exit(0);
     }
 
+    /* Set the jumping kernel's SD */
+    TraverseLevels(pLevel0, SetKernel, 2, pdMCVarVals, NULL);
+
+    /* initialize the thetas by sampling from the prior */
+    TraverseLevels(pLevel0, InitMCVars, NULL);
+
+#ifdef USEMPI
+    /* count the variables if we monitor their convergence */
+    nThetas = 0;
+    TraverseLevels(pLevel0, GetNumberOfMCVars, &nThetas);
+#endif
+
+    /* Calculate the total prior */
+    TraverseLevels(pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
+
+    /* Initialize the predictions arrays by running all experiments */
+    if (!RunAllExpts (panal, &dLnData)) {
+      /* Error, cannot compute */
+      printf("\nError: cannot compute at the starting point - Exiting\n\n");
+      exit(0);
+    }
+
+    /* Save the data likelihoods */
+    TraverseLevels1(pLevel0, SaveLikelihoods, NULL);
+
+    /* If tempered MCMC and no user-specified perks, set the perk
+       scale and the pseudo-priors automatically */
+    InitPerks(panal);
+
+    /* Now that we have the MC vars etc. right, write the output file header */
+    WriteHeader(panal);
+
+    /* Write the current thetas to the output file */
+    fprintf(pgd->pfileOut, "0\t");
+    TraverseLevels(pLevel0, WriteMCVars, pgd->pfileOut, NULL);
+
+    /* Output indexT and pseudo-priors if needed */
     if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
-      /* Output indexT and pseudo-priors */
-      fprintf (pgd->pfileOut, "0\t");
-      for (i = 0; i < pgd->nInvTemperatures; i++)
-        fprintf (pgd->pfileOut, "%e\t", pgd->rgdlnPi[i]);
-      fflush (pgd->pfileOut);
+      fprintf(pgd->pfileOut, "%d\t", pgd->indexT);
+      for (i = 0; i < pgd->nPerks; i++)
+        fprintf(pgd->pfileOut, "%e\t", pgd->rgdlnPi[i]);
     }
 
     /* Output prior and likelihood */
-    fprintf (pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
-             dLnPrior + dLnData);
-    fflush (pgd->pfileOut);
-  }
+    fprintf(pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
+            dLnPrior + dLnData);
+    fflush(pgd->pfileOut);
 
-  /* Save the data likelihoods */
-  TraverseLevels1 (pLevel0, SaveLikelihoods, NULL);
+  } /* end no restart file */
 
   /* Initializations are finished, let's do the iterations */
   nTotal = UPDATE_BASE;
   nUpdateAt = iter + nTotal; /* kernel will be updated at that iteration */
 
+#ifdef USEMPI
+  double **meansForAll;
+  double **varsForAll;
+  double *means;
+  double *vars;
+  double Rhat;
+  if (panal->bPrintConvergence) {
+    /* when running in parallel we need to pack the running mean and
+       convergence values for each variable into an array that will be
+       sent to the root rank; this code allocates the space for those values;
+       we also have to prep the 0 rank processor to calculate the variance
+       of variances and mean of means for convergence */
+    if (panal->rank == 0) {
+      meansForAll = (double**) malloc(sizeof(double*) * panal->size);
+      varsForAll  = (double**) malloc(sizeof(double*) * panal->size);
+      int sender;
+      for (sender = 0; sender < panal->size; sender++){
+        meansForAll[sender] = (double*) malloc(sizeof(double) * nThetas);
+        varsForAll[sender]  = (double*) malloc(sizeof(double) * nThetas);
+      }
+      means = meansForAll[0];
+      vars  = varsForAll[0];
+    } else {
+      means = (double*) malloc(sizeof(double) * nThetas);
+      vars  = (double*) malloc(sizeof(double) * nThetas);
+    }
+  }
+  //fprintf(stderr, "starting %ld iterations\n", nIter);
+  //double startIter = time(NULL);
+  //fprintf(stderr, "Time to warm up %lf\n", startIter - startMarkov);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
   while (iter < nIter) {
 
-    /* Output to screen, eventually */
-    if (panal->bPrintIter && ((iter+1) % 100 == 0))
-      printf("Iteration %ld\n", iter + 1);
+#ifdef USEMPI
+    if (panal->bPrintConvergence) { /* convergence check */
+      if ((iter+1) % pgd->nPrintFreq == 0) {
+        double *tempMeans, *tempVars;
+        tempMeans = means;
+        tempVars  = vars;
+        /* all processors must collect their info into an array */
+        TraverseLevels(pLevel0, CollectConvInfo, &tempMeans, &tempVars, &iter);
+        /* the root process needs to collect everyone's data and process it */
+        if (panal->rank == 0 ) {
+          int sender = 0;
+          MPI_Status status;
+          for (sender = 1; sender < panal->size; sender++) {
+            MPI_Recv(meansForAll[sender], nThetas, MPI_DOUBLE, sender,
+                     0, MPI_COMM_WORLD, &status);
+          }
+          int converged = checkConvergence(iter+1, nThetas, panal->size,
+                                           meansForAll, varsForAll, &Rhat);
+          if (iter > 10) /* avoid pathologies at start */
+            fprintf(stderr, "Iteration %ld,\tRhat %g,\tconverged %d\n",
+                   iter + 1, Rhat, converged);
+          if (iter == nIter - 1)
+            printf("\n");
+          /* everyone else just sends their data */
+        } else {
+          MPI_Send(means, nThetas, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        }
+      }
+    }
+#endif
+
+    /* Output to screen, if required as a command-line option */
+    if (panal->bOutputIter && ((iter+1) % panal->nOutputFreq == 0)) {
+      if (panal->size > 1)
+        printf("Processor %d, Iteration %ld\n", panal->rank, iter + 1);
+      else
+        printf("Iteration %ld\n", iter + 1);
+      if (iter == nIter - 1)
+        printf("\n");
+    }
 
     /* Start output to file, eventually */
     if (((iter + 1) % pgd->nPrintFreq == 0) &&
         (iter >= pgd->nMaxIter - pgd->nPrintIter))
-      fprintf (pgd->pfileOut, "%ld\t", iter + 1);
+      fprintf(pgd->pfileOut, "%ld\t", iter + 1);
 
+    /* take this path for 0 and 5 */
     if ((pgd->nSimTypeFlag == 0) || (pgd->nSimTypeFlag == 5)) {
       /* component by component jumps or stochastic optimization */
 
-      TraverseLevels (pLevel0, SampleThetas, panal, pgd, &iter, &nUpdateAt,
-                      &nTotal, NULL);
+      TraverseLevels(pLevel0, SampleThetas, panal, pgd, &iter, &nUpdateAt,
+                     &nTotal, NULL);
 
       /* Output log-densities, eventually */
       if (((iter + 1) % pgd->nPrintFreq == 0) &&
           (iter >= pgd->nMaxIter - pgd->nPrintIter)) {
         dLnPrior = 0.0;
-        TraverseLevels (pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
+        TraverseLevels(pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
         dLnData = 0.0;
-        TraverseLevels1 (pLevel0, SumAllExpts, &dLnData, NULL);
-        fprintf (pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
-               dLnPrior + dLnData);
+        TraverseLevels1(pLevel0, SumAllExpts, &dLnData, NULL);
+        fprintf(pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
+                dLnPrior + dLnData);
         fflush (pgd->pfileOut);
       }
     }
     else {
-
+      /* this is the path for 3 and 4 */
       if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
         /* tempered */
-        TraverseLevels (pLevel0, SampleThetasTempered, panal, pgd, &iter,
-                        &nUpdateAt,  &nTotal, &pgd->indexT, NULL);
+        TraverseLevels(pLevel0, SampleThetasTempered, panal, pgd, &iter,
+                       &nUpdateAt,  &nTotal, &pgd->indexT, NULL);
 
         dLnPrior = 0.0;
-        TraverseLevels (pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
+        TraverseLevels(pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
         dLnData = 0.0;
-        TraverseLevels1 (pLevel0, SumAllExpts, &dLnData, NULL);
+        TraverseLevels1(pLevel0, SumAllExpts, &dLnData, NULL);
 
         /* Robbins-Monro updating of the pseudo prior */
-        for (i = 0; i < pgd->nInvTemperatures; i++) {
-          dTmp = pgd->dCZero / (double) (iter + pgd->dNZero);
+        dTmp = pgd->dCZero / (iter + pgd->dNZero);
+        for (i = 0; i < pgd->nPerks; i++) {
           if (i == pgd->indexT)
             pgd->rgdlnPi[i] -= dTmp;
           else
-            pgd->rgdlnPi[i] += dTmp / (double) pgd->nInvTemperatures;
+            pgd->rgdlnPi[i] += dTmp / pgd->nPerks;
         }
 
         /* Output indexT and log-densities, eventually */
         if (((iter + 1) % pgd->nPrintFreq == 0) &&
             (iter >= pgd->nMaxIter - pgd->nPrintIter)) {
-          fprintf (pgd->pfileOut, "%ld\t", pgd->indexT);
-          for (i = 0; i < pgd->nInvTemperatures; i++)
-            fprintf (pgd->pfileOut, "%e\t", pgd->rgdlnPi[i]);
-          fprintf (pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
-                   dLnPrior + dLnData);
-          fflush (pgd->pfileOut);
+          fprintf(pgd->pfileOut, "%d\t", pgd->indexT);
+          for (i = 0; i < pgd->nPerks; i++)
+            fprintf(pgd->pfileOut, "%e\t", pgd->rgdlnPi[i]);
+          fprintf(pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
+                  dLnPrior + dLnData);
+          fflush(pgd->pfileOut);
         }
 
         /* update population count of current temperature */
-        pgd->rglTemp[pgd->indexT] = pgd->rglTemp[pgd->indexT]+1;
+        pgd->rglCount[pgd->indexT] = pgd->rglCount[pgd->indexT]+1;
 
         /* test the temperature and change indexT if necessary */
-        pgd->indexT = SampleTemperature (pgd, dLnPrior, dLnData);
-      }
-      else { /* vector jumps */
+        pgd->indexT = SampleTemperature2 (pgd, dLnPrior, dLnData);
 
-        SampleThetaVector (pLevel0, panal, nThetas, pdMCVarVals, pdSum,
-                           prgdSumProd, iter, nUpdateAt, nTotal, &dLnPrior,
-                           &dLnData);
+      } /* end tempered */
+      else { /* vector jumps (option 2) */
+
+        SampleThetaVector(pLevel0, panal, nThetas, pdMCVarVals, pdSum,
+                          prgdSumProd, iter, nUpdateAt, nTotal, &dLnPrior,
+                          &dLnData);
 
         /* Output, eventually */
         if (((iter + 1) % pgd->nPrintFreq == 0) &&
             (iter >= pgd->nMaxIter - pgd->nPrintIter)) {
 
           for (i = 0; i < nThetas; i++)
-            fprintf (pgd->pfileOut, "%5g\t", pdMCVarVals[i]);
+            fprintf(pgd->pfileOut, "%5g\t", pdMCVarVals[i]);
 
-          fprintf (pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
+          fprintf(pgd->pfileOut, "%e\t%e\t%e\n", dLnPrior, dLnData,
                    dLnPrior + dLnData);
-          fflush (pgd->pfileOut);
+          fflush(pgd->pfileOut);
         }
       }
     }
+
     /* Adjust the update time, eventually */
     if (iter == nUpdateAt) {
       nTotal = nTotal * 3 / 2;
@@ -750,6 +1033,17 @@ void DoMarkov (PANALYSIS panal)
 
   } /* while iter */
 
+#ifdef USEMPI
+  //double stopIter = time(NULL);
+  //fprintf(stderr,"Time Iterating: %lf\n", (stopIter-startIter));
+#endif
+
+  /* If tempered MCMC: print perk scale */
+  if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
+    /* PrintTemperatureDiagnostics (stdout, pgd); */
+    PrintTemperatureDiagnostics(pgd->pfilePerks, pgd);
+  }
+
   /* If component jumps, tempered or stochastic optimization: save kernel */
   if ((pgd->nSimTypeFlag == 0) || (pgd->nSimTypeFlag >= 3)) {
 
@@ -758,8 +1052,8 @@ void DoMarkov (PANALYSIS panal)
 
     FILE *pfile = fopen (szKernelFile, "w");
     if (!pfile) {
-      printf ("Cannot create kernel saving file '%s'\n", panal->gd.szGdata);
-      exit (0);
+      printf("Cannot create kernel saving file '%s'\n", panal->gd.szGdata);
+      exit(0);
     }
 
     /* Write out the jumping kernel SDs */
@@ -767,24 +1061,54 @@ void DoMarkov (PANALYSIS panal)
 
     fprintf(pfile, "\n");
     fclose(pfile);
-    printf("\nWrote kernel SDs to \"%s\"", szKernelFile);
+    printf("Wrote kernel SDs to \"%s\"\n", szKernelFile);
   }
 
-  CloseMarkovFiles (panal);
+  CloseMarkovFiles(pgd);
 
-  if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
-    printf ("\nInverse temperatures:\n");
-    for (i = 0; i < pgd->nInvTemperatures - 1; i++)
-      printf ("%f\t", pgd->rgInvTemperatures[i]);
-    printf ("%f\n", pgd->rgInvTemperatures[pgd->nInvTemperatures - 1]);
-
-    printf ("\nInverse temperatures' count:\n");
-    for (i = 0; i < pgd->nInvTemperatures - 1; i++)
-      printf ("%ld\t", pgd->rglTemp[i]);
-    printf ("%ld\n\n", pgd->rglTemp[pgd->nInvTemperatures - 1]);
-  }
+#ifdef USEMPI
+  //double stopMarkov = time(NULL);
+  //fprintf(stderr,"Time Markov: %lf\n", (stopMarkov - startMarkov));
+#endif
 
 } /* DoMarkov */
+
+
+/* Function -------------------------------------------------------------------
+   EqualSlopes
+
+   Check whether three points in a row are aligned (within a tolerance range).
+   Return TRUE if they do, FALSE otherwise.
+   The relative difference is tested in fact.
+*/
+BOOL EqualSlopes (PDOUBLE x, PDOUBLE y, int i)
+{
+  #define SL_EPSILON 0.01
+  double s1, s2;
+
+  s1 = (y[i+1] - y[i]) / (x[i+1] - x[i]);
+
+  s2 = (y[i+2] - y[i]) / (x[i+2] - x[i]);
+
+  return (fabs(s2/s1 - 1) < SL_EPSILON);
+
+} /* EqualSlopes */
+
+
+/* Function -------------------------------------------------------------------
+   Extrapolate
+
+   Extrapolate linearly to dTargetX from a pair of
+   (perk, pseudo-prior) points.
+*/
+double Extrapolate (PGIBBSDATA pgd, double dTargetX, int i1, int i2)
+{
+  return (pgd->rgdlnPi[i1] -
+          (pgd->rgdPerks[i1] - dTargetX) *
+          (pgd->rgdlnPi [i2] - pgd->rgdlnPi [i1]) /
+          (pgd->rgdPerks[i2] - pgd->rgdPerks[i1]));
+
+} /* Extrapolate */
 
 
 /* Function -------------------------------------------------------------------
@@ -840,11 +1164,11 @@ void FindLikeParents (PLEVEL plevel, char **args)
         }
 
         if (!bFound) { /* oops, parent not found, error */
-          printf ("\n"
-                  "Error: parent in position %ld of %s must be\n"
-                  "       declared before it when creating\n"
-                  "       sampling dependencies - Exiting.\n\n",
-                  l, pMCVar1->pszName);
+          printf("\n"
+                 "Error: parent in position %ld of %s must be\n"
+                 "       declared before it when creating\n"
+                 "       sampling dependencies - Exiting.\n\n",
+                 l, pMCVar1->pszName);
           exit(0);
         }
 
@@ -930,11 +1254,11 @@ void FindMCParents (PLEVEL plevel, char **args)
         }
 
         if (!bFound) { /* oops, parent not found, error */
-          printf ("\n"
-                  "Error: parent in position %ld of %s must be\n"
-                  "       declared before it when creating\n"
-                  "       sampling dependencies - Exiting.\n\n",
-                  l, pMCVar1->pszName);
+          printf("\n"
+                 "Error: parent in position %ld of %s must be\n"
+                 "       declared before it when creating\n"
+                 "       sampling dependencies - Exiting.\n\n",
+                 l, pMCVar1->pszName);
           exit(0);
         }
 
@@ -968,21 +1292,19 @@ void GetNumberOfMCVars (PLEVEL plevel, char **args)
 */
 void InitMCVars(PLEVEL plevel, char **args)
 {
-  FILE *pOutFile = (FILE*)args[0];
   long n;
 
   for (n = 0; n < plevel->nMCVars; n++)
     if ( !(plevel->rgpMCVars[n]->bIsFixed))
       CalculateOneMCParm (plevel->rgpMCVars[n]);
 
-  /* Write out the sampled values */
-  WriteMCVars (plevel, pOutFile);
-
 } /* InitMCVars */
 
 
 /* Function -------------------------------------------------------------------
    ListToPMCArray
+
+   Convert list to array
 */
 void ListToPMCArray (PANALYSIS panal, PLIST plist,
                      long *pnMCVars, PMCVAR **rgpMCVars)
@@ -1050,6 +1372,7 @@ void ListToPVArrayL (PVOID pData, PVOID pUser1, PVOID pUser2, PVOID pUser3)
 
    Returns the log of the (exact) density of variate under its distribution.
 */
+#define LN2PI      1.837877066409345339082
 #define LNSQRT2PI  0.918938533204672669541
 #define LNINVERPI -1.144729885849400163877
 #define LN2OVERPI -0.4515827052894548221396
@@ -1068,15 +1391,15 @@ double LnDensity (PMCVAR pMCVar, PANALYSIS panal)
   /* This should take care of all dTheta checking */
   if (pMCVar->iType == MCV_BINOMIALBETA) {
     if (dTheta < 0) {
-      printf ("Error: variate out of bounds in LnDensity\n");
-      exit (0);
+      printf("Error: variate out of bounds in LnDensity\n");
+      exit(0);
     }
   }
   else if (pMCVar->iType == MCV_GENLOGNORMAL ||
            pMCVar->iType == MCV_STUDENTT) {
     if (dParm1 < 0) {
-      printf ("Error: parameter %g out of bounds in LnDensity\n",dParm1);
-      exit (0);
+      printf("Error: parameter %g out of bounds in LnDensity\n",dParm1);
+      exit(0);
     }
   }
   else {
@@ -1108,7 +1431,7 @@ double LnDensity (PMCVAR pMCVar, PANALYSIS panal)
 
     case MCV_NORMALCV: dParm2 = fabs(dParm1 * dParm2);
       return lnDFNormal (dTheta, dParm1, dParm2);
- 
+
     case MCV_NORMAL:
     case MCV_HALFNORMAL:
       return lnDFNormal (dTheta, dParm1, dParm2);
@@ -1169,7 +1492,7 @@ double LnDensity (PMCVAR pMCVar, PANALYSIS panal)
 
     case MCV_BINOMIAL:
       if ((dParm1 < 0) || (dParm1 > 1)) {
-        printf ("Error: bad p for binomial variate in LnDensity\n");
+        printf("Error: bad p for binomial variate in LnDensity\n");
         exit (0);
       }
       if (dTheta > dParm2) {
@@ -1228,38 +1551,38 @@ double LnDensity (PMCVAR pMCVar, PANALYSIS panal)
       dTmp = gsl_cdf_gamma_P (1/dMax, dParm1, dParm2) -
              gsl_cdf_gamma_P (1/dMin, dParm1, dParm2); /* fall thru */
 #else
-      printf ("Error: Truncated inverse gamma density cannot be evaluated\n");
-      printf ("       if the GNU Scientific Library is not installed\n");
-      exit (0);
+      printf("Error: Truncated inverse gamma density cannot be evaluated\n");
+      printf("       if the GNU Scientific Library is not installed\n");
+      exit(0);
 #endif
     case MCV_INVGGAMMA:
       if (dParm2 <= 0) {
-        printf ("Error: bad scale for inv. gamma variate in LnDensity\n");
-        exit (0);
+        printf("Error: bad scale for inv. gamma variate in LnDensity\n");
+        exit(0);
       }
       return (-dParm1 - 1) * log(dTheta) - dParm2 / dTheta +
              dParm1 * log(dParm2) - lnGamma (dParm1) - dTmp;
 
     case MCV_POISSON:
       if (dParm1 <= 0) {
-        printf ("Error: bad rate for Poisson variate in LnDensity\n");
-        exit (0);
+        printf("Error: bad rate for Poisson variate in LnDensity\n");
+        exit(0);
       }
       return dTheta * log(dParm1) - dParm1 - lnGamma (dTheta + 1);
 
     case MCV_BINOMIALBETA:
       if (dParm1 < 0) {
-        printf ("Error: bad expectation for BinomialBeta variate "
-                "in LnDensity\n");
-        exit (0);
+        printf("Error: bad expectation for BinomialBeta variate "
+               "in LnDensity\n");
+        exit(0);
       }
       if (dParm2 <= 0) {
-        printf ("Error: bad alpha for BinomialBeta variate in LnDensity\n");
-        exit (0);
+        printf("Error: bad alpha for BinomialBeta variate in LnDensity\n");
+        exit(0);
       }
       if (dMin <= 0) {
-        printf ("Error: bad beta for BinomialBeta variate in LnDensity\n");
-        exit (0);
+        printf("Error: bad beta for BinomialBeta variate in LnDensity\n");
+        exit(0);
       }
       dTmp = floor (0.5 + dParm1 + dParm1 * dMin / dParm2); /* this is N */
       if (dTheta > dTmp)
@@ -1281,9 +1604,9 @@ double LnDensity (PMCVAR pMCVar, PANALYSIS panal)
 
     case MCV_GENLOGNORMAL: /* Generalized LogNormal */
       if (dParm1 < 0) {
-        printf ("Error: bad expectation for GenLogNormal variate "
-                "in LnDensity\n");
-        exit (0);
+        printf("Error: bad expectation for GenLogNormal variate "
+               "in LnDensity\n");
+        exit(0);
       }
       /* This is relative stdev of lognormal part -- dMin is sigma for the
          lognormal part */
@@ -1303,8 +1626,8 @@ double LnDensity (PMCVAR pMCVar, PANALYSIS panal)
 
   case MCV_STUDENTT: /* Student t, dParm1 is dof, dParm2 is m, dMin is sigma */
       if (dParm1 <= 0) {
-        printf ("Error: bad dof for Student-T variate"
-                "in LnDensity\n");
+        printf("Error: bad dof for Student-T variate"
+               "in LnDensity\n");
         exit(0);
       }
       dTmp = (dParm1 + 1)/ 2;
@@ -1317,6 +1640,9 @@ double LnDensity (PMCVAR pMCVar, PANALYSIS panal)
 
     case MCV_HALFCAUCHY: /* dParm1 is scale */
       return (LN2OVERPI - log(dParm1 + dTheta * dTheta / dParm1));
+
+    case MCV_USERLL:     /* dParm1 is the model computed log-likelihood */
+      return (dParm1);
 
     default:
       ReportRunTimeError(panal, RE_UNKNOWNDIST | RE_FATAL, "LnDensity");
@@ -1357,8 +1683,8 @@ double LnLike (PMCVAR pMCVar, PANALYSIS panal)
 
    Likelihood of the data for one experiment
 */
-double LnLikeData (PLEVEL plevel, PANALYSIS panal) {
-
+double LnLikeData (PLEVEL plevel, PANALYSIS panal)
+{
   PMCVAR pMCVar;
   long   i, j, k;
   double dLnLike = 0.0;
@@ -1432,10 +1758,10 @@ double LnLikeData (PLEVEL plevel, PANALYSIS panal) {
 /* Function -------------------------------------------------------------------
    MaxMCVar
 
-   get the maximum of MC variables
+   Get the upper bound of an MCVar (random variable).
 */
-double MaxMCVar (PMCVAR pMCVar) {
-
+double MaxMCVar (PMCVAR pMCVar)
+{
   /* if the parameter has a discrete distribution, round it - FB 12/06/97 */
   if (pMCVar->iType == MCV_BINOMIAL || pMCVar->iType == MCV_POISSON ) {
    return( *(pMCVar->pdParm[3]));
@@ -1455,13 +1781,13 @@ double MaxMCVar (PMCVAR pMCVar) {
 /* Function -------------------------------------------------------------------
    MinMCVar
 
-    get the minimum of MC variables
+   Get the lower bound of an MCVar (a random variable)
 */
-double MinMCVar (PMCVAR pMCVar) {
-
+double MinMCVar (PMCVAR pMCVar)
+{
   /* if the parameter has a discrete distribution, round it - FB 12/06/97 */
   if (pMCVar->iType == MCV_BINOMIAL || pMCVar->iType == MCV_POISSON) {
-   return( *(pMCVar->pdParm[2]));
+   return(*(pMCVar->pdParm[2]));
   }
   else { /* FB fixed the uniform case - FB 30/06/97 */
     if (pMCVar->iType == MCV_UNIFORM || pMCVar->iType == MCV_LOGUNIFORM) {
@@ -1472,7 +1798,311 @@ double MinMCVar (PMCVAR pMCVar) {
     }
   }
 
-} /* MinMCVar*/
+} /* MinMCVar */
+
+
+/* Function -------------------------------------------------------------------
+   RunTemperingBlock
+
+   Run a block of MCMC simulations to adjust the perk scale and pseudo-priors
+*/
+void RunTemperingBlock (PANALYSIS panal, long lRunLength, PLONG iter)
+{
+  PGIBBSDATA pgd = &panal->gd;
+  PLEVEL     pLevel0 = panal->pLevels[0];
+  double     dTmp, dLnPrior = 0, dLnData = 0;
+  long       i, j;
+  long       nUpdateAt, nTotal;
+
+  for (i = 0; i < lRunLength; i++) { /* run block */
+
+    nTotal = UPDATE_BASE;
+    nUpdateAt = *iter + nTotal;
+
+    TraverseLevels (pLevel0, SampleThetasTempered, panal, pgd, &i,
+                    &nUpdateAt, &nTotal, &pgd->indexT, NULL);
+
+    dLnPrior = 0.0;
+    TraverseLevels (pLevel0, CalculateTotals, panal, &dLnPrior, NULL);
+    dLnData = 0.0;
+    TraverseLevels1 (pLevel0, SumAllExpts, &dLnData, NULL);
+
+    /* special? Robbins-Munro updating of the pseudo-priors */
+    dTmp = pgd->dCZero / (double) (i + pgd->dNZero);
+    /*if (pgd->indexT == pgd->startT) {
+      pgd->rgdlnPi[pgd->startT] -= dTmp;
+      for (j = pgd->startT + 1; j <= pgd->endT; j++)
+        pgd->rgdlnPi[j] += dTmp / (double) pgd->nPerks;
+    }
+    else {
+      pgd->rgdlnPi[pgd->startT] += dTmp;
+      for (j = pgd->startT + 1; j <= pgd->endT; j++)
+        pgd->rgdlnPi[j] -= dTmp / (double) pgd->nPerks;
+    }
+    */
+
+    for (j = pgd->startT; j <= pgd->endT; j++) {
+      if (j == pgd->indexT)
+        pgd->rgdlnPi[j] -= dTmp;
+      else
+        pgd->rgdlnPi[j] += dTmp / (double) pgd->nPerks;
+    }
+
+    /* update population count of current temperature */
+    pgd->rglCount[pgd->indexT] = pgd->rglCount[pgd->indexT]+1;
+
+    /* test the temperature and change indexT if necessary */
+    pgd->indexT = SampleTemperature2 (pgd, dLnPrior, dLnData);
+
+    /* Adjust the update time eventually */
+    if (i == nUpdateAt) {
+      nTotal = nTotal * 3 / 2;
+      nUpdateAt = i + nTotal;
+    }
+
+    /* Increment the total iteration counter */
+    (*iter)++;
+
+  } /* end for */
+
+} /* RunTemperingBlock */
+
+
+/* Function -------------------------------------------------------------------
+   NextDown
+
+   Return from a table the element just inferior to the argument
+*/
+double NextDown (double Perk)
+{
+  int i;
+  static double PTable[21] = {0,    1E-6, 1E-5, 1E-4,  1E-3,   1E-2,
+                              0.1,  0.2,  0.3,  0.5,   0.6,    0.7, 0.8, 0.9,
+                              0.95, 0.97, 0.99, 0.999, 0.9999, 0.99999, 1};
+
+  i = 0;
+  while (Perk > PTable[i]) {
+    i++;
+  }
+
+  return (i == 0 ? PTable[i] : PTable[i-1]);
+
+} /* NextDown */
+
+
+/* Function -------------------------------------------------------------------
+   InitPerks
+
+   Adjusts automatically the perk schedule and pseudo-priors
+   for tempered MCMC, if the user has not specified values.
+*/
+void InitPerks (PANALYSIS panal)
+{
+  PGIBBSDATA pgd = &panal->gd;
+  long       i, j, k, iter = 0;
+  double     dTmp;
+  int        bTrans;
+  BOOL       bHappy, bTooManyTrials;
+
+  /* if we are doing tempered MCMC */
+  if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
+
+    /* allocate transition counts array */
+    if (!(pgd->rglTransAttempts = InitlVector (NTEMP)) ||
+        !(pgd->rglTransAccepts  = InitlVector (NTEMP)))
+      ReportError (NULL, RE_OUTOFMEM | RE_FATAL, "InitPerks", NULL);
+
+    /* initialize them at zero */
+    for (i = 0; i < NTEMP; i++)
+      pgd->rglTransAttempts[i] = pgd->rglTransAccepts[i] = 0;
+
+    /* if perks not set by the user */
+    if (pgd->nPerks == 0) {
+
+      /* Screen message */
+      printf ("Setting perks (inverse temperatures).\n");
+
+      pgd->nPerks = NTEMP;
+
+      /* allocate perk, pseudo-prior and population count arrays */
+      if (!(pgd->rgdPerks = InitdVector (NTEMP)) ||
+          !(pgd->rgdlnPi  = InitdVector (NTEMP)) ||
+          !(pgd->rglCount = InitlVector (NTEMP)))
+        ReportError (NULL, RE_OUTOFMEM | RE_FATAL, "InitPerks", NULL);
+
+      for (i = 0; i < NTEMP; i++) {
+        pgd->rgdPerks[i] = pgd->rgdlnPi[i] = pgd->rglCount[i] = 0;
+      }
+
+      /* start at perk 1 and just below it */
+      pgd->endT   = NTEMP - 1;
+      pgd->startT = NTEMP - 2;
+      pgd->indexT = pgd->startT;
+
+      double dEPSILON = 0.99;
+      double dUP = 2.0;
+      pgd->rgdPerks[pgd->startT] = dEPSILON;
+      pgd->rgdPerks[pgd->endT]   = 1.00;
+
+      long nOldPrintIter = pgd->nPrintIter;
+      pgd->nPrintIter = -pgd->nMaxPerkSetIter;
+      int lRunLength = 100;
+      double dBoundary = 0.0;
+
+      do { /* loop over running a block, checking results, and adjusting */
+
+        pgd->indexT = pgd->startT;
+
+        /* run a batch of tempered MCMC simulations */
+        RunTemperingBlock (panal, lRunLength, &iter);
+
+        /* post-run diagnostic printing */
+        PrintTemperatureDiagnostics (stdout, pgd);
+        PrintTemperatureDiagnostics (pgd->pfilePerks, pgd);
+
+        /* check block */
+        bTrans = CheckTransitions (pgd);
+        if (pgd->rgdPerks[pgd->startT] == dBoundary) {
+          /* boundary perk reached */
+          bHappy = (bTrans > -1); /* transition OK or too high */
+        }
+        else { /* boundary perk not reached */
+          bHappy = FALSE;
+        }
+        bTooManyTrials = (iter > pgd->nMaxPerkSetIter);
+
+        /* if unhappy: adjust */
+        if (!bHappy) {
+
+          if (bTrans == -1) { /* acceptance rate too low */
+
+            printf ("acceptance rate 1<->2 too low, stepping back up\n");
+
+            /* go back up half way to the point above */
+            dTmp = (pgd->rgdPerks[pgd->startT] +
+                    pgd->rgdPerks[pgd->startT+1]) / dUP;
+
+            /* adjust pseudo-prior with an average of old and extrapolated */
+            pgd->rgdlnPi[pgd->startT] = (pgd->rgdlnPi[pgd->startT] +
+              Extrapolate (pgd, dTmp, pgd->startT, pgd->startT+1)) / 2;
+
+            pgd->rgdPerks[pgd->startT] = dTmp;
+
+          } /* end too low */
+
+          if (bTrans == +1) { /* acceptance rate too high */
+
+            printf ("acceptance rate 1<->2 too high, moving down\n");
+
+            dTmp = NextDown(pgd->rgdPerks[pgd->startT]);
+
+            /* adjust pseudo-prior with an average of old and extrapolated */
+            pgd->rgdlnPi[pgd->startT] = (pgd->rgdlnPi[pgd->startT] +
+              Extrapolate (pgd, dTmp, pgd->startT, pgd->startT+1)) / 2;
+
+            pgd->rgdPerks[pgd->startT] = dTmp;
+
+          } /* end too high */
+
+          if (bTrans == 0) {
+            /* acceptance rate ok, but target perk not reached
+               check if we have space to add a point below */
+            if (pgd->startT > 0) { /* we do have space */
+
+              printf ("acceptance rate 1<->2 ok, adding a new point\n");
+
+              /* if all transitions rates are OK the pseudo-priors should be
+                 about right and we might be able to take some intermediate
+                 points off the scale */
+              if (CheckAllTransitions(pgd)) {
+                /* remove recursively center point if 3 points are aligned */
+                int i = pgd->endT;
+                int j = i - 2;
+                while (j >= pgd->startT) {
+                  if (EqualSlopes(pgd->rgdPerks, pgd->rgdlnPi, j)) {
+                    /* remove point i - 1 from the scale, repacking
+                       the scale that implies copying perks,
+                       pseudo-prior, and counts from positions start
+                       to (i - 2) to positions (start + 1) to (i - 1)
+                       and setting start to (start + 1).  start has
+                       moved up, so j does not need to be updated */
+                    for (k = j; k >= pgd->startT; k--) {
+                      pgd->rgdPerks[k+1] = pgd->rgdPerks[k];
+                      pgd->rgdlnPi [k+1] = pgd->rgdlnPi [k];
+                      pgd->rglCount[k+1] = pgd->rglCount[k];
+                    }
+                    pgd->startT++;
+                    if (pgd->indexT <= j)
+                      pgd->indexT++;
+                    lRunLength = lRunLength - 100;
+                    printf("Scale has been reduced.\n");
+                  }
+                  else { /* slopes not equal, move i and j down */
+                    i--;
+                    j--;
+                  }
+                }
+              }
+
+              pgd->startT = pgd->startT - 1;
+              pgd->indexT = pgd->startT;
+
+              /* give perk to the new point */
+              pgd->rgdPerks[pgd->startT] =
+                NextDown(pgd->rgdPerks[pgd->startT+1]);
+
+              /* pseudo-prior of new point is an average of above and
+                 extrapolated */
+              pgd->rgdlnPi[pgd->startT] = (pgd->rgdlnPi[pgd->startT+1] +
+                Extrapolate (pgd, pgd->rgdPerks[pgd->startT],
+                             pgd->startT+1, pgd->startT+2)) / 2;
+
+              lRunLength = lRunLength + 100;
+            }
+            else /* no more space in scale, stop */
+              bTooManyTrials = TRUE;
+
+          } /* end OK */
+
+          /* re-initialize counts at zero */
+          for (i = pgd->startT; i <= pgd->endT; i++) {
+            pgd->rglCount[i] = 0;
+            pgd->rglTransAttempts[i] = pgd->rglTransAccepts[i] = 0;
+          }
+
+        } /* end if !bHappy */
+
+      } while ((!bHappy) && (!bTooManyTrials));
+
+      if (pgd->rgdPerks[pgd->startT] == dBoundary)
+        printf ("Perk %lg reached in %ld iterations.\n", dBoundary, iter);
+      else
+        printf ("Perk %lg not reached in %ld iterations...\n", dBoundary, iter);
+
+      /* restore */
+      pgd->nPrintIter = nOldPrintIter;
+
+      /* prepare the actual runs */
+      int iCount = pgd->endT - pgd->startT + 1;
+      if (iCount != NTEMP) { /* shift array contents to start at 0 */
+        pgd->nPerks = iCount;
+        pgd->indexT = pgd->indexT - pgd->startT;
+        for (i = 0; i < iCount; i++) {
+          j = pgd->startT + i;
+          pgd->rgdPerks[i] = pgd->rgdPerks[j];
+          pgd->rgdlnPi[i]  = pgd->rgdlnPi[j];
+          pgd->rglCount[i] = 0;
+        }
+        pgd->startT = 0;
+        pgd->endT   = iCount - 1;
+      }
+
+      printf ("Done with InitPerks - Continuing.\n\n");
+
+    } /* if perks not set by user */
+  } /* if tempered */
+
+} /* InitPerks */
 
 
 /* Function -------------------------------------------------------------------
@@ -1482,30 +2112,52 @@ double MinMCVar (PMCVAR pMCVar) {
 */
 void OpenMarkovFiles (PANALYSIS panal)
 {
+  PGIBBSDATA pgd = &panal->gd;
+  char* with_rank;
+
+  /* if we are debugging the structure, do nothing here */
+  if (panal->bDependents) return;
+
   /* Take care of the output file first */
 
   /* Use command line spec if given */
   if (panal->bCommandLineSpec) {
-    free (panal->gd.szGout);
+    free (pgd->szGout);
     panal->bAllocatedFileName = FALSE;
-    panal->gd.szGout = panal->szOutfilename;
+    pgd->szGout = panal->szOutfilename;
   }
 
   /* Default if none given */
-  else if (!(panal->gd.szGout))
-    panal->gd.szGout = "MCMC.default.out";
+  else if (!(pgd->szGout))
+    pgd->szGout = "MCMC.default.out";
 
-  /* eventually open the restart file before crushing the output file */
-  if (panal->gd.szGrestart)
-    if (!(panal->gd.pfileRestart)
-      && !(panal->gd.pfileRestart = fopen (panal->gd.szGrestart, "r")))
+  if (panal->size > 1) {
+    with_rank = malloc(sizeof(char)*(6+strlen(pgd->szGout)));
+    sprintf(with_rank,"%04d_%s",panal->rank,pgd->szGout);
+    pgd->szGout = with_rank;
+  }
+
+  /* Eventually open the restart file before crushing the output file */
+  if (pgd->szGrestart)
+    if (!(pgd->pfileRestart)
+      && !(pgd->pfileRestart = fopen (pgd->szGrestart, "r")))
       ReportRunTimeError(panal, RE_FATAL | RE_CANNOTOPEN,
-                         panal->gd.szGrestart, "OpenMarkovFiles");
+                         pgd->szGrestart, "OpenMarkovFiles");
 
-  if (!(panal->gd.pfileOut)
-      && !(panal->gd.pfileOut = fopen (panal->gd.szGout, "w")))
+  if (!(pgd->pfileOut)
+      && !(pgd->pfileOut = fopen (pgd->szGout, "w")))
     ReportRunTimeError(panal, RE_FATAL | RE_CANNOTOPEN,
-                       panal->gd.szGout, "OpenMarkovFiles");
+                       pgd->szGout, "OpenMarkovFiles");
+
+  /* If tempered MCMC, open perk scale recording file */
+  if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
+    char szFileName[MAX_FILENAMESIZE+6];
+    sprintf(szFileName, "%s%s", pgd->szGout, ".perks");
+    if (!(pgd->pfilePerks)
+        && !(pgd->pfilePerks = fopen (szFileName, "w")))
+      ReportRunTimeError(panal, RE_FATAL | RE_CANNOTOPEN,
+                         szFileName, "OpenMarkovFiles");
+  }
 
 } /* OpenMarkovFiles */
 
@@ -1523,6 +2175,45 @@ void PrintAllExpts (PLEVEL plevel, PANALYSIS panal, PFILE pOutFile)
     TraverseLevels1 (plevel->pLevels[n], PrintExpt, panal, pOutFile, NULL);
 
 } /* PrintAllExpts */
+
+
+/* Function -------------------------------------------------------------------
+   PrintDeps
+
+   Called from TraverseLevels
+
+   For debugging, print the variables, parents, and dependencies
+*/
+void PrintDeps (PLEVEL plevel, char **args)
+{
+  long n, m;
+  PMCVAR pMCVar;
+
+  printf("Depth %d; Instance %d\n", plevel->iDepth, plevel->iSequence);
+
+  for (n = 0; n < plevel->nMCVars; n++) {
+    pMCVar = plevel->rgpMCVars[n];
+
+    printf ("Variable %s (%d) [%" PRIxPTR "]\n",
+            pMCVar->pszName, pMCVar->iDepth, (intptr_t) pMCVar);
+
+    for (m = 0; m < 4; m++)
+      if (pMCVar->pMCVParent[m] != NULL)
+        printf ("  Parent %ld: %s (%d) [%" PRIxPTR "]\n", m,
+                pMCVar->pMCVParent[m]->pszName, pMCVar->pMCVParent[m]->iDepth,
+                (intptr_t) pMCVar->pMCVParent[m]);
+
+    for (m = 0; m < pMCVar->nDependents; m++)
+      printf ("  Dependent: %s (%d) [%" PRIxPTR "]\n",
+              pMCVar->rgpDependents[m]->pszName,
+              pMCVar->rgpDependents[m]->iDepth,
+              (intptr_t) pMCVar->rgpDependents[m]);
+
+    if (pMCVar->bExptIsDep)
+      printf("  This variable influences experiments directly\n");
+  }
+
+} /* PrintDeps */
 
 
 /* Function -------------------------------------------------------------------
@@ -1603,6 +2294,64 @@ int PrintExpt (PLEVEL plevel, char **args)
   return (1);
 
 } /* PrintExpt*/
+
+
+/* Function -------------------------------------------------------------------
+   PrintTemperatureDiagnostics
+
+   For debugging and information, print the state of the tempering algorithm
+*/
+void PrintTemperatureDiagnostics (PFILE fOut, PGIBBSDATA pgd)
+{
+  register int i;
+
+  fprintf (fOut, "\nPerks:");
+  for (i = pgd->startT; i <= pgd->endT; i++) {
+    fprintf (fOut, "\t%g", pgd->rgdPerks[i]);
+  }
+  fprintf (fOut, "\nCounts:");
+  for (i = pgd->startT; i <= pgd->endT; i++) {
+    fprintf (fOut, "\t%ld", pgd->rglCount[i]);
+  }
+  fprintf (fOut, "\nLnPi(i):");
+  for (i = pgd->startT; i <= pgd->endT; i++) {
+    fprintf (fOut, "\t%g", pgd->rgdlnPi[i]);
+  }
+  fprintf (fOut, "\nTried Jumps:\t");
+  for (i = pgd->startT; i <= pgd->endT - 1; i++) {
+    fprintf (fOut, "\t%ld", pgd->rglTransAttempts[i]);
+  }
+  fprintf (fOut, "\nAccepted Jumps:\t");
+  for (i = pgd->startT; i <= pgd->endT - 1; i++) {
+    fprintf (fOut, "\t%ld", pgd->rglTransAccepts[i]);
+  }
+  fprintf(fOut, "\n\n");
+  fflush(fOut);
+
+#ifdef ndef
+  /* This can be computed by the user if s/he wishes */
+  if (eGeyer == Geyer) {
+    /* Geyer's proposed adjustment of pseudo-priors */
+    BOOL bZeroes;
+    for (i = pgd->startT; i <= pgd->endT; i++) { /* check for zero counts */
+      bZeroes = (pgd->rglCount[i] == 0);
+      if (bZeroes) break; /* a zero count found, stop */
+    }
+    if (bZeroes) {
+      fprintf (fOut, "Adjusted LnPi(i) not computable, zero-counts found.\n");
+    }
+    else {
+      fprintf (fOut, "Adjusted LnPi(i):    ");
+      for (i = pgd->startT; i <= pgd->endT; i++) {
+        pgd->rgdlnPi[i] = pgd->rgdlnPi[i] - log(pgd->rglCount[i]);
+        fprintf (fOut, "% 10.6lE", pgd->rgdlnPi[i]);
+      }
+      fprintf (fOut, "\n");
+    }
+  }
+#endif
+
+} /* PrintTemperatureDiagnostics */
 
 
 /* Function -------------------------------------------------------------------
@@ -1691,62 +2440,35 @@ void ReadDataFile (PANALYSIS panal)
 
 
 /* Function -------------------------------------------------------------------
-   PrintDeps
-
-   Called from TraverseLevels
-
-   For debugging, print the variables, parents, and dependencies
-*/
-void PrintDeps (PLEVEL plevel, char **args)
-{
-  long n, m;
-  PMCVAR pMCVar;
-
-  printf ("Depth %d; Instance %d\n", plevel->iDepth, plevel->iSequence);
-
-  for (n = 0; n < plevel->nMCVars; n++) {
-    pMCVar = plevel->rgpMCVars[n];
-
-    printf ("Variable %s (%d) [%" PRIxPTR "]\n",
-            pMCVar->pszName, pMCVar->iDepth, (intptr_t) pMCVar);
-
-    for (m = 0; m < 4; m++)
-      if (pMCVar->pMCVParent[m] != NULL)
-        printf ("  Parent %ld: %s (%d) [%" PRIxPTR "]\n", m,
-                pMCVar->pMCVParent[m]->pszName, pMCVar->pMCVParent[m]->iDepth,
-                (intptr_t) pMCVar->pMCVParent[m]);
-
-    for (m = 0; m < pMCVar->nDependents; m++)
-      printf ("  Dependent: %s (%d) [%" PRIxPTR "]\n",
-              pMCVar->rgpDependents[m]->pszName,
-              pMCVar->rgpDependents[m]->iDepth,
-              (intptr_t) pMCVar->rgpDependents[m]);
-
-    if (pMCVar->bExptIsDep)
-      printf("  This variable influences experiments directly\n");
-  }
-
-} /* PrintDeps */
-
-
-/* Function -------------------------------------------------------------------
    ReadRestart
 
    initialize the parameters by reading them in the restart file.
 */
 void ReadRestart (FILE *pfileRestart, long nThetas,
-                  double *pdTheta, double *pdSum, double **prgdSumProd,
+                  PDOUBLE *pdTheta, PDOUBLE *pdSum, PDOUBLE **prgdSumProd,
                   long *pIter)
 {
   register char c;
   register long i, j;
 
+  if (*pdTheta == NULL)
+    if ( !(*pdTheta = InitdVector(nThetas)) )
+      ReportRunTimeError (NULL, RE_OUTOFMEM | RE_FATAL, "ReadRestart");
+
+  if (*pdSum == NULL)
+    if ( !(*pdSum = InitdVector(nThetas)) )
+      ReportRunTimeError (NULL, RE_OUTOFMEM | RE_FATAL, "ReadRestart");
+
+  if (*prgdSumProd == NULL)
+    if ( !(*prgdSumProd = InitdMatrix (nThetas, nThetas)) )
+      ReportRunTimeError (NULL, RE_OUTOFMEM | RE_FATAL, "ReadRestart");
+
   *pIter = -1;
 
   for (i = 0; i < nThetas; i++) {
-    pdSum[i] = 0.0;
+    (*pdSum)[i] = 0.0;
     for (j = 0; j < nThetas; j++)
-      prgdSumProd[i][j] = 0.0;
+      (*prgdSumProd)[i][j] = 0.0;
   }
 
   /* skip the first line. This allows a MC output file to be used
@@ -1761,13 +2483,13 @@ void ReadRestart (FILE *pfileRestart, long nThetas,
   while (!(feof (pfileRestart) ||
           (fscanf (pfileRestart, "%*s") == EOF))) {
     for (i = 0; i < nThetas; i++) {
-      if (fscanf(pfileRestart, "%lg", &(pdTheta[i])) == EOF) {
+      if ( fscanf(pfileRestart, "%lg", &((*pdTheta)[i])) == EOF ) {
         printf ("Error: incorrect length for restart file - Exiting\n");
         exit(0);
       }
       else { /* reading ok */
         /* update pdSum, the column sum of pdTheta */
-        pdSum[i] = pdSum[i] + pdTheta[i];
+        (*pdSum)[i] += (*pdTheta)[i];
       }
     }
 
@@ -1778,7 +2500,7 @@ void ReadRestart (FILE *pfileRestart, long nThetas,
     /* update prgdSumProd */
     for (i = 0; i < nThetas; i++)
       for (j = 0; j < nThetas; j++)
-        prgdSumProd[i][j] = prgdSumProd[i][j] + pdTheta[i] * pdTheta[j];
+        (*prgdSumProd)[i][j] += (*pdTheta)[i] * (*pdTheta)[j];
 
 
     /* increment pIter */
@@ -1799,22 +2521,31 @@ void ReadRestart (FILE *pfileRestart, long nThetas,
    initialize parameters and temperature stuff (pseudoprior, indexT) by reading
    them in the restart file.
 */
-void ReadRestartTemper (FILE *pfileRestart, long nThetas, int nInvTemperatures,
-                        double *pdTheta, double *pdSum, double **prgdSumProd,
-                        long *pIter, long *pindexT, double *pdlnPi)
+void ReadRestartTemper (FILE *pfileRestart, long nThetas, int nPerks,
+                        PDOUBLE *pdTheta, PDOUBLE *pdSum, PDOUBLE **prgdSumProd,
+                        long *pIter, int *pindexT, double *pdlnPi)
 {
   register char c;
   register long i, j;
-  double *pdAux;
-  long iT;
+
+  if (*pdTheta == NULL)
+    if ( !(*pdTheta = InitdVector(nThetas)) )
+      ReportRunTimeError (NULL, RE_OUTOFMEM | RE_FATAL, "ReadRestart");
+
+  if (*pdSum == NULL)
+    if ( !(*pdSum = InitdVector(nThetas)) )
+      ReportRunTimeError (NULL, RE_OUTOFMEM | RE_FATAL, "ReadRestart");
+
+  if (*prgdSumProd == NULL)
+    if ( !(*prgdSumProd = InitdMatrix (nThetas, nThetas)) )
+      ReportRunTimeError (NULL, RE_OUTOFMEM | RE_FATAL, "ReadRestart");
+
   *pIter = -1;
 
-  pdAux = InitdVector (nThetas);
-
   for (i = 0; i < nThetas; i++) {
-    pdSum[i] = 0.0;
+    (*pdSum)[i] = 0.0;
     for (j = 0; j < nThetas; j++)
-      prgdSumProd[i][j] = 0.0;
+      (*prgdSumProd)[i][j] = 0.0;
   }
 
   /* skip the first line. This allows a MC output file to be used
@@ -1828,23 +2559,23 @@ void ReadRestartTemper (FILE *pfileRestart, long nThetas, int nInvTemperatures,
   while (!(feof (pfileRestart) ||
            (fscanf (pfileRestart, "%*s") == EOF))) {
     for (i = 0; i < nThetas; i++) {
-      if (fscanf(pfileRestart, "%lg", &(pdTheta[i])) == EOF) {
+      if ( fscanf(pfileRestart, "%lg", &((*pdTheta)[i])) == EOF ) {
         printf ("Error: incorrect length for restart file - Exiting\n");
         exit(0);
       }
       else { /* reading ok */
         /* update pdSum, the column sum of pdTheta */
-        pdSum[i] = pdSum[i] + pdTheta[i];
+        (*pdSum)[i] += (*pdTheta)[i];
       }
     }
 
-    if (fscanf(pfileRestart,"%ld", &(iT)) == EOF) {
+    if (fscanf(pfileRestart,"%d", pindexT) == EOF) {
       printf ("Error: incorrect length for restart file - Exiting\n");
       exit(0);
     }
 
-    for (i = 0; i < nInvTemperatures; i++) {
-      if (fscanf(pfileRestart,"%lg", &(pdAux[i])) == EOF) {
+    for (i = 0; i < nPerks; i++) {
+      if (fscanf(pfileRestart,"%lg", &(pdlnPi[i])) == EOF) {
         printf ("Error: incorrect length for restart file - Exiting\n");
         exit(0);
       }
@@ -1854,14 +2585,10 @@ void ReadRestartTemper (FILE *pfileRestart, long nThetas, int nInvTemperatures,
        directly as a restart file. */
     do { c = getc(pfileRestart); } while (c != '\n');
 
-    *pindexT = iT;
-    for (i = 0; i < nInvTemperatures; i++)
-      pdlnPi[i] = pdAux[i];
-
     /* update prgdSumProd */
     for (i = 0; i < nThetas; i++)
       for (j = 0; j < nThetas; j++)
-        prgdSumProd[i][j] = prgdSumProd[i][j] + pdTheta[i] * pdTheta[j];
+        (*prgdSumProd)[i][j] += (*pdTheta)[i] * (*pdTheta)[j];
 
     /* increment pIter */
     *pIter = *pIter + 1;
@@ -1871,7 +2598,6 @@ void ReadRestartTemper (FILE *pfileRestart, long nThetas, int nInvTemperatures,
   /* note that the theta returned is the last parameter set read */
 
   fclose (pfileRestart);
-  free (pdAux);
 
 } /* ReadRestartTemper */
 
@@ -1909,12 +2635,11 @@ int RunAllExpts (PANALYSIS panal, PDOUBLE pdLnData)
     if (!TraverseLevels1 (plevel0->pLevels[n], RunExpt, panal,
                           pdLnData, NULL)) {
       /* error */
-      return (0);
+      return(0);
     }
   }
 
-  /* success */
-  return (1);
+  return(1);
 
 } /* RunAllExpts */
 
@@ -1972,10 +2697,10 @@ long SampleTemperature (PGIBBSDATA pgd, double dLnPrior, double dLnData)
   int    indexT = pgd->indexT;
   int    indexT_new;
 
-  /* Propose a new inverse temperature */
+  /* Propose a new perk */
   if (indexT == 0) indexT_new = 1;
   else {
-    if (indexT == pgd->nInvTemperatures - 1) indexT_new = indexT - 1;
+    if (indexT == pgd->nPerks - 1) indexT_new = indexT - 1;
     else {
       if (Randoms() > 0.5) indexT_new = indexT + 1;
         else indexT_new = indexT - 1;
@@ -1991,7 +2716,43 @@ long SampleTemperature (PGIBBSDATA pgd, double dLnPrior, double dLnData)
   else
     return (indexT);
 
-}  /* SampleTemperature */
+} /* SampleTemperature */
+
+
+/* Function -------------------------------------------------------------------
+   SampleTemperature2
+
+   Records the count of attempted and accepted temperature jumps
+*/
+long SampleTemperature2 (PGIBBSDATA pgd, double dLnPrior, double dLnData)
+{
+  int indexT = pgd->indexT;
+  int indexT_new;
+
+  /* Propose a new perk */
+  if (indexT == pgd->startT) indexT_new = indexT + 1;
+  else {
+    if (indexT == pgd->endT) indexT_new = indexT - 1;
+    else {
+      if (Randoms() > 0.5) indexT_new = indexT + 1;
+        else indexT_new = indexT - 1;
+    }
+  }
+
+  int minI = (indexT < indexT_new ? indexT : indexT_new);
+  pgd->rglTransAttempts[minI]++;
+
+  /* Test the temperature */
+  if (TestTemper (pgd, indexT, indexT_new, dLnPrior, dLnData,
+                  pgd->rgdlnPi[indexT], pgd->rgdlnPi[indexT_new])) {
+    /* jump */
+    pgd->rglTransAccepts[minI]++;
+    return (indexT_new);
+  }
+  else
+    return (indexT);
+
+} /* SampleTemperature2 */
 
 
 /* Function -------------------------------------------------------------------
@@ -2180,17 +2941,22 @@ void SampleThetas (PLEVEL plevel, char **args)
     if (!TestImpRatio (pgd, pMCVar->bExptIsDep, dLnKern, dLnKernNew,
                        dLnPrior, dLnPriorNew,
                        dLnLike, dLnLikeNew, dLnData, dLnDataNew)) {
+      /* reject, restore */
       pMCVar->dVal = dTheta;
-
-      if(pMCVar->bExptIsDep)
+      if (pMCVar->bExptIsDep)
         TraverseLevels1 (plevel, RestoreLikelihoods, NULL);
     }
     else {
+      /* accept, save likelihoods */
       pMCVar->lJumps = pMCVar->lJumps + 1;
 
       if(pMCVar->bExptIsDep)
         TraverseLevels1 (plevel, SaveLikelihoods, NULL);
     }
+
+    /* calculate the running mean and variance for this value */
+    CalculateMeanAndVariance((*pnIter+1),pMCVar->dVal,&pMCVar->dVal_mean,
+                                                  &pMCVar->dVal_var);
 
     WriteIt: /* Write the MC var value to output file */
 
@@ -2316,11 +3082,11 @@ void SampleThetasTempered (PLEVEL plevel, char **args)
 
       pMCVar->lJumps = 0; /* reset the jumps counter */
 
-    } /* end kernel updating stuff */
+    } /* end kernel updating */
 
     /* sample a new value */
 
-    if (pgd->rgInvTemperatures[*pindexT] > 0) { /* usual case */
+    if (pgd->rgdPerks[*pindexT] > 0) { /* usual case */
 
       /* first scale temporarily the kernelSD according to the temperature */
 
@@ -2328,40 +3094,39 @@ void SampleThetasTempered (PLEVEL plevel, char **args)
       old_dKernelSD = pMCVar->dKernelSD;
 
       /* update the kernelSD according to the temperature, the formula
-         comes from that of the variance of the powered normal */
-      pMCVar->dKernelSD = pow(2 * PI,
-                              0.5 * (1 - pgd->rgInvTemperatures[*pindexT])) *
-                          pow(pMCVar->dKernelSD,
-                              3 - pgd->rgInvTemperatures[*pindexT]) /
-                          pow(pgd->rgInvTemperatures[*pindexT], 1.5);
+         comes from that of the variance of the powered standard normal */
+      pMCVar->dKernelSD = pMCVar->dKernelSD *
+                          exp((1 - pgd->rgdPerks[*pindexT]) * LN2PI * 0.25 -
+                              0.75 * log(pgd->rgdPerks[*pindexT]));
 
       /* check that kernel SD does not increase wildly */
       if (pMCVar->dKernelSD > pMCVar->dMaxKernelSD)
         pMCVar->dKernelSD = pMCVar->dMaxKernelSD;
 
-      /* compute the integral of the jump kernel */
-      dLnKern  = log(CDFNormal ((MaxMCVar(pMCVar) - pMCVar->dVal) /
-                                pMCVar->dKernelSD) -
-                     CDFNormal ((MinMCVar(pMCVar) - pMCVar->dVal) /
-                                pMCVar->dKernelSD));
+      /* compute the integral of the jump kernel (for truncation) */
+      dLnKern  = log(CDFNormal((MaxMCVar(pMCVar) - pMCVar->dVal) /
+                               pMCVar->dKernelSD) -
+                     CDFNormal((MinMCVar(pMCVar) - pMCVar->dVal) /
+                               pMCVar->dKernelSD));
 
       /* sample a new value */
       pMCVar->dVal = SampleTheta (pMCVar);
 
-      /* update the integral of the jump kernel */
-      dLnKernNew  =  log(CDFNormal ((MaxMCVar(pMCVar) - pMCVar->dVal) /
-                                    pMCVar->dKernelSD) -
-                         CDFNormal ((MinMCVar(pMCVar) - pMCVar->dVal) /
-                                    pMCVar->dKernelSD));
+      /* update the integral of the jump kernel (for truncation) */
+      dLnKernNew  =  log(CDFNormal((MaxMCVar(pMCVar) - pMCVar->dVal) /
+                                   pMCVar->dKernelSD) -
+                         CDFNormal((MinMCVar(pMCVar) - pMCVar->dVal) /
+                                   pMCVar->dKernelSD));
     }
-    else { /* inverse temperature is zero, sample uniformly or from the prior */
-      dLnKern = dLnKernNew  = 1;
+    else {
+      /* inverse temperature is zero, sample uniformly or from the prior,
+         the jump will always be accepted */
       if (pgd->nSimTypeFlag == 3) { /* the posterior is tempered */
         /* sample a new value uniformly in its range */
-        pMCVar->dVal = SampleThetaUnif (pMCVar);
+        pMCVar->dVal = SampleThetaUnif(pMCVar);
       }
       else { /* the likelihood is tempered, sample from the prior */
-        CalculateOneMCParm (pMCVar);
+        CalculateOneMCParm(pMCVar);
       }
     }
 
@@ -2377,7 +3142,7 @@ void SampleThetasTempered (PLEVEL plevel, char **args)
          We should in fact run only the dependent experiments ! */
       if (!TraverseLevels1 (plevel, RunExpt, panal, &dLnDataNew, NULL)) {
         /* If running experiments fails, do not jump */
-        pMCVar->dVal = dTheta;
+        pMCVar->dVal = dTheta; /* restore */
         TraverseLevels1 (plevel, RestoreLikelihoods, NULL);
         goto WriteIt;
       }
@@ -2388,26 +3153,28 @@ void SampleThetasTempered (PLEVEL plevel, char **args)
                              dLnPrior, dLnPriorNew,
                              dLnLike, dLnLikeNew, dLnData, dLnDataNew,
                              *pindexT)) {
+      /* reject, restore */
       pMCVar->dVal = dTheta;
-       if(pMCVar->bExptIsDep)
+      if (pMCVar->bExptIsDep)
         TraverseLevels1 (plevel, RestoreLikelihoods, NULL);
     }
     else {
+      /* accept, save likelihoods */
       pMCVar->lJumps = pMCVar->lJumps + 1;
-      if(pMCVar->bExptIsDep)
+      if (pMCVar->bExptIsDep)
         TraverseLevels1 (plevel, SaveLikelihoods, NULL);
     }
 
-    if (pgd->rgInvTemperatures[*pindexT] > 0) /* restore kernelSD */
+    if (pgd->rgdPerks[*pindexT] > 0) /* restore kernelSD */
       pMCVar->dKernelSD = old_dKernelSD;
 
-WriteIt: /* Write the MC var value to output file  */
+WriteIt: /* Write the current MC var value to output file  */
 
     if (((*pnIter+1) % pgd->nPrintFreq == 0) &&
-        (*pnIter >= pgd->nMaxIter - pgd->nPrintIter)) {
+      (*pnIter >= pgd->nMaxIter - pgd->nPrintIter)) {
       fprintf(pgd->pfileOut, "%5g\t", pMCVar->dVal);
     }
-  }  /*  (Metrolopolis-Hastings */
+  } /* Metrolopolis-Hastings */
 
 } /* SampleThetasTempered */
 
@@ -2415,8 +3182,7 @@ WriteIt: /* Write the MC var value to output file  */
 /* Function -------------------------------------------------------------------
    SampleThetaVector
 
-   Sample thetas in block, do Metropolis test, write the sampled values to
-   the output file
+   Sample thetas in block, do Metropolis test.
 */
 void SampleThetaVector (PLEVEL pLevel, PANALYSIS panal, long nThetas,
                         double *pdTheta, double *pdSum, double **prgdSumProd,
@@ -2513,7 +3279,7 @@ void SampleThetaVector (PLEVEL pLevel, PANALYSIS panal, long nThetas,
 
   /* Set the dVals of the variables to the values sampled and check that
      we are within bounds */
-  long iTmp = 0; /* dummy variable to avoid resetting nThetas FB 16/07/2016 */
+  long iTmp = 0; /* use a dummy variable to avoid resetting nThetas */
   bInBounds = TraverseLevels1 (pLevel, SetMCVars, pdTheta, &iTmp, NULL);
 
   if (!bInBounds) { /* reject */
@@ -2554,9 +3320,9 @@ void SampleThetaVector (PLEVEL pLevel, PANALYSIS panal, long nThetas,
 
   /* update arrays */
   for (i = 0; i < nThetas; i++) {
-    pdSum[i] = pdSum[i] + pdTheta[i];
+    pdSum[i] += pdTheta[i];
     for (j = 0; j < nThetas; j++)
-      prgdSumProd[i][j] = prgdSumProd[i][j] + pdTheta[i] * pdTheta[j];
+      prgdSumProd[i][j] += pdTheta[i] * pdTheta[j];
   }
 
 } /* SampleThetaVector */
@@ -2604,11 +3370,17 @@ void SetFixedVars (PLEVEL plevel)
 /* Function -------------------------------------------------------------------
    SetKernel
 
-   Set initial values of the MCMC jumping kernel
+   Set initial values of the MCMC jumping kernel and eventually
+   initializes the sampled parameters (contained in plevel->rgpMCVars[]).
+
+   The first argument of the list is a flag indicating whether the
+   values of the sampled parameters should be restored (to the values
+   passed as a second arument in an array) (case 1), or left at their
+   last sampled value (case 2).
 */
 void SetKernel (PLEVEL plevel, char **args)
 {
-  intptr_t useMCVarVals = (intptr_t) args[0]; /* 1 to restore dVal, else 2 */
+  intptr_t useMCVarVals = (intptr_t) args[0]; /* 1 to restore dVals, else 2 */
   double *pdMCVarVals = (double *) args[1];
   double dMin, dMax, dTmp;
   long   n, m;
@@ -2634,7 +3406,7 @@ void SetKernel (PLEVEL plevel, char **args)
       /* sample 4 variates */
       dMin = dMax = pMCVar->dVal;
       for (m = 0; m < 3; m++) {
-        CalculateOneMCParm (pMCVar);
+        CalculateOneMCParm(pMCVar);
         dTmp = pMCVar->dVal;
         if (dMin >= dTmp) dMin = dTmp;
         else if (dMax < dTmp) dMax = dTmp;
@@ -2955,19 +3727,22 @@ BOOL TestImpRatioTemper (PGIBBSDATA pgd,  BOOL bExptIsDep,
       dLnDataNew  == NULL_SUPPORT)
     return FALSE;
 
+  if (pgd->rgdPerks[indexT] == 0) /* always accept jumps at perk zero */
+    return TRUE;
+
   if (pgd->nSimTypeFlag == 3) { /* posterior is tempered */
-    dPjump = pgd->rgInvTemperatures[indexT] *
-             (dLnPriorNew - dLnPrior + dLnLikeNew - dLnLike +
-              dLnKern - dLnKernNew);
+    dPjump = pgd->rgdPerks[indexT] *
+             (dLnPriorNew - dLnPrior + dLnLikeNew - dLnLike) +
+             dLnKern - dLnKernNew;
   }
   else { /* only the likelihood is tempered */
     dPjump = dLnPriorNew - dLnPrior +
-             pgd->rgInvTemperatures[indexT] *
-             (dLnLikeNew - dLnLike + dLnKern - dLnKernNew);
+             pgd->rgdPerks[indexT] * (dLnLikeNew - dLnLike) +
+             dLnKern - dLnKernNew;
   }
 
   if (bExptIsDep)
-    dPjump += pgd->rgInvTemperatures[indexT] * (dLnDataNew - dLnData);
+    dPjump += pgd->rgdPerks[indexT] * (dLnDataNew - dLnData);
 
   return ((BOOL) (log(Randoms()) <= dPjump));
 
@@ -2989,21 +3764,21 @@ BOOL TestTemper (PGIBBSDATA pgd, long indexT, long indexT_new, double dLnPrior,
     return FALSE;
 
   if (pgd->nSimTypeFlag == 3) { /* the posterior is tempered */
-    dPjump = (pgd->rgInvTemperatures[indexT_new] -
-              pgd->rgInvTemperatures[indexT]) * (dLnPrior + dLnData) +
+    dPjump = (pgd->rgdPerks[indexT_new] -
+              pgd->rgdPerks[indexT]) * (dLnPrior + dLnData) +
              pseudonew - pseudo +
-             ((indexT_new == 0) || (indexT_new == pgd->nInvTemperatures - 1) ?
+             ((indexT_new == 0) || (indexT_new == pgd->nPerks - 1) ?
               0 : MINUSLN2) -
-             ((indexT     == 0) || (indexT     == pgd->nInvTemperatures - 1) ?
+             ((indexT     == 0) || (indexT     == pgd->nPerks - 1) ?
               0 : MINUSLN2);
   }
-  else { /* only the likelihood is tempered */
-    dPjump = (pgd->rgInvTemperatures[indexT_new] -
-              pgd->rgInvTemperatures[indexT]) * dLnData +
+  else { /* only the likelihood is tempered, the prior cancels out */
+    dPjump = (pgd->rgdPerks[indexT_new] -
+              pgd->rgdPerks[indexT]) * dLnData +
              pseudonew - pseudo +
-             ((indexT_new == 0) || (indexT_new == pgd->nInvTemperatures - 1) ?
+             ((indexT_new == 0) || (indexT_new == pgd->nPerks - 1) ?
               0 : MINUSLN2) -
-             ((indexT     == 0) || (indexT     == pgd->nInvTemperatures - 1) ?
+             ((indexT     == 0) || (indexT     == pgd->nPerks - 1) ?
               0 : MINUSLN2);
   }
 
@@ -3048,6 +3823,12 @@ void TraverseLevels (PLEVEL plevel,
 } /* TraverseLevels */
 
 
+/* Function -------------------------------------------------------------------
+   TraverseLevels1 (recursive)
+
+   Same as TraverseLevels, but checks the return code of the routine passed
+   and returns the same code (0 if error, 1 if success).
+*/
 int TraverseLevels1 (PLEVEL plevel,
                      int (*routinePtr)(PLEVEL plevel, char **args), ...)
 {
@@ -3064,7 +3845,6 @@ int TraverseLevels1 (PLEVEL plevel,
   va_end (ap);
 
   if (routinePtr (plevel, args)) {
-
     for (n = 0; n < plevel->iInstances; n++) {
       if (!TraverseLevels1(plevel->pLevels[n], routinePtr, NULL)) {
         /* error */
@@ -3084,13 +3864,39 @@ int TraverseLevels1 (PLEVEL plevel,
 /* Function -------------------------------------------------------------------
    WriteHeader
 
+   Write the complete output file header
+*/
+void WriteHeader (PANALYSIS panal)
+{
+  PGIBBSDATA pgd = &panal->gd;
+  long i;
+
+  fprintf(pgd->pfileOut, "iter\t");
+  TraverseLevels (panal->pLevels[0], WriteParameterNames, panal,
+                  pgd->pfileOut, NULL);
+  if ((pgd->nSimTypeFlag == 3) || (pgd->nSimTypeFlag == 4)) {
+    /* if the user has required tempering and specified a perk scale,
+       then print header for temperature index and pseudo-priors etc. */
+    fprintf(pgd->pfileOut, "IndexT\t");
+    for (i = 0; i < pgd->nPerks; i++)
+      fprintf(pgd->pfileOut, "LnPseudoPrior(%ld)\t",i+1);
+  }
+  fprintf(pgd->pfileOut, "LnPrior\tLnData\tLnPosterior\n");
+  fflush(pgd->pfileOut);
+
+} /* WriteHeader */
+
+
+/* Function -------------------------------------------------------------------
+   WriteParameterNames
+
    Called from Traverse Levels
    Write the names of the sampled parameters to output file header
 */
-void WriteHeader (PLEVEL plevel, char **args)
+void WriteParameterNames (PLEVEL plevel, char **args)
 {
   PANALYSIS panal = (PANALYSIS)args[0];
-  FILE *outFile = (FILE*)args[1];
+  PFILE outFile = (FILE*)args[1];
   long n, m;
 
   panal->iInstance[plevel->iDepth] = plevel->iSequence;
@@ -3102,7 +3908,7 @@ void WriteHeader (PLEVEL plevel, char **args)
     fprintf (outFile, "%d)\t", panal->iInstance[plevel->iDepth]);
   }
 
-} /* WriteHeader */
+} /* WriteParameterNames */
 
 
 /* Function -------------------------------------------------------------------
@@ -3111,8 +3917,9 @@ void WriteHeader (PLEVEL plevel, char **args)
 
    Write the values of MC vars for one level to output file
 */
-void WriteMCVars (PLEVEL plevel, PFILE pOutFile)
+void WriteMCVars (PLEVEL plevel, char **args)
 {
+  PFILE pOutFile = (PFILE)args[0];
   long n;
   PMCVAR pMCVar;
 

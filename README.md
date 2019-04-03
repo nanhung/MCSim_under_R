@@ -1,6 +1,6 @@
 # MCSim under R
 
-This is a small tutorial that can help the beginner to Run MCSim (current version 6.0.1) in R by,
+This is a small tutorial that can help the beginner to Run MCSim (current version 6.1.0) in R by,
 
 (1) Download all files from this repository.
 
@@ -10,6 +10,7 @@ This is a small tutorial that can help the beginner to Run MCSim (current versio
 
 ## Instruction
 
+- Please install [Rtools](https://cran.r-project.org/bin/windows/Rtools/) in your system.
 - The model and input file have to put into the `input` folder.
 
 ## Help 

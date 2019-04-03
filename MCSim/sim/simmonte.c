@@ -41,7 +41,6 @@
    sets the parameters in the rghvar array to the values in the rgdParm
    array.
 */
-
 void SetParms (long cParms, HVAR *rghvar, double *rgdParm)
 {
   long i;
@@ -58,7 +57,6 @@ void SetParms (long cParms, HVAR *rghvar, double *rgdParm)
    sets the parameters in the rghvar array to the log-transformed
    values in the rgdParm array.
 */
-
 void SetParmsLog (long cParms, HVAR *rghvar, double *rgdParm)
 {
   long i;
@@ -75,7 +73,6 @@ void SetParmsLog (long cParms, HVAR *rghvar, double *rgdParm)
    sets the parameters in the rghvar array to the exp-transformed
    values in the rgdParm array.
 */
-
 void SetParmsExp (long cParms, HVAR *rghvar, double *rgdParm)
 {
   long i;
@@ -92,7 +89,6 @@ void SetParmsExp (long cParms, HVAR *rghvar, double *rgdParm)
    Callback function for CalculateMCParms. Assign the dVal member of 
    a MCVAR structure by sampling from the distribution specified by its iType
 */
-
 int CalculateOneMCParm (PMCVAR pMCVar)
 {
   double dParm1, dParm2, dMin, dMax;
@@ -217,6 +213,10 @@ int CalculateOneMCParm (PMCVAR pMCVar)
       pMCVar->dVal = fabs(CauchyRandom (dParm1));
       break;
 
+    case MCV_USERLL: /* not allowed for straight Monte Carlo simulations */
+      ReportError (NULL, RE_BADCONTEXT | RE_FATAL, "UserSpecifiedLL", NULL);
+      break;
+      
   } /* switch */
 
   return 0;
@@ -237,7 +237,6 @@ int CalculateOneMCParm (PMCVAR pMCVar)
 
    The calculation starts at index iStart.
 */
-
 void CalcMCParms (PMONTECARLO pMC, double rgParms[], long iStart)
 {
   long i;
@@ -261,7 +260,6 @@ void CalcMCParms (PMONTECARLO pMC, double rgParms[], long iStart)
 
    Returns the file pointer if everything is ok.
 */
-
 BOOL InitSetPoints (PMONTECARLO pMC)
 {
   register char c;
@@ -293,7 +291,6 @@ BOOL InitSetPoints (PMONTECARLO pMC)
 
    Returns non-zero if a full set of points is read, 0 otherwise.
 */
-
 BOOL ReadSetPoints (PMONTECARLO pMC, double rgParms[])
 {
   BOOL bReturn = FALSE; /* Initially, flag no points read */
@@ -333,7 +330,9 @@ BOOL ReadSetPoints (PMONTECARLO pMC, double rgParms[])
 
   /* Throw away remainder of line. This allows a MC output file to be used
      directly as a setpoints file. */
-  do { c = getc(pMC->pfileSetPoints); } while (c != '\n');
+  do {
+    c = getc(pMC->pfileSetPoints);
+  } while ((c != '\n') && !feof(pMC->pfileSetPoints));
 
 Exit_ReadSetPoints:
   ;
@@ -343,39 +342,26 @@ Exit_ReadSetPoints:
 
 
 /* ----------------------------------------------------------------------------
-   GetMCMods
+   GetSPMods
 
-   Calculates random parameter variations or reads a new set of
-   modifications from the set points input file.
+   Reads a new set of modifications from the set points input file.
 
-   Returns TRUE if got modifications.
+   Returns TRUE if got modifications OK.
 
-   FALSE is only returned for a SetPoints analysis where
-   the number of runs (nRuns) is set to zero.  In this case the
-   simulation continues to set points until end of file is reached,
-   and returns FALSE to flag the eof condition.
+   FALSE is only returned when the number of runs (nRuns) is set to
+   zero. In this case the simulation continues until end of file is
+   reached, and returns FALSE to flag the eof condition.
 */
-
-BOOL GetMCMods (PANALYSIS panal, double rgParms[])
+BOOL GetSPMods (PANALYSIS panal, double rgParms[])
 {
   BOOL bOK;
 
-  if (panal->iType == AT_MONTECARLO) { /* Random Monte Carlo mods */
-    CalcMCParms (&panal->mc, rgParms, 0); /* start at 0, do them all */
-    return TRUE;
-  } /* if */
+  bOK = ReadSetPoints (&panal->mc, rgParms);
+  /* eventually override by Distrib specs */
+  CalcMCParms (&panal->mc, rgParms, panal->mc.nSetParms);
+  return bOK;
 
-  else if (panal->iType == AT_SETPOINTS) {
-    /* read set point mods */
-    bOK = ReadSetPoints (&panal->mc, rgParms);
-    /* eventually override by Distrib specs, FB - 21/07/97 */
-    CalcMCParms (&panal->mc, rgParms, panal->mc.nSetParms);
-    return bOK;
-  } /* else if */
-
-  return (FALSE);
-
-} /* GetMCMods */
+} /* GetSPMods */
 
 
 /* ----------------------------------------------------------------------------
@@ -388,7 +374,6 @@ BOOL GetMCMods (PANALYSIS panal, double rgParms[])
 
    The calculation starts at index iStart.
 */
-
 void SetParents (PMONTECARLO pMC, long iStart)
 {
   long i, j, k;

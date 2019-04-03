@@ -42,8 +42,8 @@
 */
 
 /* Version and copyright */
-#define VSZ_VERSION "v6.0.1"
-#define VSZ_COPYRIGHT "Copyright (c) 1993-2018 Free Software Foundation, Inc."
+#define VSZ_VERSION "v6.1.0"
+#define VSZ_COPYRIGHT "Copyright (c) 1993-2019 Free Software Foundation, Inc."
 
 /* These are potential array size problems.
    Other maximum sizes are MAX_EQN and MAX_LEX in lex.h */
@@ -114,6 +114,7 @@
 #define KM_HALFCAUCHY      234
 #define KM_NORMALCV        235
 #define KM_TRUNCNORMALCV   236
+#define KM_USERLL          237
 
 #define KM_PREDICTION      300
 
@@ -160,7 +161,7 @@
 #define MCV_CHI2            7
 #define MCV_BINOMIAL        8
 #define MCV_PIECEWISE       9
-#define MCV_EXPONENTIAL     10	
+#define MCV_EXPONENTIAL     10
 #define MCV_GGAMMA          11
 #define MCV_POISSON         12
 #define MCV_INVGGAMMA       13
@@ -177,6 +178,7 @@
 #define MCV_HALFCAUCHY      24
 #define MCV_NORMALCV        25
 #define MCV_TRUNCNORMALCV   26
+#define MCV_USERLL          27
 
 /* Integration Method types */
 
@@ -303,10 +305,12 @@ typedef struct tagOUTSPEC {
 /* Monte Carlo Variation for one parameter */
 
 typedef struct tagMCVAR {
-  PSTR    pszName;          /* Model variableariable name */
+  PSTR    pszName;          /* Model variable name */
   HVAR    hvar;             /* Handle to the model variable to be modified */
   double  dVal;             /* Current value */
   PDOUBLE pdVal;            /* Pointer to value */
+  double  dVal_mean;        /* Sampled mean */
+  double  dVal_var;         /* Sampled variance */
 
   int     iDepth;           /* Level (to distinguish vars with same hvar) */
   int     iType;            /* One of MCV_ distribution types */
@@ -331,6 +335,9 @@ typedef struct tagMCVAR {
   double  dKernelSD;        /* MCMC jumping kernel SD */
   double  dMaxKernelSD;     /* Maximum value of jumping kernel SD */
 
+  PDOUBLE pdSum;            /* Running sum of sampled values */
+  PDOUBLE pdSumSq;          /* Running sum of squared deviates from mean */
+
 } MCVAR, *PMCVAR; /* tagMCVAR */
 
 
@@ -339,6 +346,7 @@ typedef struct tagGIBBSDATA {
   long    nSimTypeFlag;      /* Number of iterations before vector sampling */
   long    nPrintFreq;        /* requests output every nPrintFreq iterations */
   long    nPrintIter;        /* Number of final iterations to print */
+  long    nMaxPerkSetIter;   /* Maximum of iterations to set the perk scale */
 
   PSTR    szGout;            /* Filename for output */
   PFILE   pfileOut;          /* File pointer for output */
@@ -348,13 +356,19 @@ typedef struct tagGIBBSDATA {
 
   PSTR    szGdata;           /* Filename for input data */
 
-  int     nInvTemperatures;  /* n inverse temperatures for tempered MCMC */
-  PDOUBLE rgInvTemperatures; /* Array of inverse temperatures */
-  long    indexT;            /* hot */
-  PDOUBLE rgdlnPi;
-  PLONG   rglTemp;           /* n vectors at a given temperature */
-  double  dCZero;
-  double  dNZero;
+  PFILE   pfilePerks;        /* File pointer for perks scale */
+
+  int     nPerks;            /* Number of perks for tempered MCMC */
+  PDOUBLE rgdPerks;          /* Array of inverse temperatures (perks) */
+  PLONG   rglTransAttempts; 
+  PLONG   rglTransAccepts;
+  int     indexT;            /* Index of current perk */
+  PDOUBLE rgdlnPi;           /* Pseudo-priors (one per perk) */
+  PLONG   rglCount;          /* Count of samples at given perks */
+  double  dCZero;            /* Robbins-Munro updating rate parameter */
+  double  dNZero;            /* Robbins-Munro updating decay parameter */
+  int     startT;            /* Index of actual starting perk */
+  int     endT;              /* Index of actual ending perk */
 
 } GIBBSDATA, *PGIBBSDATA; /* tagGIBBSDATA */
 
@@ -447,7 +461,7 @@ typedef struct tagLEVEL {
   PMCVAR *rgpLikes;    /* Array of MCVAR records (from plistLikes) */
 
   PEXPERIMENT pexpt;   /* Ptr to expt struct, NULL if not expt
-			  EXPERIMENT is used for compatibility */ 
+                          EXPERIMENT is used for compatibility */ 
 
 } LEVEL, *PLEVEL; /* tagLEVEL */
 
@@ -456,9 +470,13 @@ typedef struct tagLEVEL {
 
 typedef struct tagANALYSIS {
 
-  BOOL bDependents;	    /* Debug flag for printing dependents to stderr */
-  BOOL bParams;		    /* Debug flag for printing params of MC vars */
-  BOOL bPrintIter;	    /* Debug flag for printing iteration numbers */
+  int  rank;                /* Parallel processor ID */
+  int  size;                /* Number of parallel processors used */
+
+  BOOL bDependents;         /* Debug flag for printing dependents to stderr */
+  BOOL bOutputIter;         /* Flag for printing iteration numbers */
+  int  nOutputFreq;         /* Flag for frequency of iteration printing */
+  BOOL bPrintConvergence;   /* Flag for MCMC convergence printing */
 
   int  iType;               /* Type of analysis. One of AT_ types */
 
@@ -467,7 +485,7 @@ typedef struct tagANALYSIS {
 
   MODELINFO modelinfo;      /* The model we are using */
 
-  int iDepth;		    /* Depth of levels */
+  int iDepth;               /* Depth of levels */
   int iCurrentDepth;
   int iInstances;           /* Number of instances of level 1 */
   int iExpts;               /* Total number of experiments at all levels */
@@ -487,7 +505,7 @@ typedef struct tagANALYSIS {
   PEXPERIMENT rgpExps[MAX_INSTANCES];  /* List of pointer to experiments */
   PEXPERIMENT pexpCurrent;             /* Experiment being currently defined */
 
-  PLIST plistVars;	    /* Global variables to set */
+  PLIST plistVars;      /* Global variables to set */
 
   MONTECARLO    mc;     /* Monte Carlo specification data */
   GIBBSDATA     gd;     /* MCMC specification data */
@@ -506,37 +524,27 @@ extern PSTRLEX vrgszlexArgs[];
    Prototypes
 */
 
-void AnnounceProgram (void);
-void CorrectInputToTransition (PEXPERIMENT, PDOUBLE);
-
-int  DoOneExperiment (PEXPERIMENT pexp);
-
-void DoAnalysis (PANALYSIS panal);
-void DoMonteCarlo (PANALYSIS panal);
-void DoNormal (PANALYSIS panal);
-int  DoOneMCExp (PANALYSIS panal, PEXPERIMENT pexp);
-int  DoOneNormalExp (PANALYSIS panal, PEXPERIMENT pexp);
-
-int  Euler (long neq, double *y, double *t, double tout, double dTStep);
-
-void FreeVarMod (PVOID pData);
-
-void GetCmdLineArgs (int cArg, char *const *rgszArg, PSTR *pszFileIn,
-                     PSTR *pszFileOut, PANALYSIS panal);
-void GetOutputFlagOption (PANALYSIS panal, char *optarg);
-
-int  MCVarListToArray (PVOID pv_pMCVar, PVOID pv_Null);
-int  ModifyOneParm (PVOID pData, PVOID pNullInfo);
-void ModifyParms (PLIST plistParmMods);
-
-void PrepAnalysis (PANALYSIS panal);
-int  ProcessMonteCarlo (PINPUTBUF, PANALYSIS, PSTR, int);
-void PromptFilenames (PSTR *pszFileIn, PSTR *pszFileOut);
-
-char *SansPath (char *szFullPathname);
-
-void WriteArray (FILE *pfile, long cElems, double *rg);
-void WriteArrayLog (FILE *pfile, long cElems, double *rg);
+void AnnounceProgram(void);
+void CorrectInputToTransition(PEXPERIMENT, PDOUBLE);
+int  DoOneExperiment(PEXPERIMENT pexp);
+void DoAnalysis(PANALYSIS panal);
+void DoMonteCarlo(PANALYSIS panal);
+void DoNormal(PANALYSIS panal);
+int  DoOneMCExp(PANALYSIS panal, PEXPERIMENT pexp);
+int  DoOneNormalExp(PANALYSIS panal, PEXPERIMENT pexp);
+int  Euler(long neq, double *y, double *t, double tout, double dTStep);
+void FreeVarMod(PVOID pData);
+void GetCmdLineArgs(int cArg, char *const *rgszArg, PSTR *pszFileIn,
+                    PSTR *pszFileOut, PANALYSIS panal);
+void GetOutputFlagOption(PANALYSIS panal, char *optarg);
+int  MCVarListToArray(PVOID pv_pMCVar, PVOID pv_Null);
+int  ModifyOneParm(PVOID pData, PVOID pNullInfo);
+void ModifyParms(PLIST plistParmMods);
+void PrepAnalysis(PANALYSIS panal);
+int  ProcessMonteCarlo(PINPUTBUF, PANALYSIS, PSTR, int);
+void PromptFilenames(PSTR *pszFileIn, PSTR *pszFileOut);
+void WriteArray(FILE *pfile, long cElems, double *rg);
+void WriteArrayLog(FILE *pfile, long cElems, double *rg);
 
 #define SIM_H_DEFINED
 #endif  /* SIM_H_DEFINED */

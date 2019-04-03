@@ -25,6 +25,7 @@
 #include "lexerr.h"
 #include "modelu.h"
 #include "random.h"
+#include "simi.h"
 #include "siminit.h"
 
 
@@ -161,11 +162,12 @@ void InitMonteCarlo (PMONTECARLO pmc)
 
 void InitGibbs (PGIBBSDATA pgd)
 {
-  pgd->nMaxIter     = NSIMULATIONS_DEFAULT;
-  pgd->nSimTypeFlag = 0;
-  pgd->nPrintIter   = NSIMULATIONS_DEFAULT;
-  pgd->nPrintFreq   = 1;     /* Print every iteration */
-
+  pgd->nMaxIter        = NSIMULATIONS_DEFAULT;
+  pgd->nSimTypeFlag    = 0;
+  pgd->nPrintIter      = NSIMULATIONS_DEFAULT;
+  pgd->nPrintFreq      = 1;
+  pgd->nMaxPerkSetIter = 300000;
+  
   pgd->szGout = NULL;        /* Filename for Gibbs output */
   pgd->pfileOut = NULL;      /* File for Gibbs output */
 
@@ -175,10 +177,15 @@ void InitGibbs (PGIBBSDATA pgd)
   pgd->szGdata = NULL;       /* Filename for Gibbs input data */
 
   /* for tempered MCMC */
-  pgd->nInvTemperatures = 0; /* n (inverse) temperatures */
+  pgd->nPerks = 0;           /* number of perks (inverse temperatures) */
   pgd->indexT = 0;           /* start at hot temperature */
-  pgd->dCZero = 200;
-  pgd->dNZero = 1000;        /* must be > 0 */
+  pgd->dCZero = 100;
+  pgd->dNZero = 100;         /* must be > 0 */
+  pgd->startT = 0;
+  pgd->endT   = 0;
+
+  pgd->rglTransAttempts = NULL;
+  pgd->rglTransAccepts  = NULL;
 
 } /* InitGibbs */
 
@@ -197,11 +204,15 @@ void InitAnalysis (PANALYSIS panal)
 
   if (!panal) return;
 
-  panal->bDependents = panal->bParams = FALSE;
+  /* those will eventually be changed by command-line options */
+  panal->bDependents       = FALSE;
+  panal->bOutputIter       = FALSE;
+  panal->nOutputFreq       = 0;
+  panal->bPrintConvergence = FALSE;
 
   panal->iType = AT_DEFAULTSIM; /* Type of analysis, default to simple sim */
 
-  panal->dSeed = SEED_DEFAULT; /* The seed for everybody */
+  panal->dSeed = SEED_DEFAULT; /* The random generator seed for everybody */
 
   panal->wContext = CN_GLOBAL; /* Begin in global context */
   panal->pexpCurrent = &panal->expGlobal;
@@ -454,7 +465,8 @@ BOOL PrepareOutSpec (PEXPERIMENT pexp)
       ForAllList (pos->plistDataRecs, InitOneDataVar, (PVOID) &pexp->os);
       pos->nData = cDat;  /* Set count of data for real */
 
-      FreeList (&pos->plistDataRecs, NULL, TRUE);
+      /* ForAllList(pos->plistDataRecs, &FreeDataRec, NULL); */
+      FreeList (&pos->plistDataRecs, NULL, FALSE);
     } /* else */
   } /* else */
 

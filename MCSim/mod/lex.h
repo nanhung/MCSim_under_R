@@ -79,14 +79,12 @@
 #define RE_OUTOFMEM     0x0004 /* Error allocating memory */
 
 #define RE_UNEXPECTED   0x0011 /* Unexpected char in input */
-#define RE_UNEXPNUMBER  0x0012 /* Unexpected number in input */
-#define RE_EXPECTED     0x0013 /* Expected character szMsg[0] */
-#define RE_LEXEXPECTED  0x0014 /* Expected szMsg lexical element */
+#define RE_UNEXPESCAPE  0x0012 /* Unexpected escape sequence in input */
+#define RE_UNEXPNUMBER  0x0013 /* Unexpected number in input */
+#define RE_EXPECTED     0x0014 /* Expected character szMsg[0] */
+#define RE_LEXEXPECTED  0x0015 /* Expected szMsg lexical element */
 
-#define RE_SBWERROR     0x0015 /* System Biology Workbench error */
-#define RE_SBWNOMERROR  0x0016 /* System Biology Workbench NOM service error */
-
-/* User defined errors starting with 0x0100 */
+/* User defined errors starting at 0x0100 */
 
 #define RE_USERERROR    0x0100  /* User Error prefix */
 
@@ -182,7 +180,7 @@ void GetInteger (PINPUTBUF pibIn, PSTR szLex, PINT piLexType);
 void GetNumber (PINPUTBUF pibIn, PSTR szLex, PINT piLexType);
 int  GetOptPunct (PINPUTBUF, PSTR, char);
 int  GetPunct (PINPUTBUF pibIn, PSTR szLex, char chPunct);
-void GetStatement (PINPUTBUF pibIn, PSTR szStmt);
+void GetStatement (PINPUTBUF pibIn, PSTR szStmt, int iKWCode);
 void GetToken (PSTR *szExpress, PSTR szToken, PINT piType);
 
 BOOL InitBuffer (PINPUTBUF pibIn, long lBuffer_size, PSTR szFullPathname);

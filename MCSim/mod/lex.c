@@ -37,6 +37,7 @@
 
 #include "lex.h"
 #include "lexerr.h"
+#include "mod.h"
 
 #ifndef SEEK_CUR
 #define SEEK_CUR 1
@@ -106,7 +107,7 @@ BOOL ENextLex (PINPUTBUF pibIn, PSTRLEX szLex, int iType)
   NextLex (pibIn, szLex, &iLex);
 
   if ((iErr = !(iType & iLex)))
-    ReportError (pibIn, RE_LEXEXPECTED, vrgszLexTypes[iType], szLex);
+    ReportError(pibIn, RE_LEXEXPECTED, vrgszLexTypes[iType], szLex);
 
   return (iErr);
 
@@ -136,8 +137,8 @@ long EvalAtom (PINPUTBUF pibIn, long index, PSTR *szExp, PSTR szToken,
       break;
 
     default:
-      ReportError (pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
-                   "(While parsing bracketed expression)");
+      ReportError(pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
+                  "(While parsing bracketed expression)");
   }
 
   return (result);
@@ -160,8 +161,8 @@ long EvalParen (PINPUTBUF pibIn, long index, PSTR *szExp, PSTR szToken,
     GetToken (szExp, szToken, piType);
     result = EvalSum (pibIn, index, szExp, szToken, piType);
     if (*szToken != ')')
-      ReportError (pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
-                   "(While parsing bracketed expression)");
+      ReportError(pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
+                  "(While parsing bracketed expression)");
     GetToken (szExp, szToken, piType);
   }
   else
@@ -199,8 +200,8 @@ long EvalProd (PINPUTBUF pibIn, long index, PSTR *szExp, PSTR szToken,
         return (result);
 
       default:
-        ReportError (pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
-                     "(While parsing bracketed expression)");
+        ReportError(pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
+                    "(While parsing bracketed expression)");
     }
   }
   return (result);
@@ -235,8 +236,8 @@ long EvalSum (PINPUTBUF pibIn, long index, PSTR *szExp, PSTR szToken,
         break;
 
       default:
-        ReportError (pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
-                     "(While parsing bracketed expression)");
+        ReportError(pibIn, RE_UNEXPECTED | RE_FATAL, *szExp, 
+                    "(While parsing bracketed expression)");
     }
   }
   return (result);
@@ -258,8 +259,8 @@ long EvaluateExpression (PINPUTBUF pibIn, long index, PSTR szExpress)
 
   GetToken (&szExpress, szToken, &iType);
   if (!*szToken) {
-    ReportError (pibIn, RE_UNEXPECTED | RE_FATAL, szExpress, 
-                 "(While parsing bracketed expression)");
+    ReportError(pibIn, RE_UNEXPECTED | RE_FATAL, szExpress, 
+                "(While parsing bracketed expression)");
     return (0);
   }
   else 
@@ -312,7 +313,7 @@ int FillBuffer (PINPUTBUF pibIn, long lBuffer_size)
 
     if ((iOffset = fread (pibIn->pbufOrg, 1, lBuffer_size, pibIn->pfileIn))) {
       iReturn = (int) iOffset;
-      // PreventLexSplit (pibIn, iOffset);
+      /* PreventLexSplit (pibIn, iOffset); */
       pibIn->pbufCur = pibIn->pbufOrg;
     } /* if */
 
@@ -320,7 +321,7 @@ int FillBuffer (PINPUTBUF pibIn, long lBuffer_size)
       if (feof(pibIn->pfileIn))
         iReturn = EOF;
       else
-        ReportError (pibIn, RE_FATAL, NULL, "Unexpected end of file.");
+        ReportError(pibIn, RE_FATAL, NULL, "Unexpected end of file.");
   } /* if */
 
   return (iReturn);
@@ -401,7 +402,7 @@ BOOL InitBuffer (PINPUTBUF pibIn, long lSize, PSTR szFileIn)
       fclose (pibIn->pfileIn);
     }
     else
-      ReportError (pibIn, RE_FILENOTFOUND | RE_FATAL, szFileIn, NULL);
+      ReportError(pibIn, RE_FILENOTFOUND | RE_FATAL, szFileIn, NULL);
   }
   else
     pibIn->lBufSize = lSize;
@@ -417,10 +418,10 @@ BOOL InitBuffer (PINPUTBUF pibIn, long lSize, PSTR szFileIn)
     if ((pibIn->pbufOrg = (PBUF) malloc (pibIn->lBufSize)))
       bReturn = FillBuffer (pibIn, pibIn->lBufSize);
     else
-      ReportError (pibIn, RE_OUTOFMEM | RE_FATAL, "InitBuffer", NULL);
+      ReportError(pibIn, RE_OUTOFMEM | RE_FATAL, "InitBuffer", NULL);
   }
   else
-    ReportError (pibIn, RE_FILENOTFOUND | RE_FATAL, szFileIn, NULL);
+    ReportError(pibIn, RE_FILENOTFOUND | RE_FATAL, szFileIn, NULL);
 
   /* close input file eventually */
   if (lSize < 0)
@@ -480,31 +481,31 @@ void GetArrayBounds (PINPUTBUF pibIn, PLONG piLB, PLONG piUB)
   PSTRLEX szTmp;
 
   if (ENextLex (pibIn, szTmp, LX_INTEGER)) {
-    ReportError (pibIn, RE_INIT | RE_FATAL, NULL, NULL);
+    ReportError(pibIn, RE_INIT | RE_FATAL, NULL, NULL);
   }
   else {
     *piLB = atol(szTmp);
     if (*piLB < 0) 
-      ReportError (pibIn, RE_POSITIVE | RE_FATAL, szTmp, NULL);
+      ReportError(pibIn, RE_POSITIVE | RE_FATAL, szTmp, NULL);
 
     if (NextChar (pibIn) == '-') { /* get eventual hyphen */
       pibIn->pbufCur++; /* advance */
       if (ENextLex (pibIn, szTmp, LX_INTEGER)) {
-        ReportError (pibIn, RE_INIT | RE_FATAL, NULL, NULL);
+        ReportError(pibIn, RE_INIT | RE_FATAL, NULL, NULL);
       }
       else {
       *piUB = atol(szTmp) + 1;
         if (*piUB <= *piLB) 
-         ReportError (pibIn, RE_UNKNOWN | RE_FATAL, "", 
+         ReportError(pibIn, RE_UNKNOWN | RE_FATAL, "", 
                       "Upper bound must be higher than lower bound");
       }
       if (!GetPunct (pibIn, szTmp, ']')) { /* get closing bracket */
-        ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "]", NULL);
+        ReportError(pibIn, RE_LEXEXPECTED | RE_FATAL, "]", NULL);
       }
     }
     else {
       if (!GetPunct (pibIn, szTmp, ']')) { /* get closing bracket */
-        ReportError (pibIn, RE_LEXEXPECTED | RE_FATAL, "]", NULL);
+        ReportError(pibIn, RE_LEXEXPECTED | RE_FATAL, "]", NULL);
       }
       else { /* a number is an index, the upper bound is set at LB+1 */
         *piUB = *piLB + 1;
@@ -577,21 +578,21 @@ BOOL GetFuncArgs (PINPUTBUF pibIn, int nArgs, int rgiArgTypes[], PSTR szArgs,
 
   if (!(bOK = GetPunct (pibIn, szPunct, CH_LPAREN))) {
     szPunct[1] = CH_LPAREN;
-    ReportError (pibIn, RE_EXPECTED, szPunct, NULL);
+    ReportError(pibIn, RE_EXPECTED, szPunct, NULL);
   }
 
   for (i = 0; i < nArgs && bOK; i++, szArgs += MAX_LEX) {
     if (i)
       if (!(bOK = GetOptPunct (pibIn, szArgs, ','))) {
         *(szArgs+1) = ',';
-        ReportError (pibIn, RE_EXPECTED, szArgs, NULL);
+        ReportError(pibIn, RE_EXPECTED, szArgs, NULL);
         break; /* Error: Stop getting args */
       }
 
     NextLex (pibIn, szArgs, &iType);
     if (!(bOK &= (iType & rgiArgTypes[i]) > 0))
-      ReportError (pibIn, RE_LEXEXPECTED, vrgszLexTypes[rgiArgTypes[i]],
-                   szArgs);
+      ReportError(pibIn, RE_LEXEXPECTED, vrgszLexTypes[rgiArgTypes[i]],
+                  szArgs);
 
     rgiLowerB[i] = rgiUpperB[i] = -1;
     if (GetPunct (pibIn, szPunct, '[')) /* array found, read bounds */
@@ -603,7 +604,7 @@ BOOL GetFuncArgs (PINPUTBUF pibIn, int nArgs, int rgiArgTypes[], PSTR szArgs,
   if (!(bOK = (szPunct[0] == CH_RPAREN || 
                GetPunct (pibIn, szPunct, CH_RPAREN)))) {
     szPunct[1] = CH_RPAREN;
-    ReportError (pibIn, RE_EXPECTED, szPunct, NULL);
+    ReportError(pibIn, RE_EXPECTED, szPunct, NULL);
   }
 
   return (bOK);
@@ -826,7 +827,7 @@ void NextLex (PINPUTBUF pibIn, PSTRLEX szLex, PINT piLexType)
   BOOL fDone = FALSE;
 
   *piLexType = LX_NULL;
-  if (!pibIn || !szLex || !piLexType || !pibIn->pbufCur)
+  if (!pibIn || !szLex || !piLexType || !pibIn->pbufCur || !(*pibIn->pbufCur))
     return;
 
   while (!fDone) {
@@ -1022,7 +1023,7 @@ int EGetPunct (PINPUTBUF pibIn, PSTR szLex, char chPunct)
   iReturn = !GetPunct (pibIn, szLex, chPunct);
   if (iReturn) {
     szLex[1] = chPunct;
-    ReportError (pibIn, RE_EXPECTED, szLex, NULL);
+    ReportError(pibIn, RE_EXPECTED, szLex, NULL);
   }
 
   return (iReturn);
@@ -1057,20 +1058,23 @@ void EatStatement (PINPUTBUF pib)
 /* ---------------------------------------------------------------------------
    GetStatement
 
-   Gets the next statement from the input buffer.  The buffer is
-   read until a statement terminator ';' is found.  White spaces
-   before the ';' are removed; the statement is otherwise unprocessed.
-   Syntactical validity will be checked later.
+   Gets the next statement from the input buffer. The buffer is read
+   until a statement terminator ';' is found (except if we are in an
+   Inline() statement, in which case parentheses must also be
+   balanced). White spaces before the ';' are removed; the statement
+   is otherwise unprocessed. Syntactical validity will be checked
+   later.
 
    The buffer szStmt is assumed to be of type PSTREQN of size MAX_EQN.
 */
 
-void GetStatement (PINPUTBUF pibIn, PSTR szStmt)
+void GetStatement (PINPUTBUF pibIn, PSTR szStmt, int iKWCode)
 {
   int i = 0;
   int fDone = 0;
   int iParCount = 0 ;    /* parentheses counter */
   BOOL bParOpen = FALSE; /* True if a parenthesis is still open */
+  BOOL bEscaped = FALSE;
 
   if (!pibIn || !szStmt)
     return;
@@ -1080,11 +1084,30 @@ void GetStatement (PINPUTBUF pibIn, PSTR szStmt)
   if (!EOB(pibIn)) {
     while (!fDone) {
       if (*pibIn->pbufCur) {
-        // Stop if end of statement found and parentheses are balanced
-        if (!(fDone = ((NextChar(pibIn) == CH_STMTTERM) && !bParOpen))) {
-          if (*pibIn->pbufCur == CH_COMMENT) // skip comments
-            SkipComment (pibIn); 
+        if (*pibIn->pbufCur == '\\') {
+          /* the next character must be a # for C directive and will not
+             be treated as a comment, but passed verbatim */
+          *pibIn->pbufCur++;
+          if (*pibIn->pbufCur != CH_COMMENT) {
+            char szTmp[2];
+            sprintf(szTmp, "\\%c", *pibIn->pbufCur);
+            ReportError(pibIn, RE_UNEXPESCAPE | RE_FATAL, szTmp, NULL);
+          }
+          bEscaped = TRUE;
+        } 
+        /* Stop if end of statement is found (and if parentheses are balanced
+           in the Inline context) */
+        fDone = (NextChar(pibIn) == CH_STMTTERM);
+        if (iKWCode == KM_INLINE)
+          fDone = (fDone && !bParOpen); /* extra requirement */
+        if (!fDone) {
+          if ((*pibIn->pbufCur == CH_COMMENT) && !bEscaped) {
+            /* skip true comments */
+            SkipComment (pibIn);
+          }
           else {
+            if (bEscaped)
+              bEscaped = FALSE; /* reset it */
             if (i < MAX_EQN - 2) {
               if ((szStmt[i++] = *pibIn->pbufCur++) == CH_EOLN)
                 pibIn->iLineNum++;
@@ -1099,16 +1122,20 @@ void GetStatement (PINPUTBUF pibIn, PSTR szStmt)
             }
             else {
               if (bParOpen)
-                ReportError (pibIn, RE_UNBALPAR | RE_FATAL, NULL, NULL);
+                ReportError(pibIn, RE_UNBALPAR | RE_FATAL, NULL, NULL);
               else
-                ReportError (pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, NULL);
+                ReportError(pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, NULL);
             }
           }
         }
-      } // if pibIn->pbufCur
+        else { /* statement terminator ';' found */
+          if (bParOpen)
+            ReportError(pibIn, RE_UNBALPAR | RE_FATAL, NULL, NULL);
+        }
+      } /* if pibIn->pbufCur */
       else
-        fDone = (FillBuffer (pibIn, BUFFER_SIZE) == EOF);
-    } // while
+        ReportError(pibIn, RE_UNBALPAR | RE_FATAL, NULL, NULL);
+    } /* while */
 
     /* remove white spaces going backward - FB 28/2/98 */
     while (isspace(szStmt[i-1]))
@@ -1119,8 +1146,8 @@ void GetStatement (PINPUTBUF pibIn, PSTR szStmt)
   } /* if */
 
   if (!i)
-    ReportError (pibIn,
-                 RE_LEXEXPECTED | RE_FATAL, "rvalue to assignment", NULL);
+    ReportError(pibIn,
+                RE_LEXEXPECTED | RE_FATAL, "rvalue to assignment", NULL);
 
 } /* GetStatement */
 
@@ -1232,8 +1259,8 @@ void UnrollEquation (PINPUTBUF pibIn, long index, PSTR szEqn, PSTR szEqnU)
         bExpress = FALSE;
       }
       if ((szEqn[j] != '\0') && (m == MAX_EQN - 1))
-        ReportError (pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, 
-                     "(Occured while unrolling a loop)");
+        ReportError(pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, 
+                    "(Occured while unrolling a loop)");
       szExpression[m] = '\0'; /* terminate szExpression */
 
       /* compute expression and put back the result in szExpression */
@@ -1257,8 +1284,8 @@ void UnrollEquation (PINPUTBUF pibIn, long index, PSTR szEqn, PSTR szEqnU)
         break;
 
       case ']': /* should have been eaten in expression parsing mode */
-        ReportError (pibIn, RE_UNEXPECTED | RE_FATAL, "]", 
-                     "(Could be nested brackets)");
+        ReportError(pibIn, RE_UNEXPECTED | RE_FATAL, "]", 
+                    "(Could be nested brackets)");
 
       default: /* copy and advance */
         szEqnU[k] = szEqn[j]; 
@@ -1268,8 +1295,8 @@ void UnrollEquation (PINPUTBUF pibIn, long index, PSTR szEqn, PSTR szEqnU)
     }
   } /* while */
   if ((szEqn[j] != '\0') && (k == MAX_EQN - 1))
-    ReportError (pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, 
-                 "(Occured in UnrollEquation)");
+    ReportError(pibIn, RE_EQNTOOLONG | RE_FATAL, NULL, 
+                "(Occured in UnrollEquation)");
     
   /* terminate szEqnU */
   szEqnU[k] = '\0';

@@ -77,15 +77,15 @@ void SaveOutputs (PEXPERIMENT pexp, PDOUBLE pdTout)
 
       else { /* Use current parm/input value */
         index = HINDEX(pos->phvar_out[i]);
-        if (IsInput(pos->phvar_out[i]) && 
+        if (IsInput(pos->phvar_out[i]) &&
             (vrgInputs[index].iType == IFN_SPIKES)) {
- 
+
           j = vrgInputs[index].iDoseCur;
-  
+
           if ((vrgInputs[index].rgT0s[j] == pexp->dTime) &&
               (j < vrgInputs[index].nDoses))
             dTmp = vrgInputs[index].rgMags[j];
-          else 
+          else
             dTmp = 0;
 
         }
@@ -148,7 +148,7 @@ int WriteOneMod (PVOID pData, PVOID pInfo)
 /* -----------------------------------------------------------------------------
    WriteMCHeader
 
-   Write a tabulated text header with the run number, the list of parameters 
+   Write a tabulated text header with the run number, the list of parameters
    and outputs.
 */
 
@@ -162,7 +162,7 @@ void WriteMCHeader (PFILE pfileOut, PANALYSIS panal)
 
   for (i = 0; i < pmc->nParms; i++)
    fprintf (pfileOut, "\t%s", GetVarName(pmc->rgpMCVar[i]->hvar));
-  
+
   /* print the outputs as they come with experiment and time code */
   for (i = 0; i < panal->expGlobal.iExp; i++) {
     pos = &panal->rgpExps[i]->os;
@@ -182,14 +182,13 @@ void WriteMCHeader (PFILE pfileOut, PANALYSIS panal)
 /* -----------------------------------------------------------------------------
    OpenMCFiles
 
-   Open all the files written to be WriteMCOutput()
+   For each processor (if more than one), open the Monte Carlo output
+   file to be written to by WriteMCOutput()
 
-   Return non-NULL on error;
+   Report fatal error (will lead to exit) if the file cannot be opened.
 */
-
-int OpenMCFiles (PANALYSIS panal)
+void OpenMCFiles (PANALYSIS panal)
 {
-  int iErr = 0;
   PMONTECARLO pmc = &panal->mc;
 
   /* Use command line spec if given */
@@ -198,20 +197,25 @@ int OpenMCFiles (PANALYSIS panal)
     panal->bAllocatedFileName = FALSE;
     pmc->szMCOutfilename = panal->szOutfilename;
   }
-  else 
+  else
     if (!(pmc->szMCOutfilename)) /* Default if none given */
       pmc->szMCOutfilename = vszDefMCOutFilename;
 
+  /* prefix the filename with the rank of the process if more than one
+     process is used */
+  if (panal->size > 1) {
+    char* with_rank = malloc(sizeof(char)*(6+strlen(pmc->szMCOutfilename)));
+    sprintf(with_rank, "%04d_%s", panal->rank, pmc->szMCOutfilename);
+    pmc->szMCOutfilename = with_rank;
+  }
+
   if (!pmc->pfileMCOut
       && !(pmc->pfileMCOut = fopen (pmc->szMCOutfilename, "w"))) {
-    iErr++;
     ReportError (NULL, RE_FATAL | RE_CANNOTOPEN, pmc->szMCOutfilename,
                  "OpenMCFiles()");
   }
 
   WriteMCHeader (pmc->pfileMCOut, panal);
-
-  return (iErr);
 
 } /* OpenMCFiles */
 
@@ -265,7 +269,6 @@ void WriteMCOutput (PANALYSIS panal, PMCPREDOUT pmcpredout)
    Write the results in the output file. This procedure is
    called only from time to time in order to save storage space
 */
-
 void WriteNormalOutput (PANALYSIS panal, PEXPERIMENT pexp)
 {
   long     i, j;
@@ -278,7 +281,15 @@ void WriteNormalOutput (PANALYSIS panal, PEXPERIMENT pexp)
 
   if (!panal->szOutfilename)
     panal->szOutfilename = vszDefOutFilename;
-  
+
+  /* prefix the filename with the rank of the process if more than one
+     process is used */
+  if (panal->size > 1) {
+    char* with_rank = malloc(sizeof(char)*(5+strlen(panal->szOutfilename)));
+    sprintf(with_rank,"%4d%s",panal->rank,panal->szOutfilename);
+    panal->szOutfilename = with_rank;
+  }
+
   if (!(panal->pfileOut))
     if (!(panal->pfileOut = fopen (panal->szOutfilename, "w")))
       ReportError (NULL, RE_CANNOTOPEN | RE_FATAL, panal->szOutfilename, NULL);

@@ -31,7 +31,7 @@
    ReportError
 
    Reports error iCode to terminal (one of RE_) and optional
-   szMessage.   If iSeverity is set to RE_FATAL, exits program.
+   szMessage. If iSeverity is set to RE_FATAL, exits program.
 */
 
 void ReportError (PINPUTBUF pibIn, WORD wCode, PSTR szMsg, PSTR szAltMsg)
@@ -47,22 +47,22 @@ void ReportError (PINPUTBUF pibIn, WORD wCode, PSTR szMsg, PSTR szAltMsg)
 
   if (wCode) {
     if (bWarning)
-      printf ("*** Warning: ");
+      printf("*** Warning: ");
     else {
-      printf ("*** Error: ");
+      printf("*** Error: ");
       bFatal |= (pibIn && (pibIn->cErrors++ > MAX_ERRORS));
     } /* else */
   } /* if */
 
   if (pibIn) {
     if (pibIn->pfileIn || pibIn->iLNPrev) { /* Line number is valid */
-      printf ("line %d: ", pibIn->iLineNum);
+      printf("line %d: ", pibIn->iLineNum);
     }
     else {
       if (wCode != RE_FILENOTFOUND) { /* Dummy pibIn, show buffer */
         PSTRLEX szTmp;
         szTmp[MAX_LEX-1] = '\0';
-        printf ("'%s'...\n  ", strncpy (szTmp, pibIn->pbufOrg, MAX_LEX-1));
+        printf("'%s'...\n  ", strncpy (szTmp, pibIn->pbufOrg, MAX_LEX-1));
       } /* if */
     }
   }
@@ -73,44 +73,40 @@ void ReportError (PINPUTBUF pibIn, WORD wCode, PSTR szMsg, PSTR szAltMsg)
     break;
 
   default:
-    printf ("Unknown error code %x: %s", wCode, szMsg);
+    printf("Unknown error code %x: %s", wCode, szMsg);
 
   case RE_INIT:
-    printf ("Initialization error.");
+    printf("Initialization error.");
     break;
 
   case RE_FILENOTFOUND:
-    printf ("File not found \"%s\".", szMsg);
+    printf("File not found \"%s\".", szMsg);
     break;
 
   case RE_CANNOTOPEN:
-    printf ("Cannot open file \"%s\".", szMsg);
+    printf("Cannot open file \"%s\".", szMsg);
     break;
 
   case RE_UNEXPECTED:
-    printf ("Unexpected character '%c' in input file.", *szMsg);
+    printf("Unexpected character '%c' in input file.", *szMsg);
     break;
 
+  case RE_UNEXPESCAPE:
+    printf("Unexpected escape sequence '%s' in input file.", szMsg);
+    break;
+    
   case RE_UNEXPNUMBER:
-    printf ("Unexpected number %s in input file.", szMsg);
+    printf("Unexpected number %s in input file.", szMsg);
     break;
 
   case RE_EXPECTED:
-    printf ("Expected '%c' before '%c'.", szMsg[1], szMsg[0]);
+    printf("Expected '%c' before '%c'.", szMsg[1], szMsg[0]);
     break;
 
   case RE_LEXEXPECTED:
-    printf ("Expected <%s>", szMsg);
+    printf("Expected <%s>", szMsg);
     if (szAltMsg)
-      printf (" before '%s'", szAltMsg);
-    break;
-
-  case RE_SBWERROR:
-    printf ("%sin ConnectandFetchNOM.", szMsg);
-    break;
-
-  case RE_SBWNOMERROR:
-    printf ("%s in CallNOM SBML processing.", szMsg);
+      printf(" before '%s'", szAltMsg);
     break;
 
   /* USER error handling -- Add user error reporting below */
@@ -118,79 +114,78 @@ void ReportError (PINPUTBUF pibIn, WORD wCode, PSTR szMsg, PSTR szAltMsg)
   /* Model generator errors */
 
   case RE_BADCONTEXT:
-    printf ("'%s' used in invalid context.", szMsg);
+    printf("'%s' used in invalid context.", szMsg);
     break;
 
   case RE_DUPDECL:
-    printf ("Duplicate declaration of model variable '%s'.", szMsg);
+    printf("Duplicate declaration of model variable '%s'.", szMsg);
     break;
 
   case RE_DUPSECT:
-    printf ("Only one '%s' section is allowed.", szMsg);
+    printf("Only one '%s' section is allowed.", szMsg);
     break;
 
   case RE_OUTOFMEM:
-    printf ("Out of memory in %s() !", szMsg);
+    printf("Out of memory in %s() !", szMsg);
     break;
 
   case RE_REDEF:
-    printf ("'%s' redefined.", szMsg);
+    printf("'%s' redefined.", szMsg);
     break;
 
   case RE_EQNTOOLONG:
-    printf ("Equation is too long.  Possibly missing terminator.");
+    printf("Equation is too long.  Possibly missing terminator.");
     break;
 
   case RE_BADSTATE:
-    printf ("Invalid state identifier '%s'.", szMsg);
+    printf("Invalid state identifier '%s'.", szMsg);
     break;
 
   case RE_UNDEFINED:
-    printf ("Undefined identifier '%s'.", szMsg);
+    printf("Undefined identifier '%s'.", szMsg);
     break;
 
   case RE_NOINPDEF:
-    printf ("Input '%s' is not initialized.", szMsg);
+    printf("Input '%s' is not initialized.", szMsg);
     break;
 
   case RE_NODYNEQN:
-    printf ("State variable '%s' has no dynamics.", szMsg);
+    printf("State variable '%s' has no dynamics.", szMsg);
     break;
 
   case RE_NOOUTPUTEQN:
-    printf ("Output variable '%s' is not computed anywhere.", szMsg);
+    printf("Output variable '%s' is not computed anywhere.", szMsg);
     break;
 
   case RE_TOOMANYVARS:
-    printf ("Too many %s declarations. Limit is %d.", szMsg, 
+    printf("Too many %s declarations. Limit is %d.", szMsg, 
             *(PINT)szAltMsg);
     break;
 
   case RE_POSITIVE:
-    printf ("Positive number expected.");
+    printf("Positive number expected.");
     break;
 
   case RE_NAMETOOLONG:
-    printf ("Name %s exceed %d characters.", szMsg, MAX_NAME);
+    printf("Name %s exceed %d characters.", szMsg, MAX_NAME);
     break;
 
   case RE_UNBALPAR:
-    printf ("Unbalanced parentheses or equation too long "
-            "at this line or above.");
+    printf("Unbalanced () or equation too long at this line or above.");
     break;
 
   case RE_NOEND:
-    printf ("End keyword is missing in file %s.", szMsg);
+    printf("End keyword is missing in file %s.", szMsg);
     break;
 
   } /* switch */
 
-  printf ("\n");
+  printf("\n");
   if (szAltMsg && wCode != RE_LEXEXPECTED)
-    printf ("%s\n", szAltMsg);
+    printf("%s\n", szAltMsg);
 
   if (bFatal) {
-    printf ("One or more fatal errors: Exiting...\n\n");
+    printf("One or more fatal errors: Exiting...\n\n");
     exit (wCode);
   } /* if */
 
