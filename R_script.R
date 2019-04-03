@@ -12,9 +12,7 @@ makemcsim(mName)
 
 # Run!!
 out <- mcsim(mName, inName) #'./mcsim.linear.model.R.exe linear.in.R'
-
-plotmcsim(filename = "sim.out", sim = 1)
-plotmcsim(filename = "sim.out", sim = 2)
+out
 
 set.seed(1111)
 inName <- "linear.mcmc.in.R" 

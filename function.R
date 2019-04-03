@@ -114,9 +114,6 @@ plotmcsim <- function(filename, sim = 1, ...){
   plot(x, y, ...)
 }
 
-pkplot <- function(out, var = i, ...){
-  plot(out[,1], out[,var], main = var,...)
-}
 
 
 
