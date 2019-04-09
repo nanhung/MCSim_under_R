@@ -18,9 +18,9 @@ set_PATH <- function(){
   
   # You have two options to use GNU compiler:
   # If you have installed MinGW in your PC you can use
-  # Sys.setenv(PATH = paste("c:\\MinGW\\bin", Sys.getenv("PATH"), sep=";"))  
+  # Sys.setenv(PATH = paste("c:/MinGW/bin", Sys.getenv("PATH"), sep=";"))  
   # Otherwise, if you have Rtools installed, you can assign the bin location manually,
-  # Sys.setenv(PATH = paste("c:\\Rtools\\mingw_32/bin", Sys.getenv("PATH"), sep=";"))
+  # Sys.setenv(PATH = paste("c:/Rtools/mingw_32/bin", Sys.getenv("PATH"), sep=";"))
   
   # The macos used clang as default, the following command is used to switch to GCC
   # Sys.setenv(PATH = paste("/usr/local/bin", Sys.getenv("PATH"), sep=";"))
@@ -32,7 +32,7 @@ set_PATH <- function(){
   system('g++ -v')
 }
 
-compile_mcsim <- function(){
+makemod <- function(){
   if(Sys.which("gcc") == ""){
     stop("Please setting the PATH of compiler")
   }
@@ -43,31 +43,33 @@ compile_mcsim <- function(){
   }
 }
 set_PATH()
-compile_mcsim()
+makemod()
 
 clear <- function(){
-  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.exe")))
+  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.perks")))
   invisible(file.remove(files))
 }
 
-compile_mod <- function(mName){
+makemcsim <- function(mName){
   exe_file <- paste0("mcsim.", mName, ".exe")
   if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
   if(file.exists(mName)) {
     invisible(file.copy(from = paste0(getwd(),"/", mName), to = paste0(getwd(),"/input/", mName)))
     invisible(file.remove(mName))
   }
-    
-  # Compile the "simple.model" to "simple.c"   
   system(paste("./MCSim/mod.exe input/", mName, " ", mName, ".c", sep = "")) 
-  # Compile the "simple.model.c" to the executable program named "mcsim.simple.model.exe"
   system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", mName, ".exe ", mName, ".c ./MCSim/sim/*.c -lm ", sep = ""))
   
   if(file.exists(exe_file)) message(paste0("* Created executable file '", exe_file, "'."))
   invisible(file.remove(paste0(mName, ".c")))
 }
 
-run_mcsim <- function(mName, inName){
+mcsim <- function(mName, inName){
+  exc = paste0("mcsim.", mName, ".exe")
+  if (file.exists(exc) == F) {
+    stop("* '", exc, "' is not exist .")
+  }
+  
   if(file.exists(inName)) {
     invisible(file.copy(from = paste0(getwd(),"/", inName), to = paste0(getwd(),"/input/", inName)))
     invisible(file.remove(inName))
@@ -92,7 +94,7 @@ run_mcsim <- function(mName, inName){
     system(paste("./mcsim.", mName, ".exe ", "input/", inName, sep = ""))
     writeLines(tx, con=paste0("input/", inName))
     message(paste0("* Create '", checkfile, "' from the last iteration."))
-    invisible(file.remove(paste0(outfile, ".kernel")))
+    #invisible(file.remove(paste0(outfile, ".kernel")))
     df <- read.delim("sim.out")
   } else {
     system(paste("./mcsim.", mName, ".exe ", "input/", inName, sep = ""))
@@ -101,7 +103,7 @@ run_mcsim <- function(mName, inName){
   return(df)
 }
 
-plot_sim <- function(filename, sim = 1, ...){
+plotmcsim <- function(filename, sim = 1, ...){
   ncols <- max(count.fields(filename, sep = "\t"))
   tmp <- read.delim(filename, col.names=1:ncols, sep="\t", fill=T, header=F)
   index <- which(tmp[,1] == "Time")
@@ -117,9 +119,6 @@ plot_sim <- function(filename, sim = 1, ...){
   plot(x, y, ...)
 }
 
-pkplot <- function(out, var = i, ...){
-  plot(out[,1], out[,var], main = var,...)
-}
 
 
 
