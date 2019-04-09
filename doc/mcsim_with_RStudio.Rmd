@@ -1,0 +1,32 @@
+---
+title: "Using MCSim on Windows with RStudio"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Prerequisites
+
+### 1. Install the following software first,  
+- R (<https://cran.r-project.org/>)  
+- RStudio (<https://www.rstudio.com/>)  
+- Rtools (<https://cran.r-project.org/bin/windows/Rtools/>)  
+
+The R is a programming language for statistical computing and graphics. The RStudio is an integrated development environment for R. They are used to analyze and visualize the simulation result from GNU MCSim. The Rtools includes the C compiler that is used to compile the source code in GNU MCSim to the executable model compiler (**mod.exe**). The model file 
+
+### 2. Download "MCSim_under_R" from GitHub repository 
+
+(<https://github.com/nanhung/MCSim_under_R>)
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
