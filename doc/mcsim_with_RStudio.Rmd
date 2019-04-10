@@ -2,7 +2,9 @@
 title: "Using MCSim on Windows with RStudio"
 author: "Nan-Hung Hsieh"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+  fig_caption: yes  
 ---
 
 ```{r setup, include=FALSE}
@@ -50,7 +52,7 @@ mcsim(model, input.file)
 
 The workflow of MCSim under R can seperate to three levels. The fisrt level is making program. Since MCSim is free and open source software, each file is provided through human readable code (most are written by C language). To let computer run these code, we need to compile the progam to machine readable code, which is `mod.exe`, the R function `makemod()` can help us make this program. Next, we need to compile the model code to the executable model program. We can use `makemcsim()` to create the program with name `mcsim. ... .exe`. Finally, to conduct model simulation, we need input file that include the given model parameter value and/or input data based on the study purpose. The `mcsim()` provide an alternative way to run simulation in R environment instead of using the command prompt to run simulation. 
 
-![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
+![**Fig. 1.** Overview of GNU MCSim workflow in R ](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
 
 
 ### 4. Examples
