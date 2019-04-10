@@ -45,14 +45,9 @@ makemod <- function(){
 set_PATH()
 makemod()
 
-clear <- function(){
-  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.perks")))
-  invisible(file.remove(files))
-}
-
 makemcsim <- function(mName){
   exe_file <- paste0("mcsim.", mName, ".exe")
-  if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
+  #if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
   if(file.exists(mName)) {
     invisible(file.copy(from = paste0(getwd(),"/", mName), to = paste0(getwd(),"/input/", mName)))
     invisible(file.remove(mName))
@@ -101,6 +96,11 @@ mcsim <- function(mName, inName){
     df <- read.delim("sim.out", skip = 1)
   }
   return(df)
+}
+
+clear <- function(){
+  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.perks")))
+  invisible(file.remove(files))
 }
 
 plotmcsim <- function(filename, sim = 1, ...){

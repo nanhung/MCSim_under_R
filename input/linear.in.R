@@ -8,20 +8,11 @@
 
 Simulation {
   
-  A  = 0;
-  B  = 1;
-  SD_true = 0.05;
+  A  = 1; # given value of intercept 
+  B  = 2; # given value of slope 
+  SD_true = 2; # given SD of noise 
   
-  PrintStep (y, 0, 30, 1);
-}
-
-Simulation {
-  
-  A  = 1;
-  B  = 2;
-  SD_true = 0.05;
-  
-  Print (y, 0, 1, 2);
+  PrintStep (y, 0, 10, 1); 
 }
 
 END.
