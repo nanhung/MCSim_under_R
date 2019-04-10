@@ -11,12 +11,21 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+### 0.
+
+GNU MCSim can run under different platforms (GNU/Linux, MacOS, and Windows). However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. Therefore, 
+
+- Prof. Chiu proposed a practical method using **minGW** to install it (<https://www.gnu.org/software/mcsim/mcsim_with_minGW.pdf>). 
+- Dr. Bois also provide an alternative method to compile and run GNU MCSim through Rtools. This concept called "MCSim under R". 
+
+Based on this approach, I experimentally develop an R function `mcsim_install` in R package `pksensi` (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function. Here, I proposed an additional idea to run GNU MCSim in RStudio integrated development environment (IDE) that aim to help beginner write and run GNU MCSim's model code in R.
+
 ### 1. Prerequisites
 - R (<https://cran.r-project.org/>)  
 - RStudio (<https://www.rstudio.com/>)  
 - Rtools (<https://cran.r-project.org/bin/windows/Rtools/>)  
 
-The **R **is a programming language for statistical computing and graphics. The **RStudio** is an integrated development environment for R. They are used to analyze and visualize the simulation result from GNU MCSim. The **Rtools** includes the C compiler that is used to compile the source code in GNU MCSim to the executable model program (mod.exe).  
+The **R **is a programming language for statistical computing and graphics. The **RStudio** is an IDE for R. They are used to analyze and visualize the simulation result from GNU MCSim. The **Rtools** includes the C compiler that is used to compile the source code in GNU MCSim to the executable model program (mod.exe).  
 
 ### 2. Basic setting
 
@@ -26,7 +35,7 @@ The following steps can help you finish the basic setting to run MCSim in RStudi
 
 - Open `MCSim_under_R.Rproj` file in `MCSim_under_R`. It will open the Rstudio with the default working directory in `MCSim_under_R` folder. 
 
-- In R Console, run following code to finish the basic setting and load the R functions. 
+- In R Console, run the following code to finish the basic setting and load the R functions. 
 
 ```{r, eval=F}
 source("function.R")
@@ -50,19 +59,26 @@ mcsim(model, input.file)
 
 ### 3. Workflow
 
-The workflow of MCSim under R can seperate to three levels. The fisrt level is making program. Since MCSim is free and open source software, each file is provided through human readable code (most are written by C language). To let computer run these code, we need to compile the progam to machine readable code, which is `mod.exe`, the R function `makemod()` can help us make this program. Next, we need to compile the model code to the executable model program. We can use `makemcsim()` to create the program with name `mcsim. ... .exe`. Finally, to conduct model simulation, we need input file that include the given model parameter value and/or input data based on the study purpose. The `mcsim()` provide an alternative way to run simulation in R environment instead of using the command prompt to run simulation. 
+The workflow of MCSim under R can separate into three levels.
 
-![**Fig. 1.** Overview of GNU MCSim workflow in R ](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
+- The first level is making the program. Since MCSim is free and open source software, each file is provided through human readable code (most are written by C language). To let the computer run these code, we need to compile the program to machine readable code, which is `mod.exe`, the R function `makemod()` can help us make this program.
+- Next, we need to compile the model code to the executable model program. We can use `makemcsim()` to create the program with the name `mcsim. ... .exe`. 
+- Finally, to conduct the model simulation, we need an input file that includes the given model parameter value and/or input data based on the study purpose. The `mcsim()` provides an alternative way to run simulation in R environment instead of using the command prompt to run the simulation. 
+
+![**Fig. 1.** Overview of GNU MCSim workflow ](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
 
 
 ### 4. Examples
 
-Some example R scripts will put into the `example` folder. Currently, it has an example of linear model in `linear.R` that can be used to do simple test run. To run GNU MCSim in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in GNU MCSim User's Manual - Chapter 5.3. All example `model` and `input` files are located in `input` folder.
+Some example R scripts will put into the `example` folder. Currently, it has a case of linear model in `linear.R` that can be used to conduct the simple test run. To run GNU MCSim in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in GNU MCSim User's Manual - Chapter 5.3. All example `model` and `input` files are located in the `input` folder.
 
-Generally, the GNU MCSim used `.model` and `.in` as extension to named the model and input file. However, RStudio doesn't support the syntax highlight for these extenisons. You can add `.R` as extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format you code in the code bracket.
+Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model and input file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
 
 
 ### 5. Help
 
-Welcome to submit your problem to my GitHub repo (<https://github.com/nanhung/MCSim_under_R/issues>) or GNU MCSim mailing list (<https://lists.gnu.org/mailman/listinfo/help-mcsim>).
+You are welcome to submit your problem to 
+
+- my GitHub repo (<https://github.com/nanhung/MCSim_under_R/issues>) or
+- GNU MCSim mailing list (<https://lists.gnu.org/mailman/listinfo/help-mcsim>).
 
