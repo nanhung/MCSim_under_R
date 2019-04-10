@@ -55,7 +55,7 @@ makemcsim <- function(mName){
   system(paste("./MCSim/mod.exe input/", mName, " ", mName, ".c", sep = "")) 
   system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", mName, ".exe ", mName, ".c ./MCSim/sim/*.c -lm ", sep = ""))
   
-  if(file.exists(exe_file)) message(paste0("* Created executable file '", exe_file, "'."))
+  if(file.exists(exe_file)) message(paste0("* Created executable program '", exe_file, "'."))
   invisible(file.remove(paste0(mName, ".c")))
 }
 

@@ -9,7 +9,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
 ### 0.
@@ -19,24 +20,24 @@ GNU MCSim can run under different platforms (GNU/Linux, MacOS, and Windows). How
 - Prof. Weihsueh Chiu proposed a practical method using **minGW** to install it (<https://www.gnu.org/software/mcsim/mcsim_with_minGW.pdf>). 
 - Dr. Frederic Bois also provide an alternative method to compile and run GNU MCSim through Rtools. This concept called "MCSim under R". 
 
-Based on the second approach, I developed an R function named `mcsim_install` in R package `pksensi` (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function. Here, I proposed an additional idea to run GNU MCSim in RStudio integrated development environment (IDE) that aim to help beginner write and run GNU MCSim's model code in R.
+Based on the second approach, I developed an R function named `mcsim_install` in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function. Here, I proposed an additional idea to run GNU MCSim in RStudio integrated development environment (IDE) that aim to help beginner write and run GNU MCSim's model code in R.
 
 ### 1. Prerequisites
 - R (<https://cran.r-project.org/>)  
 - RStudio (<https://www.rstudio.com/>)  
 - Rtools (<https://cran.r-project.org/bin/windows/Rtools/>)  
 
-The **R **is a programming language for statistical computing and graphics. The **RStudio** is an IDE for R. They are used to analyze and visualize the simulation result from GNU MCSim. The **Rtools** includes the C compiler that is used to compile the source code in GNU MCSim to the executable model program (mod.exe).  
+The **R **is a programming language for statistical computing and graphics. The **RStudio** is an IDE for R. They are used to analyze and visualize the simulation result from GNU MCSim. The **Rtools** includes the C compiler that is used to compile the source code in GNU MCSim to the executable model program (mod.exe). **Rtools** can install through in `install.Rtools()` and `install.rstudio()`in **installr** package.
 
 ### 2. Basic setting
 
-The following steps can help you finish the basic setting to run MCSim in RStudio,
+The following steps can help you finish the basic setting to run GNU MCSim in RStudio,
 
 - Download "MCSim_under_R" from GitHub repository (<https://github.com/nanhung/MCSim_under_R>) and unzip it. The `MCSim_under_R` folder include the latest version of GNU MCSim (v6.1.0) and some basic R functions (in `function.R`). 
 
 ![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/download.png)
 
-- Open `MCSim_under_R.Rproj` file in `MCSim_under_R`. It will open the Rstudio with the default working directory in `MCSim_under_R` folder. You can also run `getwd()` to makesure you are in the correct directory
+- Open `MCSim_under_R.Rproj` file in `MCSim_under_R`. It will open the Rstudio with the default working directory in `MCSim_under_R` folder. You can also run `getwd()` to make sure you are in the correct directory,
 
 ```{r}
 getwd()
@@ -44,27 +45,31 @@ getwd()
 
 - In R Console, run the following code to finish the basic setting and load the R functions. Through running the `function.R`, it will detect and check the C compiler and use it to create the MCSim program `mod.exe` in MCSim folder. 
 
-```{r, eval=T}
+```{r eval=T, message=FALSE, warning=FALSE}
 source("function.R")
 ```
 
-The `function.R` include some R functions to compile the source code to executable program that will describe in next section. 
+The `function.R` include some R functions to compile the source code to an executable program that will describe in the next section. 
 
 ### 3. Workflow
 
 The workflow of MCSim under R can separate into three levels.
 
-1. **Make program:** 
-When loading the  `function.R`, it will create the `mod.exe` program in MCSim folder through `makemod()`. Since MCSim is free and open source software, each file is provided through human readable code (most are written by C language). To let the computer run these code, we need to compile the source code to machine readable program. The `makemod()` will automatically execute when loading the `function.R`, which means we don't need to run this function unless we accidently remove the `mod.exe` .
+![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
 
-2. **Build model:** Next, we need to build and compile the model code to the executable model program. We can use `makemcsim()` function to create the program with the name `mcsim. ... .exe`. The example code of linear model looks like this,
+
+#### **3.1. Make program** 
+When loading the  `function.R`, it will create the `mod.exe` program in MCSim folder through `makemod()`. Since MCSim is free and open source software, each file is provided through human-readable code (most are written by C language). To let the computer run these code, we need to compile the source code to the machine-readable program. The `makemod()` will automatically execute when loading the `function.R`, which means we don't need to run this function unless we accidentally remove the `mod.exe`. Also, the **pkgbuild** package will be installed to check the Rtools. 
+
+#### **3.2. Build model**
+Next, we need to build and compile the model code to the executable model program. We can use `makemcsim()` function to create the program with the name `mcsim. ... .exe`. The example code of linear model looks like this,
 
 
 ```{R, eval = F}
 # ---------------------------------------------------------
 # Model definition file for a linear model (linear.model.R)
 # ---------------------------------------------------------
-Outputs = {y}; 
+Outputs = {y}
 
 # Model Parameters
 A = 0; # Default value of intercept
@@ -73,20 +78,21 @@ B = 1; # Default value of slope
 # Statistical parameter
 SD_true = 0;
 
-CalcOutputs { y = A + B * x + NormalRandom(0,SD_true); } 
+CalcOutputs { y = A + B * x + NormalRandom(0,SD_true); }
 
 End. 
 ```
 
-To prevent the common pitfall, be sure to put semi-colon (;) at the end of statements. Also, the keyword "End" should put at the end of every model. Then run the following code to create the model program `mcsim.linear.model.R.exe`.
+When building the model, be sure to put the semi-colon (;) at the end of statements. Also, the keyword "End" should put at the end of every model. Then run the following code to create the model program `mcsim.linear.model.R.exe`.
 
 ```{R warning=FALSE, eval = T}
 makemcsim("linear.model.R")
 ```
 
-The above function has the same result as `makemcsim linear.model.R mcsim.linear.model.R.exe` in command prompt. 
+The above function has the same action as `makemcsim linear.model.R mcsim.linear.model.R.exe` in command prompt. 
 
-3. **Input & simulation:** Finally, to conduct the model simulation, we need an input file that includes the given model parameter value and/or input data based on the study purpose. 
+#### **3.3. Input & simulation** 
+Finally, to conduct the model simulation, we need an input file that includes the given model parameter value and/or input data based on the study purpose. 
 
 ```{R, eval = F}
 # ---------------------------------------------------------
@@ -110,23 +116,23 @@ The `mcsim()` function in `function.R` provides an alternative way to run simula
 out <- mcsim("linear.model.R", "linear.in.R")
 ```
 
-The simulation will generate output file `sim.out`. The above function has the same result as `./mcsim.linear.model.R.exe linear.in.R` in command prompt.
+The simulation will generate an output file `sim.out`. The above function has the same action as `./mcsim.linear.model.R.exe linear.in.R` in command prompt.
 
-The `mcsim()` can read the ouput after generate the `sim.out`. Here is the out put result,
+The `mcsim()` can automatically read the output after generating the `sim.out`. Here is the output result,
 
 ```{R}
 out
 ```
 
-We can use R base plot function to visualize the output as well.
+We can use the R base plot function to visualize the output as well.
 
 ```{R}
 plot(out$Time, out$y)
 ```
 
-#### Summary of R function
+#### 3.4. Summary of R function (function.R)
 
-Here are the R functions that can run GNU MCSim in R environment more easily. All R functions are put in `functions.R`.
+Here are the R functions that can help you run GNU MCSim in R environment more easily. All R functions are put in `functions.R`.
 
 ```{r, eval=F}
 set_PATH()
@@ -138,31 +144,31 @@ set_PATH()
 makemod()
 ```
 
-- Creating MCSim program `mod.exe`. This process will automatically run when loading `function.R` and desn't need to run again. 
+- Creating MCSim program `mod.exe`. This process will automatically run when loading `function.R` and doesn't need to run again. 
 
 ```{r, eval=F}
 makemcsim(model)
 ```
 
-- Preprocessing and compiling the model file to the executable file as `makemcsim` in GNU MCSim.
+- Preprocessing and compiling the model file to the executable file as `makemcsim` in GNU MCSim. The `model` assignment is a string giving the name of the model file (e.g., `"linear.model.R"`). 
 
 ```{r, eval=F}
 mcsim(model, input.file)
 ```
 
-- Using the compiled program to run simulation. 
+- Using the compiled program with the input file to run the simulation. The `input.file` assignment is a string giving the name of the input file (e.g., `"linear.in.R"`)
 
 ```{r, eval=F}
 clear()
 ```
 
-- Removing all executable and output files with extension `.exe`, `.out`, and `.perks` in working directory. This function is used to ensure that all simulation process can be repoduce without misusing the old version of file with the same file name. This function will not remove `mod.exe`.
+- Removing all executable and output files with extension `.exe`, `.out`, and `.perks` in the working directory. This function is used to ensure that all simulation process can be reproduced without misusing the old version of the file with the same file name. This function will not remove `mod.exe`.
 
 ### 4. Additional examples
 
-Some example R scripts will put into the `example` folder. Currently, it has a case of linear model in `linear.R` that can be used to conduct the simple test run. To run GNU MCSim in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in GNU MCSim User's Manual - Chapter 5.3. All example `model` and `input` files are located in the `input` folder.
+Some example R scripts will put into the `example` folder. Currently, it has a case of the linear model in `linear.R` that can be used to conduct the simple test run. To run GNU MCSim in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in GNU MCSim User's Manual - Chapter 5.3. All example `model` and `input` files are located in the `input` folder.
 
-Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model and input file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
+Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model and input file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as the extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
 
 
 ### 5. Help

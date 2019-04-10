@@ -9,7 +9,7 @@
 # Copyright (c) 1993-2008 Free Software Foundation, Inc.
 #------------------------------------------------------------------------------
 
-Outputs = {y};
+Outputs = {y}
 
 # Model Parameters
 A = 0; # 
@@ -18,6 +18,6 @@ B = 1;
 # Statistical parameter
 SD_true = 0;
 
-CalcOutputs { y = A + B * t + NormalRandom(0,SD_true); } 
+CalcOutputs { y = A + B * t + NormalRandom(0,SD_true); }
 
 End.
