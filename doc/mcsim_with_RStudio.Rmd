@@ -13,21 +13,21 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
-### 0.
+### 0. tl;dr
 
 GNU MCSim can run under different platforms (GNU/Linux, MacOS, and Windows). However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. Therefore, 
 
 - Prof. Weihsueh Chiu proposed a practical method using **minGW** to install it (<https://www.gnu.org/software/mcsim/mcsim_with_minGW.pdf>). 
 - Dr. Frederic Bois also provide an alternative method to compile and run GNU MCSim through Rtools. This concept called "MCSim under R". 
 
-Based on the second approach, I developed an R function named `mcsim_install` in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function. Here, I proposed an additional idea to run GNU MCSim in RStudio integrated development environment (IDE) that aim to help beginner write and run GNU MCSim's model code in R.
+Based on the second approach, I developed an R function named `mcsim_install()` in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function. Here, I proposed an additional idea to run GNU MCSim in RStudio, the integrated development environment (IDE) for R user. This project aim to help beginner write and run GNU MCSim's model code in RStudio IDE.
 
 ### 1. Prerequisites
 - R (<https://cran.r-project.org/>)  
 - RStudio (<https://www.rstudio.com/>)  
 - Rtools (<https://cran.r-project.org/bin/windows/Rtools/>)  
 
-The **R **is a programming language for statistical computing and graphics. The **RStudio** is an IDE for R. They are used to analyze and visualize the simulation result from GNU MCSim. The **Rtools** includes the C compiler that is used to compile the source code in GNU MCSim to the executable model program (mod.exe). **Rtools** can install through in `install.Rtools()` and `install.rstudio()`in **installr** package.
+The **R **is a programming language for statistical computing and graphics. The **RStudio** is an IDE for to edit and run R and GNU MCSim's code. It can used to analyze and visualize the simulation result from GNU MCSim as well. The **Rtools** includes the C compiler that is used to compile the source code in GNU MCSim to the executable model program (mod.exe). **Rtools** and **Rstudio** can install through `install.Rtools()` and `install.rstudio()`in **installr** package.
 
 ### 2. Basic setting
 
@@ -53,7 +53,7 @@ The `function.R` include some R functions to compile the source code to an execu
 
 ### 3. Workflow
 
-The workflow of MCSim under R can separate into three levels.
+The workflow of MCSim under R can separate into three levels as following diagram,
 
 ![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
 
@@ -128,6 +128,7 @@ We can use the R base plot function to visualize the output as well.
 
 ```{R}
 plot(out$Time, out$y)
+abline(1,2)
 ```
 
 #### 3.4. Summary of R function (function.R)
@@ -175,6 +176,6 @@ Generally, the GNU MCSim used `.model` and `.in` as the extension to name the mo
 
 You are welcome to submit your problem to 
 
-- my GitHub repo (<https://github.com/nanhung/MCSim_under_R/issues>) or
+- My GitHub repo (<https://github.com/nanhung/MCSim_under_R/issues>) 
 - GNU MCSim mailing list (<https://lists.gnu.org/mailman/listinfo/help-mcsim>).
 
