@@ -62,7 +62,10 @@ makemcsim <- function(mName){
 mcsim <- function(mName, inName){
   exc = paste0("mcsim.", mName, ".exe")
   if (file.exists(exc) == F) {
+    makemcsim(mName)
+    if (file.exists(exc) == F) {
     stop("* '", exc, "' is not exist .")
+    }
   }
   
   if(file.exists(inName)) {

@@ -1,5 +1,5 @@
 ---
-title: "MCSim Introductory"
+title: "Tutorial 0: MCSim Introductory"
 subtitle: "<html><div style='float:left'></div><hr color='#EB811B' size=1px width=796px></html>"
 author: ""
 date: "April 18, 2019"
@@ -9,6 +9,12 @@ output:
     nature:
           highlightLines: true
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+```
 
 # Intro
 
@@ -24,7 +30,7 @@ Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integr
 
 # Advantages in MCSim and R
 
-.center[.font140[*"Free and Open Source software"*]]
+.center[.font140[*"Free and Open Source Software"*]]
 
 .pull-left[
 ### GNU MCSim
@@ -50,7 +56,7 @@ Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integr
 
 - visualize simulation result 
 
-- have various community supports (e.g., stackoverflow)
+- have various community supports (e.g., Stack Overflow, R User groups)
 
 - use various packages to analyze result (e.g., `CODA`, `BOA`)
 
@@ -66,11 +72,11 @@ background-position: 95% 90%
 
 # Disadvantages in MCSim and R
 
-### Difficult learning curve
+### Difficult learning curve (CLI-based, not GUI)
 
-### Requires coding/programing skill
+### Requires coding/programming skill
 
-### Requires installaltion of extra program or package
+### Requires installation of extra program or package
 
 ### Requires additional setting manually
 
@@ -86,7 +92,7 @@ background-position: 95% 95%
 
 ### Free and open-source integrated development environment
 
-### Beautiful and user friendly interface
+### Powerful and user friendly programming interface
 
 ### R project with version control (e.g. git) 
 
@@ -94,17 +100,19 @@ background-position: 95% 95%
 
 ---
 
+background-image: url(https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/download.png)
+background-size: 650px
+background-position: 50% 70% 
+
 # GNU MCSim under R 
 
-An open R project that aim to help beginner (especially Windows user) run GNU MCSim in **RStudio IDE**. All resources are stored in GitHub (https://github.com/nanhung/MCSim_under_R). 
-
-![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/download.png)
+An open R project that aim to help beginner (especially Windows user) run GNU MCSim in **RStudio IDE**. All resources are stored in GitHub repo .font80[(https://github.com/nanhung/MCSim_under_R)]. 
 
 ---
 
 # Workflow (GNU MCSim under R)
 
-The source code of *GNU MCSim* are put into **"mod"** and **"sim"** folders. In additon, we need two types of file called **"model-file"** (include model structure and default parameter values) and **"input-file"** (include given parameter value/distribution and/or observation data)
+The source code of *GNU MCSim* are put into **"mod"** and **"sim"** folders. In addition, we need two types of file called **"model-file"** (include model structure and default parameter values) and **"input-file"** (include given parameter value/distribution and/or observation data)
 
 .font120[The workflow include three steps:]
 
@@ -126,13 +134,13 @@ The source code of *GNU MCSim* are put into **"mod"** and **"sim"** folders. In 
 
 ---
 
+background-image: url(https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
+background-size: contain
+
 # Overall Workflow
 
-</br>
-
-![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
-
 ---
+
 
 # Syntax of the model description file
 
@@ -174,38 +182,37 @@ End. # mandatory ending keyword
 
 .code60[
 ```r
-# File name: 2cpt.model.R
+# File name:  digoxin.model.R
 
-States = {_central, _periph};
-Inputs = {_Dose_rate};
-Outputs = {_Q_total};
-Compartments = {central, peripheral};
+# Variables
+States = { A_central, A_periph }
+Inputs = { Dose }
+Outputs = { C_central }
 
-# Species-dependent parameters
-_PC = 2;
-_K_urine;
+# Structural model parameters
+k_12 = 1.02;
+k_21 = 0.15;
+k_10 = 0.18;
+V_central = 58.2;
 
-# Species-independent parameters
-V_central;
-V_periph;
+# Measurement error 
+Ve_C_central = 1;
 
-Initialize { _K_urine = _K_urine * 2; }
+# Initalization
+Initialize { A_central = Dose; }
 
+# Dynamics
 Dynamics {
-  _Q_rate_c_p = 5 * (_central - _periph / _PC);
-
   # Central compartment quantity
-  _pk_central  = (_Dose_rate - _Q_rate_c_p -
-                  _K_urine * _central) / V_central;
-  dt(_central) = _pk_central;
-
-  # Peripheral compartment quantity
-  _pk_periph  = _Q_rate_c_p / V_periph;
-  dt(_periph) = _pk_periph;
- }
-
-CalcOutputs { _Q_total = _central / V_central + _periph / V_periph; }
-
+  dt(A_central) = k_21 * A_periph - k_12 * A_central - k_10 * A_central;
+  # Peripheral compartment quantity 
+  dt(A_periph) = k_12 * A_central - k_21 * A_periph;
+  # Concentration
+  C_central = A_central / V_central;
+}
+CalcOutputs { 
+	C_central = (C_central < 1.0e-15 ? 1.0e-15 : C_central) ; 
+}
 End.
 ```
 ]
@@ -214,9 +221,7 @@ End.
 
 # Syntax of simulation definition file
 
-For the basic simulation we 
-
-</br>
+## For the basic simulation 
 
 ```r
 # Input file (text after # are comments)
@@ -236,6 +241,9 @@ End. # Mandatory End keyword. Everything after this line is ignored
 
 # Syntax of simulation definition file
 
+
+## For MCMC simulation
+
 ```r
 # Input file
 <Global assignments and specifications>
@@ -253,7 +261,68 @@ End. # Mandatory keyword.
 ```
 ---
 
-# Main function
+# Example of simulation definition file
+
+.code60[
+```r
+#File name: dogoxin.in.R
+
+Simulation {
+  Dose = 509;
+  Print (C_central, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 23);
+}
+
+End. 
+```
+]
+
+</br>
+
+.font80[
+Here is the simulation output:
+]
+.code60[
+```{R eval = T, warning=FALSE}
+mcsim("digoxin.model.R", "digoxin.in.R")
+```
+]
+
+---
+
+# Example of simulation definition file
+
+.code60[
+```r
+#File name: dogoxin.mcmc.in.R
+
+MCMC("sim.out","", # name of output and restart file
+     "",           # name of data file
+     50000,0,      # iterations, print predictions flag,
+     10,50000,     # printing frequency, iters to print
+     10101010);    # random seed (default )
+
+Level { # top level
+  Distrib(k_12, TruncLogNormal, 0.2, 4, 0.001, 2);
+  Distrib(k_21, TruncLogNormal, 0.2, 4, 0.001, 2);
+  Distrib(k_10, TruncLogNormal, 0.2, 4, 0.001, 2);
+  Distrib(V_central, TruncLogNormal, 40, 4, 40, 60);
+  Distrib(Ve_C_central, LogUniform, 0.01, 0.5);
+  
+  Likelihood(C_central , Normal, Prediction(C_central) , Ve_C_central);
+  
+  Simulation {
+  Dose = 509;
+  Print (C_central, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 23);
+  Data (C_central, 4.6244, 2.7654, 1.3224, 0.9563, 0.8843, 0.8648, 0.8363, 0.7478, 0.7232, 0.5655);
+  }
+} 
+End. 
+```
+]
+
+---
+
+# Main functions
 
 Here are the R functions that can help you run GNU MCSim more easily. All R functions are put in `functions.R`.
 
@@ -269,9 +338,11 @@ mcsim(model-file, input-file)
 
 - Using the compiled program with the input file to run the simulation. The `input-file` assignment is a string giving the name of the input file (e.g., `"pbpk.in.R"`)
 
+- This function can also automatically compile the model, if you forgot to use `makemcsim` to create model program.
+
 ---
 
-# Other function
+# Other functions
 
 These functions are used to perform basic setting.
 
@@ -295,24 +366,196 @@ clear()
 
 ---
 
-# Additional R packages for analysis
+# Example: linear modeling
 
-boa
+.pull-left[
 
-bayesplot
+model-file
 
-data.table
+.code70[
+```r
+# File name: linear.model.R
 
-pksensi
+Outputs = {y}
 
-rstan
+# Model Parameters
+A = 0; # Default value of intercept
+B = 1; # Default value of slope
 
-sensitivity
+# Statistical parameter
+SD_true = 0;
 
-tidyverse
+CalcOutputs { 
+  y = A + B * t + NormalRandom(0,SD_true); 
+}
 
+End. 
+```
+]]
+
+.pull-right[
+
+input-file
+
+.code70[
+```r
+# File name: linear.in.R
+# $ ./mcsim.linear.model.R.exe linear.in.R
+
+Simulation { # 1 simple simulation
+  
+  A  = 1; # given value of intercept 
+  B  = 2; # given value of slope 
+  SD_true = 2; # given SD of noise 
+  
+  PrintStep (y, 0, 10, 1); 
+}
+
+END.
+```
+]]
+
+---
+
+# Example: linear modling
+
+A simple way to check result is stored the output in a variable and print it as, 
+
+```{R eval = T, warning=FALSE}
+out <- mcsim("linear.model.R", "linear.in.R")
+out
+```
+
+---
+
+# Example: linear modling
+
+If you forgot to assign a variable to store your output, you can use `read.delim()` to read the output file as,
+
+```{R eval = T, warning=FALSE}
+out <- read.delim("sim.out", skip = 1)
+out
+```
+
+---
+
+# Example: linear modling
+
+Visualization the simulation result by R base plot and ggplot
+
+.pull-left[
+.code60[
+```{R eval=T, fig.height=5, fig.width=5, warning=FALSE}
+plot(out$Time, out$y)
+abline(1,2)
+```
+]]
+
+.pull-right[
+.code60[
+```{R eval=T, fig.height=5, fig.width=5, warning=FALSE}
+library(ggplot2)
+ggplot(out, aes(x=Time, y=y)) + 
+  geom_point() +
+  geom_abline(intercept = 1, slope = 2)
+```
+]]
 
 
 ---
 
-# Summary
+# Additional R packages for analysis
+
+[bayesplot](https://cran.r-project.org/web/packages/bayesplot/index.html) - Plotting functions for posterior analysis.
+
+[data.table](https://cran.r-project.org/web/packages/data.table/index.html) - fast reading of large output file, especially from MCMC with long iterations and high dimensional parameter space.
+
+[pksensi](https://cran.r-project.org/web/packages/pksensi/index.html) - Applying the global sensitivity analysis (eFAST) workflow to investigate the parameter uncertainty and sensitivity in pharmacokinetic (PK) models.
+
+[rstan](https://cran.r-project.org/web/packages/rstan/index.html) - Diagnose the simulation result from MCMC.
+
+[sensitivity](https://cran.r-project.org/web/packages/sensitivity/index.html) - A collection of functions for factor screening, global sensitivity analysis and reliability sensitivity analysis.
+
+[tidyverse](https://cran.r-project.org/web/packages/tidyverse/index.html) - Powerful data science toolbox that can use to manipulate (`dplyr`) and plot (`ggplot`) the simulation result.
+
+
+```r
+# Quick installation
+pkgs <- c("bayesplot", "data.table", "pksensi", "rstan", "sensitivity", "tidyverse")
+install.packages(pkgs)
+```
+
+---
+
+background-image: url(https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/syntaxhighlight.png)
+background-size: 620px
+background-position: 50% 90% 
+
+# Tips of MCSim under R(Studio)
+
+### Code edit
+Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model and input file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as the extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
+
+---
+
+# Tips of MCSim under R(Studio)
+
+### Example & input
+Some example R scripts will put into the `example` folder. To run *GNU MCSim* in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in [*GNU MCSim* User's Manual](https://www.gnu.org/software/mcsim/mcsim.html). All example `model` and `input` files are located in the `input` folder.
+
+.font80[
+[&ast;] You don't need to move your model- or input-file to *input* folder, manually.   
+Just run `mcsim(model-file, input-file)` after you finish your code, then they will be moved to **input** folder.
+]
+
+
+```
+├── mcsim
+├── doc
+├── examples
+│   ├── linear.R
+│   └── test_script.R
+├── input
+│   ├── digoxin.mcmc.in.R
+│   ├── digoxin.model.R
+│   ├── linear.in.R
+│   ├── linear.mcmc.in.R
+│   ├── linear.model.R
+│   ├── simple.in.R
+│   └── simple.model.R
+```
+
+---
+
+# Following courses
+
+</br>
+
+.font150[
+
+- Tutorial 1: **Walk-through of working models** (4/25)
+
+- Tutorial 2: **MC simulation and sensitivity analysis** (5/16)
+
+- Tutorial 3: **Bayesian MCMC calibration** (5/23)
+]
+
+---
+
+# Take away
+
+.font150[
+- *GNU MCSim* & *R* are powerful tool in statistical computing and modeling
+
+- We provide an alternative way to run *GNU MCSim* in **RStudio** that aim to help user learn and familiar with GNU MCSim workflow in R
+] 
+
+</br>
+
+Meet problem? Please submit it to  
+
+- MCSim under R GitHub issues [[link](https://github.com/nanhung/MCSim_under_R/issues)]
+- Help-mcsim [[link](https://lists.gnu.org/mailman/listinfo/help-mcsim)][[archive](https://lists.gnu.org/archive/html/help-mcsim/)]
+- Bug-mcsim [[link](https://lists.gnu.org/mailman/listinfo/bug-mcsim)][[archive](https://lists.gnu.org/archive/html/bug-mcsim/)]
+
+

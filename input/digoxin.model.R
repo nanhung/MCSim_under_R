@@ -6,7 +6,6 @@
 States = {A_central, A_periph};
 Inputs = {Dose};
 Outputs = {C_central};
-Compartments = {central, peripheral};
 
 # Structural model parameters
 k_12 = 1.02;
@@ -15,7 +14,7 @@ k_10 = 0.18;
 V_central = 58.2;
 
 # Measurement error 
-Ve_C_central_SD = 1;
+Ve_C_central = 1;
 
 # Initalization
 Initialize {A_central = Dose;

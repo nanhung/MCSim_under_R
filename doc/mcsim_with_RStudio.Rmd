@@ -9,11 +9,11 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
-knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
-### 0. tl;dr
+### 0. Background
 
 GNU MCSim can run under different platforms (GNU/Linux, MacOS, and Windows). However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. Therefore, 
 
@@ -78,12 +78,12 @@ B = 1; # Default value of slope
 # Statistical parameter
 SD_true = 0;
 
-CalcOutputs { y = A + B * x + NormalRandom(0,SD_true); }
+CalcOutputs { y = A + B * t + NormalRandom(0,SD_true); }
 
 End. 
 ```
 
-When building the model, be sure to put the semi-colon (;) at the end of statements. Also, the keyword "End" should put at the end of every model. Then run the following code to create the model program `mcsim.linear.model.R.exe`.
+When building the model, be sure to put the semi-colon (;) at the end of statements. Also, the keyword "End." should put at the end of every model. Then run the following code to create the model program `mcsim.linear.model.R.exe`.
 
 ```{R warning=FALSE, eval = T}
 makemcsim("linear.model.R")

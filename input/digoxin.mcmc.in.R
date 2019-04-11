@@ -14,9 +14,9 @@ Level { # top
   Distrib(k_21, TruncLogNormal, 0.2, 4, 0.001, 2);
   Distrib(k_10, TruncLogNormal, 0.2, 4, 0.001, 2);
   Distrib(V_central, TruncLogNormal, 40, 4, 40, 60);
-  Distrib(Ve_C_central_SD, HalfNormal, 4);
+  Distrib(Ve_C_central, LogUniform, 0.01, 3.3);
   
-  Likelihood(C_central , Normal, Prediction(C_central) , Ve_C_central_SD);
+  Likelihood(C_central , Normal, Prediction(C_central) , Ve_C_central);
   
   Simulation {
   Dose = 509;
