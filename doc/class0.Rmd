@@ -1,0 +1,318 @@
+---
+title: "MCSim Introductory"
+subtitle: "<html><div style='float:left'></div><hr color='#EB811B' size=1px width=796px></html>"
+author: ""
+date: "April 18, 2019"
+output:
+  xaringan::moon_reader:
+    css: ["default", metropolis, metropolis-fonts]
+    nature:
+          highlightLines: true
+---
+
+# Intro
+
+*GNU MCSim* is a simulation package, written in C, which can run under different platforms (GNU/Linux, MacOS, and Windows). However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. Therefore, 
+
+- Prof. Weihsueh Chiu proposed a practical method using **minGW** to install it (<https://www.gnu.org/software/mcsim/mcsim_with_minGW.pdf>). 
+- Dr. Frederic Bois also provide an alternative method to compile and run GNU MCSim through Rtools. This concept called "MCSim under R". 
+- Dr. Nan-Hung Hsieh developed an installation function in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function across platforms. 
+
+Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integrated development environment (IDE) for R user. This project aim to help beginner write and run GNU MCSim's model code in RStudio IDE.
+
+---
+
+# Advantages in MCSim and R
+
+.center[.font140[*"Free and Open Source software"*]]
+
+.pull-left[
+### GNU MCSim
+
+**Simulation package, which allows you to:**
+
+- design and run simulation models (using algebraic or differential equations)
+
+- perform Monte Carlo stochastic simulations
+
+- do bayesian inference through Markov Chain Monte Carlo simulations
+
+- have faster computing speed than other simulation software/packages (e.g., Asclx, Berkeley Madonna, RStan)
+
+]
+
+.pull-right[
+### R
+
+**Programming language that allows you to:**
+
+- conduct statistic analysis (summarization, estimation)
+
+- visualize simulation result 
+
+- have various community supports (e.g., stackoverflow)
+
+- use various packages to analyze result (e.g., `CODA`, `BOA`)
+
+- do sensitivity analysis (e.g., `sensitivity`, `pksensi`)
+
+]
+
+---
+
+background-image: url(http://devhumor.com/content/uploads/images/November2017/step-by-step-debugging.png)
+background-size: 450px
+background-position: 95% 90% 
+
+# Disadvantages in MCSim and R
+
+### Difficult learning curve
+
+### Requires coding/programing skill
+
+### Requires installaltion of extra program or package
+
+### Requires additional setting manually
+
+### Requires **"debugging"**
+
+---
+
+background-image: url(https://www.rstudio.com/wp-content/uploads/2018/10/RStudio-Logo-Flat.png)
+background-size: 300px
+background-position: 95% 95% 
+
+# RStudio
+
+### Free and open-source integrated development environment
+
+### Beautiful and user friendly interface
+
+### R project with version control (e.g. git) 
+
+### Support cloud computing (https://rstudio.cloud/)
+
+---
+
+# GNU MCSim under R 
+
+An open R project that aim to help beginner (especially Windows user) run GNU MCSim in **RStudio IDE**. All resources are stored in GitHub (https://github.com/nanhung/MCSim_under_R). 
+
+![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/download.png)
+
+---
+
+# Workflow (GNU MCSim under R)
+
+The source code of *GNU MCSim* are put into **"mod"** and **"sim"** folders. In additon, we need two types of file called **"model-file"** (include model structure and default parameter values) and **"input-file"** (include given parameter value/distribution and/or observation data)
+
+.font120[The workflow include three steps:]
+
+1. Making GNU MCSim program 
+
+  Use the files in **"mod"** folder to 
+
+  - build MCSim program named `mod.exe`
+
+2. Build model program 
+  
+  Use the files in **"sim"** folder to 
+
+  - build model program (&ast;.exe) with (1) `mod.exe` and (2) **"model-file"**
+
+2. Run simulation 
+  
+  - Use model program and **"input-file"** to run simulation and generate result.
+
+---
+
+# Overall Workflow
+
+</br>
+
+![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
+
+---
+
+# Syntax of the model description file
+
+.code70[
+
+```r
+# Model description file (this is a comment)
+
+<Global variable specifications>
+
+States = { 
+  <state variables for the model, such as quantity> 
+}
+Outputs = { 
+  <output variables, such as concentration> 
+}
+Inputs = { 
+  <input variables, such as exposure dose>
+}
+Initialize {
+  <Equations for initializing or scaling model parameters>
+}
+Dynamics {
+  <Equations for computing derivatives of the state variables>
+}
+Jacobian {
+  <Equation for the Jacobian of the state derivatives>
+}
+CalcOutputs {
+  <Equations for computing output variables>
+}
+End. # mandatory ending keyword
+```
+]
+
+---
+
+# Example of model description file
+
+.code60[
+```r
+# File name: 2cpt.model.R
+
+States = {_central, _periph};
+Inputs = {_Dose_rate};
+Outputs = {_Q_total};
+Compartments = {central, peripheral};
+
+# Species-dependent parameters
+_PC = 2;
+_K_urine;
+
+# Species-independent parameters
+V_central;
+V_periph;
+
+Initialize { _K_urine = _K_urine * 2; }
+
+Dynamics {
+  _Q_rate_c_p = 5 * (_central - _periph / _PC);
+
+  # Central compartment quantity
+  _pk_central  = (_Dose_rate - _Q_rate_c_p -
+                  _K_urine * _central) / V_central;
+  dt(_central) = _pk_central;
+
+  # Peripheral compartment quantity
+  _pk_periph  = _Q_rate_c_p / V_periph;
+  dt(_periph) = _pk_periph;
+ }
+
+CalcOutputs { _Q_total = _central / V_central + _periph / V_periph; }
+
+End.
+```
+]
+
+---
+
+# Syntax of simulation definition file
+
+For the basic simulation we 
+
+</br>
+
+```r
+# Input file (text after # are comments)
+<Global assignments and specifications>
+Simulation {
+  <Specifications for first simulation>
+}
+Simulation {
+  <Specifications for second simulation>
+}
+# Unlimited number of simulation specifications
+End. # Mandatory End keyword. Everything after this line is ignored
+```
+
+---
+
+
+# Syntax of simulation definition file
+
+```r
+# Input file
+<Global assignments and specifications>
+Level {
+  # Up to 10 levels of hierarchy
+  Simulation {
+    <Specifications and data for first simulation>
+  }
+  Simulation {
+    <Specifications and data for second simulation>
+  }
+  # Unlimited number of simulation specifications
+} # end Level
+End. # Mandatory keyword.
+```
+---
+
+# Main function
+
+Here are the R functions that can help you run GNU MCSim more easily. All R functions are put in `functions.R`.
+
+```{r, eval=F}
+makemcsim(model-file)
+```
+
+- Preprocessing and compiling the model file to the executable file as `makemcsim` in GNU MCSim. The `model-file` assignment is a string giving the name of the model file (e.g., `"pbpk.model.R"`). 
+
+```{r, eval=F}
+mcsim(model-file, input-file)
+```
+
+- Using the compiled program with the input file to run the simulation. The `input-file` assignment is a string giving the name of the input file (e.g., `"pbpk.in.R"`)
+
+---
+
+# Other function
+
+These functions are used to perform basic setting.
+
+```{r, eval=F}
+set_PATH()
+```
+
+- Detecting, checking, and setting the C compiler in your computer. 
+
+```{r, eval=F}
+makemod()
+```
+
+- Creating MCSim program `mod.exe`. 
+
+```r
+clear()
+```
+
+- Removing all executable and output files with extension `.exe`, `.out`, and `.perks` in the working directory. This function is used to ensure that all simulation process can be reproduced without misusing the old version of the file with the same file name. This function will not remove `mod.exe`.
+
+---
+
+# Additional R packages for analysis
+
+boa
+
+bayesplot
+
+data.table
+
+pksensi
+
+rstan
+
+sensitivity
+
+tidyverse
+
+
+
+---
+
+# Summary
