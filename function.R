@@ -3,6 +3,7 @@
 # Sys.getenv("PATH") 
 
 if(!require(pkgbuild)) install.packages("pkgbuild")
+library(pkgbuild)
 
 set_PATH <- function(){
   PATH <- "c:/Rtools/mingw_32/bin"
