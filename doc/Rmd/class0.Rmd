@@ -12,8 +12,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
-knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
 # Intro
@@ -25,6 +25,45 @@ knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 - Dr. Nan-Hung Hsieh developed an installation function in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function across platforms. 
 
 Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integrated development environment (IDE) for R user. This project aim to help beginner write and run GNU MCSim's model code in RStudio IDE.
+
+---
+
+# Types of Simulation
+
+.font80[
+**Simple simulation**  
+- Solve (eventually integrate) the equations you specified, using the **default** parameter values eventually overridden in the simulation specification file. 
+
+<hr>
+
+**Monte Carlo simulations**  
+- Perform repeated (stochastic) simulations across a randomly sampled region of the model parameter space.
+
+<hr>
+
+**Markov-chain Monte Carlo (MCMC) simulation**  
+- Performs a series of simulations along a Markov chain in the model parameter space. In MCMC simulations the random choice of a new parameter value is influenced by the current value. They can be used to obtain the Bayesian posterior distribution of the model parameters, given a statistical model, prior parameter distributions (that you need to specify) and data for which a likelihood function can be computed. The program handles hierarchical statistical models.
+
+<hr>
+
+**SetPoints simulation**   
+- Solves the model for a series of specified parameter sets, listed in a separate ASCII file. You can create these parameter sets yourself or use the output of a previous Monte Carlo or MCMC simulation.
+]
+
+---
+
+# Latest version
+
+
+<span style="color: red"> 
+February 19th, 2019 - Release of GNU MCSim version 6.1.0.
+</span>
+
+Version 6.1.0 offers an automatic setting of the inverse-temperature scale
+in simulated tempering MCMC. This greatly facilitates the uses of this
+powerful algorithm (convergence is reached faster, only one chain needs to be
+run if inverse-temperature zero is in the scale, Bayes factors can be
+calculated for model choice).
 
 ---
 
@@ -62,7 +101,71 @@ Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integr
 
 - do sensitivity analysis (e.g., `sensitivity`, `pksensi`)
 
+] 
+
+---
+
+class:clear
+
+.font150[
+Population pharmacokinetic reanalysis of a Diazepam PBPK model: a comparison of *Stan* and *GNU MCSim*
 ]
+
+
+.font90[
+Periklis Tsiros, Frederic Y. Bois, Aristides Dokoumetzidis, Georgia Tsiliki, Haralambos Sarimveis 
+
+- The aim of this study is to benchmark two Bayesian software tools, namely *Stan* and *GNU MCSim*, that use different Markov chain Monte Carlo (MCMC) methods for the estimation of physiologically based pharmacokinetic (PBPK) model parameters. 
+
+- The software tools were applied and compared on the problem of updating the parameters of a Diazepam PBPK model, using time-concentration human data. Both tools produced very good fits at the individual and population levels, despite the fact that *GNU MCSim* is not able to consider multivariate distributions. 
+
+- *Stan* outperformed GNU MCSim in sampling efficiency, due to its almost uncorrelated sampling. 
+
+- However, *GNU MCSim* exhibited much **faster convergence** and performed better in terms of effective samples produced per unit of time.
+]
+
+
+.font70[
+Journal of Pharmacokinetics and Pharmacodynamics; https://doi.org/10.1007/s10928-019-09630-x
+
+Original Paper; First Online: 04 April 2019
+]
+
+---
+
+# Related publication from our group 
+
+Chiu and Bois (2006) - [Revisiting the population toxicokinetics of tetrachloroethylene](https://link.springer.com/article/10.1007/s00204-006-0061-9)
+
+Chiu and Bois (2007) - An approximate method for population toxicoki netic analysis with aggregated data 
+- Developed statistical methods for extracting information on inter-individual pharmacokinetic variability from aggregated data
+
+Chiu et al. (2007) - Toxicokinetics of Inhaled Trichloroethylene and Tetrachloroethylene in Humans at 1 ppm: Empirical Results and Comparisons with Previous Studies 
+
+Chiu et al. (2009) - Characterizing uncertainty and population variability in the toxicokinetics of trichloroethylene and metabolites in mice, rats, and humans using an updated database, physiologically based pharmacokinetic (PBPK) model, and Bayesian approach.
+
+- Development of physiologically-based pharmacokinetic (PBPK) models of mice, rats, and  humans for TCE and its metabolites, integrating data from over 40 studies (comprising over 800 time-courses) using a hierarchical Bayesian population approach. 
+
+Chiu and Ginsberg (2011) - Development and evaluation of a harmonized physiologically based pharmacokinetic (PBPK) model for perchloroethylene toxicokinetics in mice, rats, and humans.
+
+- Development of physiologically-based pharmacokinetic (PBPK) models of mice, rats, and 
+humans for tetrachloroethylene and its metabolites, integrating data from over 25 studies (comprising over 200 time-courses) using a simplified Bayesian approach.
+
+Chiu et al. (2014) - Physiologically-Based Pharmacokinetic (PBPK) Modeling of Inter-strain Variability in Trichloroethylene Metabolism in the Mouse.
+
+Hsieh et al. (2018) - Applying a Global Sensitivity Analysis Workflow to Improve the Computational Efficiencies in Physiologically-Based Pharmacokinetic Modeling.
+
+Luo et al. (2018) - Comparative analysis of metabolism of trichloroethylene and tetrachloroethylene among mouse tissues and strains
+
+Dalaijamts et al. (2018) - Incorporation of the glutathione conjugation pathway in an updated physiologically-based pharmacokinetic model for perchloroethylene in mice.
+
+Luo et al. (Accepted) - Using Collaborative Cross Mouse Population to Fill Data Gaps in Risk Assessment A Case Study of Population-based Analysis of Toxicokinetics and Kidney Toxicodynamics of Tetrachloroethylene
+
+Bois et al. (Submitted) - Well tempered MCMC simulations for population pharmacokinetic models
+
+---
+
+# pkseni
 
 ---
 
@@ -548,6 +651,7 @@ Just run `mcsim(model-file, input-file)` after you finish your code, then they w
 - *GNU MCSim* & *R* are powerful tool in statistical computing and modeling
 
 - We provide an alternative way to run *GNU MCSim* in **RStudio** that aim to help user learn and familiar with GNU MCSim workflow in R
+
 ] 
 
 </br>
