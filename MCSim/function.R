@@ -22,6 +22,7 @@ set_PATH <- function(PATH = "c:/Rtools/mingw_64/bin"){
   # sudo port select --set gcc mp-gcc8
   
   # Check the GNU compiler 
+  system('where make')
   Sys.which("gcc")
   system('g++ -v')
 }
