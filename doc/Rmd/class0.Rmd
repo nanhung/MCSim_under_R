@@ -350,7 +350,7 @@ These functions are used to perform basic setting.
 set_PATH(PATH)
 ```
 
-- Detecting, checking, and setting the C compiler in your computer. This process will automatically execute. The default PATH setting is `"c:/Rtools/mingw_32/bin"`. 
+- Detecting, checking, and setting the C compiler in your computer. This process will automatically execute. The default PATH setting is `"c:/Rtools/mingw_64/bin"`. 
 
 ```{r, eval=F}
 makemod()

@@ -5,7 +5,7 @@
 if(!require(pkgbuild)) install.packages("pkgbuild")
 library(pkgbuild)
 
-set_PATH <- function(PATH = "c:/Rtools/mingw_32/bin"){
+set_PATH <- function(PATH = "c:/Rtools/mingw_64/bin"){
 
     if (Sys.info()[['sysname']] == "Windows") {
     if(!pkgbuild::find_rtools()){
