@@ -12,8 +12,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
-#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
 # Intro

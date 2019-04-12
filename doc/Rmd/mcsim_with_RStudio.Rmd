@@ -9,8 +9,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
-#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
 ### 0. Background
@@ -45,17 +45,13 @@ getwd()
 
 - When you open the `MCSim_under_R.Rproj`, the following code will be automatically run to finish the basic setting and load the R functions. Through running the `function.R`, it will detect and check the C compiler and use it to create the MCSim program `mod.exe` in MCSim folder. 
 
-```{r eval=F, message=FALSE, warning=FALSE}
+```{r eval=T, message=FALSE, warning=FALSE}
 source(file = "mcsim/function.R")
 ```
 
 The `function.R` include some R functions to compile the source code to an executable program that will describe in the next section. 
 
-**Note:** The default PATH of Rtools is `"c:/Rtools/mingw_32/bin"`. If this is not the Rtools' PATH in your computer, pleaase assign the PATH to set it. For example,
-
-```{r eval=F, message=FALSE, warning=FALSE}
-set_PATH(PATH = "c:/Useres/Rtools/mingw_32/bin")
-```
+**Note:** The default PATH of Rtools is `"c:/Rtools/mingw_32/bin"`. If this is not the Rtools' PATH in your computer, pleaase assign the PATH to set it. For example, `set_PATH(PATH = "c:/Useres/Rtools/mingw_32/bin")`.
 
 ### 3. Workflow
 
