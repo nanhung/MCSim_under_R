@@ -43,13 +43,19 @@ The following steps can help you finish the basic setting to run GNU MCSim in RS
 getwd()
 ```
 
-- In R Console, run the following code to finish the basic setting and load the R functions. Through running the `function.R`, it will detect and check the C compiler and use it to create the MCSim program `mod.exe` in MCSim folder. 
+- When you open the `MCSim_under_R.Rproj`, the following code will be automatically run to finish the basic setting and load the R functions. Through running the `function.R`, it will detect and check the C compiler and use it to create the MCSim program `mod.exe` in MCSim folder. 
 
-```{r eval=T, message=FALSE, warning=FALSE}
-source("function.R")
+```{r eval=F, message=FALSE, warning=FALSE}
+source(file = "mcsim/function.R")
 ```
 
 The `function.R` include some R functions to compile the source code to an executable program that will describe in the next section. 
+
+**Note:** The default PATH of Rtools is `"c:/Rtools/mingw_32/bin"`. If this is not the Rtools' PATH in your computer, pleaase assign the PATH to set it. For example,
+
+```{r eval=F, message=FALSE, warning=FALSE}
+set_PATH(PATH = "c:/Useres/Rtools/mingw_32/bin")
+```
 
 ### 3. Workflow
 
@@ -86,13 +92,13 @@ End.
 When building the model, be sure to put the semi-colon (;) at the end of statements. Also, the keyword "End." should put at the end of every model. Then run the following code to create the model program `mcsim.linear.model.R.exe`.
 
 ```{R warning=FALSE, eval = T}
-makemcsim("linear.model.R")
+makemcsim(model = "linear.model.R")
 ```
 
 The above function has the same action as `makemcsim linear.model.R mcsim.linear.model.R.exe` in command prompt. 
 
 #### **3.3. Input & simulation** 
-Finally, to conduct the model simulation, we need an input file that includes the given model parameter value and/or input data based on the study purpose. 
+Finally, to conduct the model simulation, we need an input-file that includes the given model parameter value and/or input data based on the study purpose. 
 
 ```{R, eval = F}
 # ---------------------------------------------------------
@@ -113,7 +119,7 @@ END.
 The `mcsim()` function in `function.R` provides an alternative way to run simulation in R environment instead of using the command prompt to run the simulation. 
 
 ```{R eval = T, warning=FALSE}
-out <- mcsim("linear.model.R", "linear.in.R")
+out <- mcsim(model = "linear.model.R", input = "linear.in.R")
 ```
 
 The simulation will generate an output file `sim.out`. The above function has the same action as `./mcsim.linear.model.R.exe linear.in.R` in command prompt.
@@ -127,37 +133,37 @@ out
 We can use the R base plot function to visualize the output as well.
 
 ```{R}
-plot(out$Time, out$y)
-abline(1,2)
+plot(x = out$Time, y = out$y)
+abline(a = 1, b = 2)
 ```
 
 #### 3.4. Summary of R function (function.R)
 
-Here are the R functions that can help you run GNU MCSim in R environment more easily. All R functions are put in `functions.R`.
+Here are the R functions that can help you run GNU MCSim in R environment more easily. All R functions are put in `functions.R` in mcsim folder. 
 
 ```{r, eval=F}
-set_PATH()
+set_PATH(PATH)
 ```
 
-- Detecting, checking, and setting the C compiler in your computer. This process will automatically run when loading `function.R`. 
+- Detecting, checking, and setting the C compiler in your computer. This process will automatically execute. The default PATH setting is `"c:/Rtools/mingw_32/bin"`. 
 
 ```{r, eval=F}
 makemod()
 ```
 
-- Creating MCSim program `mod.exe`. This process will automatically run when loading `function.R` and doesn't need to run again. 
+- Creating MCSim program `mod.exe`. This process will automatically execute.
 
 ```{r, eval=F}
 makemcsim(model)
 ```
 
-- Preprocessing and compiling the model file to the executable file as `makemcsim` in GNU MCSim. The `model` assignment is a string giving the name of the model file (e.g., `"linear.model.R"`). 
+- Preprocessing and compiling the model-file to the executable file as `makemcsim` in GNU MCSim. The `model` assignment is a string giving the name of the model-file (e.g., `"linear.model.R"`). 
 
 ```{r, eval=F}
-mcsim(model, input.file)
+mcsim(model, input)
 ```
 
-- Using the compiled program with the input file to run the simulation. The `input.file` assignment is a string giving the name of the input file (e.g., `"linear.in.R"`)
+- Using the compiled program with the input-file to run the simulation. The `input` assignment is a string giving the name of the input-file (e.g., `"linear.in.R"`). This function can also automatically compile the model, if you forgot to use `makemcsim()` to create model program.
 
 ```{r, eval=F}
 clear()
@@ -167,9 +173,9 @@ clear()
 
 ### 4. Additional examples
 
-Some example R scripts will put into the `example` folder. Currently, it has a case of the linear model in `linear.R` that can be used to conduct the simple test run. To run GNU MCSim in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in GNU MCSim User's Manual - Chapter 5.3. All example `model` and `input` files are located in the `input` folder.
+Some example R scripts will put into the `example` folder. Currently, it has a case of the linear model in `linear.R` that can be used to conduct the simple test run. To run GNU MCSim in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in GNU MCSim User's Manual - Chapter 5.3. All example `model` and `input` files are located in the `modeling` folder.
 
-Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model and input file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as the extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
+Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model- and input-file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as the extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
 
 
 ### 5. Help

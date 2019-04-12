@@ -224,7 +224,7 @@ End.
 ## For the basic simulation 
 
 ```r
-# Input file (text after # are comments)
+# Input-file (text after # are comments)
 <Global assignments and specifications>
 Simulation {
   <Specifications for first simulation>
@@ -245,7 +245,7 @@ End. # Mandatory End keyword. Everything after this line is ignored
 ## For MCMC simulation
 
 ```r
-# Input file
+# Input-file
 <Global assignments and specifications>
 Level {
   # Up to 10 levels of hierarchy
@@ -283,7 +283,7 @@ Here is the simulation output:
 ]
 .code60[
 ```{R eval = T, warning=FALSE}
-mcsim("digoxin.model.R", "digoxin.in.R")
+mcsim(model = "digoxin.model.R", input = "digoxin.in.R")
 ```
 ]
 
@@ -324,21 +324,21 @@ End.
 
 # Main functions
 
-Here are the R functions that can help you run GNU MCSim more easily. All R functions are put in `functions.R`.
+Here are the R functions that can help you run GNU MCSim more easily. All R functions are put in `function.R` in mcsim folder.
 
 ```{r, eval=F}
-makemcsim(model-file)
+makemcsim(model)
 ```
 
-- Preprocessing and compiling the model file to the executable file as `makemcsim` in GNU MCSim. The `model-file` assignment is a string giving the name of the model file (e.g., `"pbpk.model.R"`). 
+- Preprocessing and compiling the model-file to the executable file as `makemcsim` in GNU MCSim. The `model` assignment is a string giving the name of the model-file (e.g., `"pbpk.model.R"`). 
 
 ```{r, eval=F}
-mcsim(model-file, input-file)
+mcsim(model, input)
 ```
 
-- Using the compiled program with the input file to run the simulation. The `input-file` assignment is a string giving the name of the input file (e.g., `"pbpk.in.R"`)
+- Using the compiled program with the input-file to run the simulation. The `input` assignment is a string giving the name of the input-file (e.g., `"pbpk.in.R"`)
 
-- This function can also automatically compile the model, if you forgot to use `makemcsim` to create model program.
+- This function can also automatically compile the model, if you forgot to use `makemcsim()` to create model program.
 
 ---
 
@@ -347,10 +347,10 @@ mcsim(model-file, input-file)
 These functions are used to perform basic setting.
 
 ```{r, eval=F}
-set_PATH()
+set_PATH(PATH)
 ```
 
-- Detecting, checking, and setting the C compiler in your computer. 
+- Detecting, checking, and setting the C compiler in your computer. This process will automatically execute. The default PATH setting is `"c:/Rtools/mingw_32/bin"`. 
 
 ```{r, eval=F}
 makemod()
@@ -422,7 +422,7 @@ END.
 A simple way to check result is stored the output in a variable and print it as, 
 
 ```{R eval = T, warning=FALSE}
-out <- mcsim("linear.model.R", "linear.in.R")
+out <- mcsim(model = "linear.model.R", input = "linear.in.R")
 out
 ```
 
@@ -433,7 +433,7 @@ out
 If you forgot to assign a variable to store your output, you can use `read.delim()` to read the output file as,
 
 ```{R eval = T, warning=FALSE}
-out <- read.delim("sim.out", skip = 1)
+out <- read.delim(file = "sim.out", skip = 1)
 out
 ```
 
@@ -446,8 +446,8 @@ Visualization the simulation result by R base plot and ggplot
 .pull-left[
 .code60[
 ```{R eval=T, fig.height=5, fig.width=5, warning=FALSE}
-plot(out$Time, out$y)
-abline(1,2)
+plot(x=out$Time, y=out$y)
+abline(a=1, b=2)
 ```
 ]]
 
@@ -494,14 +494,14 @@ background-position: 50% 90%
 # Tips of MCSim under R(Studio)
 
 ### Code edit
-Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model and input file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as the extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
+Generally, the GNU MCSim used `.model` and `.in` as the extension to name the model- and input-file. However, RStudio doesn't support the syntax highlight for these extensions. You can add `.R` as the extension for these files to help you edit your model or input in RStudio with syntax highlighting. Also, it can help you format your code in the code bracket.
 
 ---
 
 # Tips of MCSim under R(Studio)
 
 ### Example & input
-Some example R scripts will put into the `example` folder. To run *GNU MCSim* in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in [*GNU MCSim* User's Manual](https://www.gnu.org/software/mcsim/mcsim.html). All example `model` and `input` files are located in the `input` folder.
+Some example R scripts will put into the `example` folder. To run *GNU MCSim* in model simulation, we need to have two types of file (1) **model** and (2) **input** files. The syntax of the model description file can find in [*GNU MCSim* User's Manual](https://www.gnu.org/software/mcsim/mcsim.html). All example `model` and `input` files are located in the `modeling` folder.
 
 .font80[
 [&ast;] You don't need to move your model- or input-file to *input* folder, manually.   
