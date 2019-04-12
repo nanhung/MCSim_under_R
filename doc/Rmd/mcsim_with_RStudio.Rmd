@@ -9,8 +9,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
-knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
 ### 0. Background
@@ -135,7 +135,7 @@ abline(a = 1, b = 2)
 
 #### 3.4. Summary of R function (function.R)
 
-Here are the R functions that can help you run GNU MCSim in R environment more easily. All R functions are put in `functions.R` in mcsim folder. 
+Here are the R functions that can help you run GNU MCSim in R environment more easily. All R functions are put in `functions.R` in MCSim folder. 
 
 ```{r, eval=F}
 set_PATH(PATH)
