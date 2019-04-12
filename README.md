@@ -13,7 +13,7 @@ This MCSim sandbox aim to help the beginner (especially Windows user) run GNU MC
 
 (2) Open `"MCSim_under_R.Rproj"`.
 
-(3) Open the R script in example folder and follow the guidance to do the simple test run.
+(3) Open the R script in examples folder and follow the guidance to do the simple test run.
 
 - **Note:** Use `getwd()` in R to make sure your working directory is in `MCSim_under_R`, such as `C:/Users/nanhung/MCSim_under_R`.
 
