@@ -15,10 +15,12 @@ htmltools::tagList(rmarkdown::html_dependency_font_awesome())
 knitr::opts_chunk$set(echo = TRUE)
 #knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
 #knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
-knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
+knitr::opts_knit$set(root.dir =  "/home/nanhung/MCSim_under_R")
 ```
 
-# About this talk ...
+# Talk overview
+
+- GNU MCSim
 
 ---
 
@@ -92,31 +94,28 @@ calculated for model choice).
 
 ---
 
-
 # Types of Simulation
 
 .font90[
 **Simple simulation**  
 - Straigth simulations (set parameter values and initial conditions).
 
-
+**Used to:** Model testing when building the model 
 
 <hr>
 
 **Monte Carlo simulations**  
 - Perform repeated (stochastic) simulations across a randomly sampled region of the model parameter space.
 
-Used to: Local/global sensitivity analysis
+**Used to:** Check possible simulation (under given parameter distributions) results before model calibration
 
 <hr>
 
 **SetPoints simulation**   
 - Solves the model for a series of specified parameter sets. You can create these parameter sets yourself or use the output of a previous Monte Carlo or MCMC simulation.
 
-Used to: Local/global sensitivity analysis
+**Used to:** Local/global sensitivity analysis
 ]
-
-
 
 ---
 
@@ -124,20 +123,6 @@ Used to: Local/global sensitivity analysis
 
 **Markov-chain Monte Carlo (MCMC) simulation**  
 - Performs a series of simulations along a Markov chain in the model parameter space. They can be used to obtain the Bayesian posterior distribution of the model parameters, given a statistical model, prior parameter distributions and data for which a likelihood function can be computed. The program handles hierarchical statistical models.
-
----
-
-# Types of Simulation
-
-**"Optimal Design" procedure**
-
-Optimizes the number and location of observation times for experimental conditions, in order to minimize the variance of a parameter or an output you specify, given a structural model, a statistical model, and prior distributions for their parameters
-
-<hr>
-
-**Systems Biology Markup Language (SBML)**
-
-GNU MCSim can read SBML models, which provides a standard for representing biochemical pathway models. It can code for models of metabolism, cell-signaling, transcription, etc. SBML is maintained since the mid-2000 by an international community of software developers and users. [[source]](https://academic.oup.com/bioinformatics/article/25/11/1453/330661)
 
 ---
 
@@ -168,6 +153,20 @@ Cross-species comparisons of metabolism
 Chiu et al. 2009.  
 https://doi.org/10.1016/j.taap.2009.07.032  
 ]]
+
+---
+
+# Types of Simulation
+
+**"Optimal Design" procedure**
+
+Optimizes the number and location of observation times for experimental conditions, in order to minimize the variance of a parameter or an output you specify, given a structural model, a statistical model, and prior distributions for their parameters
+
+<hr>
+
+**Systems Biology Markup Language (SBML)**
+
+GNU MCSim can read SBML models, which provides a standard for representing biochemical pathway models. It can code for models of metabolism, cell-signaling, transcription, etc. SBML is maintained since the mid-2000 by an international community of software developers and users. [[source]](https://academic.oup.com/bioinformatics/article/25/11/1453/330661)
 
 ---
 
@@ -215,7 +214,7 @@ background-position: 50% 80%
 
 - have various community supports (e.g., Stack Overflow, R User groups)
 
-- use various packages to analyze result (e.g., `CODA`, `BOA`)
+- use various packages to analyze result (e.g., `CODA`, `BOA`, `rstan`)
 
 - do sensitivity analysis (e.g., `sensitivity`, `pksensi`)
 
@@ -285,7 +284,7 @@ Chiu and Bois (2006) - [Revisiting the population toxicokinetics of tetrachloroe
 
 <hr>
 
-Chiu and Bois (2007) - [An approximate method for population toxicoki netic analysis with aggregated data](https://link.springer.com/article/10.1198/108571107X229340) 
+Chiu and Bois (2007) - [An approximate method for population toxicokinetic analysis with aggregated data](https://link.springer.com/article/10.1198/108571107X229340) 
 
 <hr>
 
@@ -637,7 +636,7 @@ x <- 5
 x = 5
 ```
 
-**Improper spacing**
+**Without spacing**
 
 ```
 # Good
@@ -664,7 +663,7 @@ x <- 1; x <- x + 1
 .font80[
 > “Good coding style is like using correct punctuation.   
 > You can manage without it, but it sure makes things easier to read.”  
-> — Hadley Wickham
+> — Hadley Wickham, Chief Scientist @RStudio
 ]
 
 .right[
@@ -695,9 +694,7 @@ End. # Mandatory End keyword. Everything after this line is ignored
 
 ---
 
-
 # Syntax of simulation definition file
-
 
 ## For MCMC simulation
 
@@ -804,6 +801,7 @@ More function in [GNU MCSim User’s Manual](https://www.gnu.org/software/mcsim/
 
 These functions can use to different exposure types
 
+.code60[
 ```
 - PerDose(): # specifies a periodic input of constant
 
@@ -831,6 +829,8 @@ These functions can use to different exposure types
     Spikes(<n>, <list-of-magnitudes>, <list-of-times>);
 
 ```
+]
+
 ---
 
 # Main functions
@@ -1051,151 +1051,313 @@ Just run `mcsim(model-file, input-file)` after you finish your code, then they w
 
 ---
 
-class: inverse, center, middle
+class:inverse, middle, center
 
-# Case 
+# Toxicokinetic Modeling Tetrachloroethylene
 
----
-
-# Challenge
-
-.font120[The **Bayesian Markov chain Monte Carlo (MCMC) algorithm** is a effective way to do population PBPK model calibration. ]
-
-.font120[.bolder[**BUT**]]
-
-???
-But, we have a challenge in our calibration process.
-
---
-
-.font120[
-This method often have challenges to reach **"convergence"** with acceptable computational times .bolder[(More parameters, More time!)]
-]
-
-.right[![](https://slides.yihui.name/gif/questions.gif)]
+.footnote[
+.left[
+Bois et al. (1996) - [Population toxicokinetics of tetrachloroethylene](https://link.springer.com/article/10.1007/s002040050284)  
+Chiu and Bois (2006) - [Revisiting the population toxicokinetics of tetrachloroethylene](https://link.springer.com/article/10.1007/s00204-006-0061-9)
+]]
 
 ---
 
-class: clear, middle
+class:clear
 
-.center[
-## Sometimes, the result is "bad" ...
-
-![](https://slides.yihui.name/gif/dump-computer.gif)
-
-]
+background-image: url(https://i.ibb.co/xHYnFfh/PERC.png)
+background-size: 620px
+background-position: 50% 50% 
 
 ---
 
-class: center, middle, clear
+# Model composition (1)
 
-.font180[**Our Problem Is ...**]
+.code70[
 
---
+```r
+#----------------------------------------------------------------------
+# perc.model
+# A four compartment model of Tetrachloroethylene (PERC) toxicokinetics
+#----------------------------------------------------------------------
+# States are quantities of PERC and metabolite formed, they can be
+# output
 
-</br>
+States = {Q_fat,        # Quantity of PERC in the fat (mg)
+          Q_wp,         #   ...   in the well-perfused compartment (mg)
+          Q_pp,         #   ...   in the poorly-perfused compartment (mg)
+          Q_liv,        #   ...   in the liver (mg)
+          Q_exh,        #   ...   exhaled (mg)
+          Q_met};       # Quantity of metabolite formed (mg)
 
-.font180[**How to Improve the .bolder[Computational Efficiency]**]
 
----
+Outputs = {C_liv,               # mg/l in the liver
+           C_alv,               # ... in the alveolar air
+           C_exh,               # ... in the exhaled air
+           C_ven,               # ... in the venous blood
+           Pct_metabolized,     # % of the dose metabolized
+           C_exh_ug};           # ug/l in the exhaled air
 
 
-# Project
+Inputs = {C_inh,                # Concentration inhaled (ppm)
+          R_ing};               # Ingestion rate (mg/min)
+```
 
-Funder: **Food and Drug Administration (FDA)**
-
-Project Start: **Sep-2016**
-
-Name: Enhancing the reliability, efficiency, and usability of Bayesian population PBPK modeling
-
-???
-Based on these reasons, we started this project.
-
---
-
-  - Specific Aim 1: Develop, implement, and evaluate methodologies for parallelizing time-intensive calculations and enhancing a simulated tempering-based MCMC algorithm for Bayesian parameter estimation  
-  (**Tempering in model calibration**)
-
---
-
-.highlight[
-  - Specific Aim 2: Create, implement, and evaluate a robust Global Sensitivity Analysis algorithm to reduce PBPK model parameter dimensionality  
-  (**Parameter fixing**)
-]  
-
---
-
-  - Specific Aim 3: Design, build, and test a user-friendly, open source computational platform for implementing an integrated approach for population PBPK modeling  
-  (**User friendly interface**)
-
----
-
-# Proposed Solution - Parameter Fixing 
-
-.large[We usually fix the "possible" non-influential model parameters through **"expert judgment"**.]
-
-.xlarge[.bolder[BUT]]
-
-???
-Actually, we already applied the concept of parameter fixing to improve the computational time. 
-
-But,
-
-This is why we need an alternative way to fix the unimportant parameter. So we chose sensitivity analysis.
-
---
-
-.large[This approach might cause .xlarge[**"bias"**] in parameter estimates and model predictions.]
-
-.pull-left[
-.center[![](http://reliawiki.org/images/3/35/Doe34.png)]
-]
-
-.pull-right[
-<img src="https://njtierney.updog.co/gifs/narnia-dart-throw.gif" height="240px" />
 ]
 
 ---
 
-# Hypothesis
+# Model composition (2)
 
-.large[
-.bolder[Global Sensitivity Analysis] can provide a systematic method to ascertain which PBPK model parameters have **negligible influence** on model outputs and can be fixed to improve computational speed in Bayesian parameter estimation with **minimal bias**.
-]
+```r
+# Constants
+# =========
+# Conversions from/to ppm: 72 ppm = .488 mg/l
+PPM_per_mg_per_l = 72.0 / 0.488;
+mg_per_l_per_PPM = 1/PPM_per_mg_per_l;
 
-<br/>
 
-.highlight[
+# Nominal parameter values
+# ========================
+# Units:
+# Volumes: liter
+# Time:    minute
+# Vmax:    mg / minute
+# Km:      mg
+# Flows:   liter / minute
 
-**Question:**
+```
 
-1. .font120[What] is the best sensitivity analysis algorithm for PBPK model?
+---
 
-2. .font120[Dose] global sensitivity analysis better than "expert decision"?
+# Model composition (3-1)
 
-3. .font120[Can] global sensitivity analysis provide the effective way in model calibration?
+```r
+# Exposure modeling
+# -----------------
+InhMag   = 0.0; # inhaled concentration
+Period   = 0.0; # period of the exposure/no exposure cycle
+Exposure = 0.0; # exposure dutation within a period
+C_inh    = PerDose (InhMag, Period, 0.0, Exposure);
+IngDose  = 0.0; # ingested dose
+```
 
-]
+---
 
---
+# Model composition (3-2)
 
-.right[
-**Answer next time**
+```r
+# Physiological and pharmacokinetic parameters
+# --------------------------------------------
+
+LeanBodyWt = 55;    # lean body weight
+
+# Percent mass of tissues with ranges shown
+
+Pct_M_fat  = .16;   # % total body mass
+Pct_LM_liv = .03;   # liver, % of lean mass
+Pct_LM_wp  = .17;   # well perfused tissue, % of lean mass
+Pct_LM_pp  = .70;   # poorly perfused tissue, recomputed in scale
+
+# Percent blood flows to tissues
+
+Pct_Flow_fat = .09;
+Pct_Flow_liv = .34;
+Pct_Flow_wp  = .50; # will be recomputed in scale
+Pct_Flow_pp  = .07;
+```
+---
+
+# Model composition (3-3)
+
+```r
+# Tissue/blood partition coeficients
+
+PC_fat = 144;
+PC_liv = 4.6;
+PC_wp  = 8.7;
+PC_pp  = 1.4;
+PC_art = 12.0;
+
+Flow_pul   = 8.0;    # Pulmonary ventilation rate (minute volume)
+Vent_Perf = 1.14;    # ventilation over perfusion ratio
+
+sc_Vmax = .0026;     # scaling coeficient of body weight for Vmax
+
+Km = 1.0;
+```
+
+---
+
+# Model composition (4)
+
+```r
+# The following parameters are calculated from the above values in
+# the Scale section before the start of each simulation.
+# They are left uninitialized here.
+
+BodyWt = 0;
+
+V_fat = 0;           # Actual volume of tissues
+V_liv = 0;
+V_wp  = 0;
+V_pp  = 0;
+
+Flow_fat = 0;        # Actual blood flows through tissues
+Flow_liv = 0;
+Flow_wp  = 0;
+Flow_pp  = 0;
+
+Flow_tot = 0;        # Total blood flow
+Flow_alv = 0;        # Alveolar ventilation rate
+
+Vmax = 0;            # kg/minute
+```
+
+---
+
+# Model composition (5)
+
+.code60[
+```r
+
+#---------------------------------------------------------
+# Scale
+# Scale certain model parameters and resolve dependencies between parameters. Generally the scaling involves a
+# change of units, or conversion from percentage to actual units.
+#---------------------------------------------------------
+
+Initialize {
+
+  # Volumes scaled to actual volumes
+  BodyWt = LeanBodyWt / (1 - Pct_M_fat);
+  V_fat  = Pct_M_fat  * BodyWt/0.92;        # density of fat = 0.92 g/ml
+  V_liv  = Pct_LM_liv * LeanBodyWt;
+  V_wp   = Pct_LM_wp  * LeanBodyWt;
+  V_pp   = 0.9 * LeanBodyWt - V_liv - V_wp; # 10% bones
+
+  # Calculate Flow_alv from total pulmonary flow
+  Flow_alv = Flow_pul * 0.7;
+
+  # Calculate total blood flow from the alveolar ventilation rate and 
+  # the V/P ratio.
+  Flow_tot = Flow_alv / Vent_Perf;
+
+  # Calculate actual blood flows from total flow and percent flows 
+  Flow_fat = Pct_Flow_fat * Flow_tot;
+  Flow_liv = Pct_Flow_liv * Flow_tot;
+  Flow_pp  = Pct_Flow_pp  * Flow_tot;
+  Flow_wp  = Flow_tot - Flow_fat - Flow_liv - Flow_pp;
+
+  # Vmax (mass/time) for Michaelis-Menten metabolism is scaled
+  # by multiplication of bdw^0.7 
+  Vmax = sc_Vmax * exp (0.7 * log (LeanBodyWt));
+
+} # End of model initialization
+
+```
 ]
 
 ---
 
-background-image: url(https://image.ibb.co/e7eccz/JjqgWwg.gif)
-background-size: 320px
-background-position: 90% 80%
+# Model composition (6-1)
 
-# PBPK Model
+.font80[
+```r
+#---------------------------------------------------------
+# Dynamics
+# Define the dynamics of the simulation. This section is
+# calculated with each integration step. It includes
+# specification of differential equations.
+#---------------------------------------------------------
 
-[Zurlinden and Reisfeld, 2016](https://link.springer.com/article/10.1007%2Fs13318-015-0253-x)
+Dynamics {
 
-The simulation of the disposition of .bolder[acetaminophen (APAP)] and two of its key metabolites, .bolder[APAP-glucuronide (APAP-G)] and .bolder[APAP-sulfate (APAP-S)], in plasma, urine, and several pharmacologically and toxicologically relevant tissues.
+# Venous blood concentrations at the organ exit
 
-<img src="https://image.ibb.co/b9F8Ze/uSCphVE.gif" height="340px" />
+Cout_fat = Q_fat / (V_fat * PC_fat);
+Cout_wp  = Q_wp  / (V_wp  * PC_wp);
+Cout_pp  = Q_pp  / (V_pp  * PC_pp);
+Cout_liv = Q_liv / (V_liv * PC_liv);
+
+# Sum of Flow * Concentration for all compartments
+
+dQ_ven = Flow_fat * Cout_fat + Flow_wp * Cout_wp
+         + Flow_pp * Cout_pp + Flow_liv * Cout_liv;
+
+# Venous blood concentration
+
+C_ven =  dQ_ven / Flow_tot;
+
+# Arterial blood concentration
+# Convert input given in ppm to mg/l to match other units
+
+C_art = (Flow_alv * C_inh / PPM_per_mg_per_l +  dQ_ven) /
+        (Flow_tot + Flow_alv / PC_art);
+```
+]
+
+---
+
+# Model composition (6-2)
+
+.font80[
+
+```r
+# Alveolar air concentration
+
+C_alv = C_art / PC_art;
+
+# Exhaled air concentration
+
+C_exh = 0.7 * C_alv + 0.3 * C_inh / PPM_per_mg_per_l;
+
+# Differentials
+
+dt (Q_exh) = Flow_alv * C_alv;
+dt (Q_fat) = Flow_fat * (C_art - Cout_fat);
+dt (Q_wp)  = Flow_wp  * (C_art - Cout_wp);
+dt (Q_pp)  = Flow_pp  * (C_art - Cout_pp);
+
+# Quantity metabolized in liver
+
+dQmet_liv = Vmax * Q_liv / (Km + Q_liv);
+dt (Q_liv) = Flow_liv * (C_art - Cout_liv) - dQmet_liv;
+
+# Metabolite formation
+
+dt (Qmet)  = dQmet_liv;
+
+} # End of Dynamics
+```
+]
+
+---
+
+# Model composition (7)
+
+```r
+
+#---------------------------------------------------------
+# CalcOutputs
+# The following outputs are only calculated just before values
+# are saved.  They are not calculated with each integration step.
+#---------------------------------------------------------
+
+CalcOutputs {
+
+# Fraction of TCE metabolized per day
+
+Pct_metabolized = (InhMag ?
+                   Qmet / (1440 * Flow_alv * InhMag * mg_per_l_per_PPM):
+                   0);
+
+C_exh_ug  = C_exh * 1000; # milli to micrograms
+
+} # End of output calculation
+
+End.
+```
 
 ---
 
