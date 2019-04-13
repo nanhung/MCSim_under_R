@@ -11,45 +11,71 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome())
 knitr::opts_chunk$set(echo = TRUE)
 #knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
 #knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
 ```
 
+# About this talk ...
+
+---
+
 # Intro
 
-*GNU MCSim* is a simulation package, written in C, which can run under different platforms (GNU/Linux, MacOS, and Windows). However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. Therefore, 
+.font140[
+*GNU MCSim* is a simulation package, written in C, which can run under different platforms (GNU/Linux, MacOS, and Windows). 
 
+However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. 
+
+Therefore...
+]
+
+---
+
+# Intro
+
+.font120[
 - Prof. Weihsueh Chiu proposed a practical method using **minGW** to install it (<https://www.gnu.org/software/mcsim/mcsim_with_minGW.pdf>). 
+
 - Dr. Frederic Bois also provide an alternative method to compile and run GNU MCSim through Rtools. This concept called "MCSim under R". 
+
 - Dr. Nan-Hung Hsieh developed an installation function in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function across platforms. 
 
 Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integrated development environment (IDE) for R user. This project aim to help beginner write and run GNU MCSim's model code in RStudio IDE.
+]
 
 ---
 
-# Overview
+background-image: url(https://i.ibb.co/nPHgMrN/MCSim-JSS.png)
+background-size: 800px
+background-position: 50% 90% 
 
-The software consists in two pieces, a **model generator** and a **simulation engine**:
+# GNU MCSim Project
 
-<hr>
+- The project started by Don Maszle and [Frederic Y. Bois](https://en.wikipedia.org/wiki/Frédéric_Y._Bois) in UC Berkeley, 1991. 
 
-The model generator, **"mod"**
+- Discussions with Stuart Beal at UCSF School of Pharmacy, led the team to investigate the use of **Markov chain Monte Carlo** techniques for PBPK models' calibration. 
 
-- Created to facilitate structural model definition and maintenance, while keeping execution time short. You code your model using a simplified syntax and mod translates it in C.
+- The corresponding code was developed by Maszle, during a project in collaboration with [Andrew Gelman](https://en.wikipedia.org/wiki/Andrew_Gelman), then professor at UC Berkeley Statistics Department. 
 
+- Additional code written by Ken Revzan allowed the definition and Bayesian calibration of hierarchical (multilevel) statistical models.
 
+- At the time of these developments (around 1996) those capabilities were unique for a freely distributed, easily accessible, efficient and quite versatile software.
 
-The simulation engine, **"sim"**
+- Published to *Journal of Statistical Software* in 1997 (version 4.2.0) . 
 
-- A set of routines which are linked to your model during compilation to produce executable code. After that you can run simulations of your model under a variety of conditions, specify an associated statistical model, and perform simulations.
+</br>
+
+</br>
+
+.right[
+[(source)](https://en.wikipedia.org/wiki/MCSim)]
 
 ---
 
-# Version
-
-The project started by Don Maszle and Frederic Y. Bois in UC Berkeley, 1991. [[source](https://en.wikipedia.org/wiki/MCSim)]
+# Version history
 
 <span style="color: red"> 
 February 19th, 2019 - Release of GNU MCSim version 6.1.0.
@@ -156,9 +182,23 @@ https://doi.org/10.1016/j.taap.2009.07.032
 
 ---
 
+background-image: url(https://upload.wikimedia.org/wikipedia/commons/9/93/GPLv3_Logo.svg)
+background-size: 200px
+background-position: 50% 80% 
+
 # Advantages in MCSim and R
 
 .center[.font120[*"Free and Open Source Software"* under GNU General Public License]]
+
+> - The freedom to run the program as you wish, for any purpose (freedom 0).
+> - The freedom to study how the program works, and change it so it does your computing as you wish (freedom 1). Access to the source code is a precondition for this.
+> - The freedom to redistribute copies so you can help others (freedom 2).
+> - The freedom to distribute copies of your modified versions to others (freedom 3). By doing this you can give the whole community a chance to benefit from your changes. Access to the source code is a precondition for this.
+
+
+---
+
+# Advantages in MCSim and R
 
 .pull-left[
 ### GNU MCSim
@@ -191,6 +231,29 @@ https://doi.org/10.1016/j.taap.2009.07.032
 - do sensitivity analysis (e.g., `sensitivity`, `pksensi`)
 
 ] 
+
+---
+
+background-image: url(http://lcolladotor.github.io/figs/2016-03-07-BiocParallel/parallel.gif)
+background-size: 550px
+background-position: 90% 1% 
+
+# Advantages in MCSim and R
+
+
+
+.font120[*"Parallel computing"*]  
+<img src="http://lcolladotor.github.io/figs/2016-03-07-BiocParallel/cloud.jpg" height="220px" />
+
+- Run multiple MCMC chains with multiple CPUs  
+
+- High performance computing (cloud) computing
+
+.footnote[[*source*](http://lcolladotor.github.io/2016/03/07/BiocParallel/#)] 
+
+???
+
+http://lcolladotor.github.io/2016/03/07/BiocParallel/#.XLHOOy2ZOnc
 
 ---
 
@@ -335,9 +398,30 @@ background-position: 95% 95%
 
 ### Powerful and user friendly programming interface
 
-### R project with version control (e.g. git) 
+### R project with version control (e.g., git) 
 
 ### Support cloud computing (https://rstudio.cloud/)
+
+---
+
+background-image: url(https://files.explosm.net/comics/comicsavegamenew.png)
+background-size: 400px
+background-position: 60% 70% 
+
+# Git
+
+### Manage your code (model, input, R script)
+
+### Transfer your file (through GitHub or GitLab)
+
+### Collaboration work
+
+<img src="https://imgs.xkcd.com/comics/git_2x.png" height="300px" />
+
+.font60[.footnote[
+https://xkcd.com/1597/
+]]
+
 
 ---
 
@@ -372,6 +456,25 @@ The source code of *GNU MCSim* are put into **"mod"** and **"sim"** folders. In 
 2. Run simulation 
   
   - Use model program and **"input-file"** to run simulation and generate result.
+
+---
+
+# Overview
+
+The software consists in two pieces, a **model generator** and a **simulation engine**:
+
+<hr>
+
+The model generator, **"mod"**
+
+- Created to facilitate structural model definition and maintenance, while keeping execution time short. You code your model using a simplified syntax and mod translates it in C.
+
+
+
+The simulation engine, **"sim"**
+
+- A set of routines which are linked to your model during compilation to produce executable code. After that you can run simulations of your model under a variety of conditions, specify an associated statistical model, and perform simulations.
+
 
 ---
 
@@ -456,6 +559,102 @@ CalcOutputs {
 }
 End.
 ```
+]
+
+---
+
+# General syntax 
+
+Variable assignments 
+
+```r
+<variable-name> = <constant-value-or-expression> ;
+```
+
+Colon conditional assignments 
+
+```r
+<variable-name> = (<test> ? <value-if-true> : <value-if-false>);
+```
+
+For example
+
+```r
+Adjusted_Param = (Input_Var > 0.0 ? Param * 1.1 : Param);
+```
+
+.footnote[
+Some other assignments can be found in  [GNU MCSim's user manual 5.3.1](https://www.gnu.org/software/mcsim/mcsim.html#Syntax-of-mod-files)
+]
+
+---
+
+# Comments on style
+
+> For your model file to be **readable** and **understandable**.
+
+- All variable names begin with a capital letter followed by meaningful lower case subscripts.
+- Where two subscripts are necessary, they can be separated by an underscore, such as in `Qb_fat`.
+- Where there is only one subscript an underscore can still be used to increase readability as in `Q_fat`.
+- Where two words are used in combination to name one item, they can be separated visually by capitalizing each word, as in `BodyWt`.
+
+.footnote[
+Some other contents can be found in  [GNU MCSim's user manual 5.3.11](https://www.gnu.org/software/mcsim/mcsim.html#Syntax-of-mod-files)
+]
+
+---
+
+background-image: url(https://irudnyts.github.io/images/posts/2019-01-14-r-coding-style-guide/assignment.jpg)
+background-size: 350px
+background-position: 95% 20% 
+
+# Comments on style (R)
+
+.font70[
+**Using = instead of <- for assignment**
+
+```
+# Good
+x <- 5
+# Bad
+x = 5
+```
+
+**Improper spacing**
+
+```
+# Good
+average <- mean(feet / 12 + inches, na.rm = TRUE)
+
+# Bad
+average<-mean(feet/12+inches,na.rm=TRUE)
+```
+
+**Put more than one statement (command) per line**
+
+```
+# Good
+x <- 1
+x <- x + 1
+    
+# Bad 
+x <- 1; x <- x + 1
+```
+]
+
+</br>
+
+.font80[
+> “Good coding style is like using correct punctuation.   
+> You can manage without it, but it sure makes things easier to read.”  
+> — Hadley Wickham
+]
+
+.right[
+.font50[
+[[source1](http://adv-r.had.co.nz/Style.html)]
+[[source2](https://irudnyts.github.io/r-coding-style-guide/)]
+]
 ]
 
 ---
@@ -563,6 +762,60 @@ End.
 
 ---
 
+# Distribution functions
+
+.font80[
+- **Binomial**, needs two strictly positive numbers: the probability p (a real in the interval [0;1]), and the sample size N, an integer. If N is not given as an integer it will be rounded down during the computations.
+- **Cauchy**, takes one strictly positive real number as parameter: its scale s.
+- **InvGamma** (inverse gamma distribution), needs two strictly positive real parameters: the shape and the scale.
+- **LogNormal**, takes two reals numbers as parameters: the geometric mean (exponential of the mean in log-space) and the geometric standard deviation (exponential, strictly superior to 1, of the standard deviation in log-space).
+- **LogUniform** with two shape parameters: the minimum and the maximum of the sampling range (real numbers) in natural space.
+- **Normal** takes two reals numbers as parameters: the mean and the standard deviation, the latter being strictly positive.
+- **Normal_v** is also the normal distribution with the variance instead of the standard deviation as second parameter. 
+- **TruncNormal** (truncated normal distribution), takes four real parameters: the mean, the standard deviation (strictly positive), the minimum and the maximum.
+- **StudentT**, requires three parameters: its number of degrees of freedom (an integer), its mean, and its standard deviation.
+- **TruncLogNormal** (truncated lognormal distribution), uses four real numbers: the geometric mean and geometric standard deviation (strictly superior to 1)
+]
+
+.footnote[
+More function in [GNU MCSim User’s Manual](https://www.gnu.org/software/mcsim/mcsim.html#Distrib_0028_0029-specification)
+]
+
+---
+
+# Input functions
+
+These functions can use to different exposure types
+
+```
+- PerDose(): # specifies a periodic input of constant
+
+    PerDose(<magnitude>, <period>, <initial-time>, <exposure-time>);
+
+  
+- PerExp(): # specifies a periodic exponential input.
+
+    PerExp(<magnitude>, <period>, <initial-time>, <decay-constant>);  
+
+  
+- PerTransit(): models a delayed input mechanism  
+
+    PerTransit(<magnitude>, <period>, <initial-time-in-period>, 
+              <decay-constant>, <number-of-input-compartments>);  
+    
+              
+- NDoses(): specifies a number of stepwise inputs of variable magnitude and their starting times
+    
+    NDoses(<n>, <list-of-magnitudes>, <list-of-initial-times>);
+
+
+- Spikes(): specifies a number of instantaneous inputs of variable magnitude and their exact times of occurrence.
+    
+    Spikes(<n>, <list-of-magnitudes>, <list-of-times>);
+
+```
+---
+
 # Main functions
 
 Here are the R functions that can help you run GNU MCSim more easily. All R functions are put in `function.R` in MCSim folder.
@@ -585,6 +838,7 @@ mcsim(model, input)
 
 # Other functions
 
+.font90[
 These functions are used to perform basic setting.
 
 ```{r, eval=F}
@@ -604,6 +858,14 @@ clear()
 ```
 
 - Removing all executable and output files with extension `.exe`, `.out`, and `.perks` in the working directory. This function is used to ensure that all simulation process can be reproduced without misusing the old version of the file with the same file name. This function will not remove `mod.exe`.
+
+```r
+report()
+```
+
+- Reporting the system setting. 
+
+]
 
 ---
 
@@ -677,6 +939,10 @@ If you forgot to assign a variable to store your output, you can use `read.delim
 out <- read.delim(file = "sim.out", skip = 1)
 out
 ```
+
+--
+
+**Question: why `skip = 1`?**
 
 ---
 
@@ -765,6 +1031,154 @@ Just run `mcsim(model-file, input-file)` after you finish your code, then they w
 │   ├── simple.in.R
 │   └── simple.model.R
 ```
+
+---
+
+class: inverse, center, middle
+
+# Case 
+
+---
+
+# Challenge
+
+.font120[The **Bayesian Markov chain Monte Carlo (MCMC) algorithm** is a effective way to do population PBPK model calibration. ]
+
+.font120[.bolder[**BUT**]]
+
+???
+But, we have a challenge in our calibration process.
+
+--
+
+.font120[
+This method often have challenges to reach **"convergence"** with acceptable computational times .bolder[(More parameters, More time!)]
+]
+
+.right[![](https://slides.yihui.name/gif/questions.gif)]
+
+---
+
+class: clear, middle
+
+.center[
+## Sometimes, the result is "bad" ...
+
+![](https://slides.yihui.name/gif/dump-computer.gif)
+
+]
+
+---
+
+class: center, middle, clear
+
+.font180[**Our Problem Is ...**]
+
+--
+
+</br>
+
+.font180[**How to Improve the .bolder[Computational Efficiency]**]
+
+---
+
+
+# Project
+
+Funder: **Food and Drug Administration (FDA)**
+
+Project Start: **Sep-2016**
+
+Name: Enhancing the reliability, efficiency, and usability of Bayesian population PBPK modeling
+
+???
+Based on these reasons, we started this project.
+
+--
+
+  - Specific Aim 1: Develop, implement, and evaluate methodologies for parallelizing time-intensive calculations and enhancing a simulated tempering-based MCMC algorithm for Bayesian parameter estimation  
+  (**Tempering in model calibration**)
+
+--
+
+.highlight[
+  - Specific Aim 2: Create, implement, and evaluate a robust Global Sensitivity Analysis algorithm to reduce PBPK model parameter dimensionality  
+  (**Parameter fixing**)
+]  
+
+--
+
+  - Specific Aim 3: Design, build, and test a user-friendly, open source computational platform for implementing an integrated approach for population PBPK modeling  
+  (**User friendly interface**)
+
+---
+
+# Proposed Solution - Parameter Fixing 
+
+.large[We usually fix the "possible" non-influential model parameters through **"expert judgment"**.]
+
+.xlarge[.bolder[BUT]]
+
+???
+Actually, we already applied the concept of parameter fixing to improve the computational time. 
+
+But,
+
+This is why we need an alternative way to fix the unimportant parameter. So we chose sensitivity analysis.
+
+--
+
+.large[This approach might cause .xlarge[**"bias"**] in parameter estimates and model predictions.]
+
+.pull-left[
+.center[![](http://reliawiki.org/images/3/35/Doe34.png)]
+]
+
+.pull-right[
+<img src="https://njtierney.updog.co/gifs/narnia-dart-throw.gif" height="240px" />
+]
+
+---
+
+# Hypothesis
+
+.large[
+.bolder[Global Sensitivity Analysis] can provide a systematic method to ascertain which PBPK model parameters have **negligible influence** on model outputs and can be fixed to improve computational speed in Bayesian parameter estimation with **minimal bias**.
+]
+
+<br/>
+
+.highlight[
+
+**Question:**
+
+1. .font120[What] is the best sensitivity analysis algorithm for PBPK model?
+
+2. .font120[Dose] global sensitivity analysis better than "expert decision"?
+
+3. .font120[Can] global sensitivity analysis provide the effective way in model calibration?
+
+]
+
+--
+
+.right[
+**Answer next time**
+]
+
+---
+
+background-image: url(https://image.ibb.co/e7eccz/JjqgWwg.gif)
+background-size: 320px
+background-position: 90% 80%
+
+# PBPK Model
+
+[Zurlinden and Reisfeld, 2016](https://link.springer.com/article/10.1007%2Fs13318-015-0253-x)
+
+The simulation of the disposition of .bolder[acetaminophen (APAP)] and two of its key metabolites, .bolder[APAP-glucuronide (APAP-G)] and .bolder[APAP-sulfate (APAP-S)], in plasma, urine, and several pharmacologically and toxicologically relevant tissues.
+
+<img src="https://image.ibb.co/b9F8Ze/uSCphVE.gif" height="340px" />
 
 ---
 
