@@ -9,8 +9,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
-#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
 ### 0. Background
@@ -45,13 +45,13 @@ getwd()
 
 - When you open the `MCSim_under_R.Rproj`, the following code will be automatically run to finish the basic setting and load the R functions. Through running the `function.R`, it will detect and check the C compiler and use it to create the MCSim program `mod.exe` in MCSim folder. 
 
-```{r eval=T, message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 source(file = "mcsim/function.R")
 ```
 
 The `function.R` include some R functions to compile the source code to an executable program that will describe in the next section. 
 
-**Note:** The default PATH of Rtools is `"c:/Rtools/mingw_64/bin"`. If this is not the Rtools' PATH in your computer, pleaase assign the PATH to set it. For example, `set_PATH(PATH = "c:/Useres/Rtools/mingw_64/bin")`.
+**Note:** The default PATH of Rtools is `"c:/Rtools/mingw_32/bin"`. If this is not the Rtools' PATH in your computer, pleaase assign the PATH to set it. For example, `set_PATH(PATH = "c:/Useres/Rtools/mingw_32/bin")`.
 
 ### 3. Workflow
 
@@ -141,7 +141,7 @@ Here are the R functions that can help you run GNU MCSim in R environment more e
 set_PATH(PATH)
 ```
 
-- Detecting, checking, and setting the C compiler in your computer. This process will automatically execute. The default PATH setting is `"c:/Rtools/mingw_64/bin"`. 
+- Detecting, checking, and setting the C compiler in your computer. This process will automatically execute. The default PATH setting is `"c:/Rtools/mingw_32/bin"`. If your have "mingw_64" you can use `set_PATH(PATH = "c:/Rtools/mingw_64/bin")` to have faster compiling speed.
 
 ```{r, eval=F}
 makemod()
@@ -166,6 +166,12 @@ clear()
 ```
 
 - Removing all executable and output files with extension `.exe`, `.out`, and `.perks` in the working directory. This function is used to ensure that all simulation process can be reproduced without misusing the old version of the file with the same file name. This function will not remove `mod.exe`.
+
+```{r, eval=F}
+mcsim_report()
+```
+
+- Reporting the system setting. If you meet any problem use this function and copy the report to https://github.com/nanhung/MCSim_under_R/issues
 
 ### 4. Additional examples
 

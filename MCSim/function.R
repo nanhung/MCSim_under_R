@@ -5,7 +5,7 @@
 if(!require(pkgbuild)) install.packages("pkgbuild")
 library(pkgbuild)
 
-set_PATH <- function(PATH = "c:/Rtools/mingw_64/bin"){
+set_PATH <- function(PATH = "c:/Rtools/mingw_32/bin"){
 
     if (Sys.info()[['sysname']] == "Windows") {
     if(!pkgbuild::find_rtools()){
@@ -24,7 +24,7 @@ set_PATH <- function(PATH = "c:/Rtools/mingw_64/bin"){
   # Check the GNU compiler 
   system('where make')
   Sys.which("gcc")
-  system('g++ -v')
+  system('gcc -v')
 }
 
 makemod <- function(){
@@ -33,7 +33,7 @@ makemod <- function(){
   }
   system(paste("gcc -o ./MCSim/mod.exe ./MCSim/mod/*.c ", sep = "")) 
   
-  if(file.exists("mod/mod.exe")){
+  if(file.exists("MCSim/mod.exe")){
     message("The mod.exe had been created.")
   }
 }
@@ -118,6 +118,11 @@ plotmcsim <- function(filename, sim = 1, ...){
   plot(x, y, ...)
 }
 
-
-
+mcsim_report <- function(){
+  cat("\n\n-----Report started line-----\n\n")
+  cat(Sys.getenv("PATH"), "\n")
+  print(Sys.which("gcc"))
+  system('gcc -v')
+  cat("\n-----Report ended line-----\n\n")
+}
 
