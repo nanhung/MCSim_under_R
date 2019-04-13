@@ -22,32 +22,6 @@ knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
 
 ---
 
-# Intro
-
-.font140[
-*GNU MCSim* is a simulation package, written in C, which can run under different platforms (GNU/Linux, MacOS, and Windows). 
-
-However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. 
-
-Therefore...
-]
-
----
-
-# Intro
-
-.font120[
-- Prof. Weihsueh Chiu proposed a practical method using **minGW** to install it (<https://www.gnu.org/software/mcsim/mcsim_with_minGW.pdf>). 
-
-- Dr. Frederic Bois also provide an alternative method to compile and run GNU MCSim through Rtools. This concept called "MCSim under R". 
-
-- Dr. Nan-Hung Hsieh developed an installation function in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function across platforms. 
-
-Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integrated development environment (IDE) for R user. This project aim to help beginner write and run GNU MCSim's model code in RStudio IDE.
-]
-
----
-
 background-image: url(https://i.ibb.co/nPHgMrN/MCSim-JSS.png)
 background-size: 800px
 background-position: 50% 90% 
@@ -60,7 +34,7 @@ background-position: 50% 90%
 
 - The corresponding code was developed by Maszle, during a project in collaboration with [Andrew Gelman](https://en.wikipedia.org/wiki/Andrew_Gelman), then professor at UC Berkeley Statistics Department. 
 
-- Additional code written by Ken Revzan allowed the definition and Bayesian calibration of hierarchical (multilevel) statistical models.
+- Additional code written by Ken Revzan allowed the definition and Bayesian calibration of hierarchical statistical models.
 
 - At the time of these developments (around 1996) those capabilities were unique for a freely distributed, easily accessible, efficient and quite versatile software.
 
@@ -75,6 +49,10 @@ background-position: 50% 90%
 
 ---
 
+background-image: url(https://upload.wikimedia.org/wikipedia/commons/5/5a/Mcsimlogo.png)
+background-size: 100px
+background-position: 90% 90% 
+
 # Version history
 
 <span style="color: red"> 
@@ -83,8 +61,8 @@ February 19th, 2019 - Release of GNU MCSim version 6.1.0.
 
 >Version 6.1.0 offers an automatic setting of the inverse-temperature scale
 in simulated tempering MCMC. This greatly facilitates the uses of this
-powerful algorithm (convergence is reached faster, only one chain needs to be
-run if inverse-temperature zero is in the scale, Bayes factors can be
+powerful algorithm (convergence is reached faster, **only one chain needs** to be
+run if inverse-temperature zero is in the scale, **Bayes factors** can be
 calculated for model choice).
 
 .pull-right[
@@ -114,27 +92,38 @@ calculated for model choice).
 
 ---
 
+
 # Types of Simulation
 
 .font90[
 **Simple simulation**  
 - Straigth simulations (set parameter values and initial conditions).
 
+
+
 <hr>
 
 **Monte Carlo simulations**  
-- Perform simulations across a randomly sampled region of the model parameter space. It can use to sample parameters from prior probability distributions.
+- Perform repeated (stochastic) simulations across a randomly sampled region of the model parameter space.
 
-<hr>
-
-**Markov-chain Monte Carlo (MCMC) simulation**  
-- Performs a series of simulations along a Markov chain in the model parameter space. They can be used to obtain the Bayesian posterior distribution of the model parameters, given a statistical model, prior parameter distributions and data for which a likelihood function can be computed. The program handles hierarchical statistical models.
+Used to: Local/global sensitivity analysis
 
 <hr>
 
 **SetPoints simulation**   
 - Solves the model for a series of specified parameter sets. You can create these parameter sets yourself or use the output of a previous Monte Carlo or MCMC simulation.
+
+Used to: Local/global sensitivity analysis
 ]
+
+
+
+---
+
+# Types of Simulation
+
+**Markov-chain Monte Carlo (MCMC) simulation**  
+- Performs a series of simulations along a Markov chain in the model parameter space. They can be used to obtain the Bayesian posterior distribution of the model parameters, given a statistical model, prior parameter distributions and data for which a likelihood function can be computed. The program handles hierarchical statistical models.
 
 ---
 
@@ -340,6 +329,8 @@ Luo et al. (Accepted) - Using Collaborative Cross Mouse Population to Fill Data 
 
 Bois et al. (Submitted) - Well tempered MCMC simulations for population pharmacokinetic models
 
+- Based on the latest version 6.1.0
+
 ---
 
 # MCSim related R package 
@@ -385,6 +376,32 @@ background-position: 95% 90%
 ### Requires additional setting manually
 
 ### Requires **"debugging"**
+
+---
+
+# Run GNU MCSim in Windows
+
+.font140[
+*GNU MCSim* is a simulation package, written in C, which can run under different platforms (GNU/Linux, MacOS, and Windows). 
+
+However, the basic tools in the Windows system are not available to build and run GNU MCSim. It needs a bit more extra steps to install and execute it. 
+
+Therefore...
+]
+
+---
+
+# Run GNU MCSim in Windows
+
+.font120[
+- Prof. Weihsueh Chiu proposed a practical method using **minGW** to install it (<https://www.gnu.org/software/mcsim/mcsim_with_minGW.pdf>). 
+
+- Dr. Frederic Bois also provide an alternative method to compile and run GNU MCSim through Rtools. This concept called "MCSim under R". 
+
+- Dr. Nan-Hung Hsieh developed an installation function in R package **pksensi** (<https://cran.r-project.org/web/packages/pksensi/index.html>) to help users easily install GNU MCSim through this function across platforms. 
+
+Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integrated development environment (IDE) for R user. This project aim to help beginner write and run GNU MCSim's model code in RStudio IDE.
+]
 
 ---
 
