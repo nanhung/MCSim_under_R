@@ -12,8 +12,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
 #knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
 ```
 
 # Intro
@@ -28,48 +29,136 @@ Here, we proposed an additional idea to run GNU MCSim in **RStudio**, the integr
 
 ---
 
-# Types of Simulation
+# Overview
 
-.font80[
-**Simple simulation**  
-- Solve (eventually integrate) the equations you specified, using the **default** parameter values eventually overridden in the simulation specification file. 
+The software consists in two pieces, a **model generator** and a **simulation engine**:
 
 <hr>
 
-**Monte Carlo simulations**  
-- Perform repeated (stochastic) simulations across a randomly sampled region of the model parameter space.
+The model generator, **"mod"**
 
-<hr>
+- Created to facilitate structural model definition and maintenance, while keeping execution time short. You code your model using a simplified syntax and mod translates it in C.
 
-**Markov-chain Monte Carlo (MCMC) simulation**  
-- Performs a series of simulations along a Markov chain in the model parameter space. In MCMC simulations the random choice of a new parameter value is influenced by the current value. They can be used to obtain the Bayesian posterior distribution of the model parameters, given a statistical model, prior parameter distributions (that you need to specify) and data for which a likelihood function can be computed. The program handles hierarchical statistical models.
 
-<hr>
 
-**SetPoints simulation**   
-- Solves the model for a series of specified parameter sets, listed in a separate ASCII file. You can create these parameter sets yourself or use the output of a previous Monte Carlo or MCMC simulation.
-]
+The simulation engine, **"sim"**
+
+- A set of routines which are linked to your model during compilation to produce executable code. After that you can run simulations of your model under a variety of conditions, specify an associated statistical model, and perform simulations.
 
 ---
 
-# Latest version
+# Version
 
+The project started by Don Maszle and Frederic Y. Bois in UC Berkeley, 1991. [[source](https://en.wikipedia.org/wiki/MCSim)]
 
 <span style="color: red"> 
 February 19th, 2019 - Release of GNU MCSim version 6.1.0.
 </span>
 
-Version 6.1.0 offers an automatic setting of the inverse-temperature scale
+>Version 6.1.0 offers an automatic setting of the inverse-temperature scale
 in simulated tempering MCMC. This greatly facilitates the uses of this
 powerful algorithm (convergence is reached faster, only one chain needs to be
 run if inverse-temperature zero is in the scale, Bayes factors can be
 calculated for model choice).
 
+.pull-right[
+
+]
+.font50[
+- 6.0.1 (05 May 2018)
+- 6.0.0 (24 February 2018)
+- 5.6.6 (21 January 2017)
+- 5.6.5 (27 February 2016)
+- 5.6.4 (30 January 2016)
+- 5.6.3 (1 January 2016)
+- 5.6.2 (24 December 2015)
+- 5.6.1 (21 December 2015)
+- 5.6.0 (16 December 2015)
+- 5.5.0 (17 March 2013)
+- 5.4.0 (18 January 2011)
+- 5.3.1 (3 March 2009)
+- 5.3.0 (12 January 2009)
+- 5.2 beta (29 January 2008)
+- 5.1 beta (18 September 2006)
+- 5.0.0 (4 January 2005)
+- 4.2.0 (15 October 2001)
+- 4.1.0 (1 August 1997)
+- 4.0.0 (24 March 1997)
+]
+
+---
+
+# Types of Simulation
+
+.font90[
+**Simple simulation**  
+- Straigth simulations (set parameter values and initial conditions).
+
+<hr>
+
+**Monte Carlo simulations**  
+- Perform simulations across a randomly sampled region of the model parameter space. It can use to sample parameters from prior probability distributions.
+
+<hr>
+
+**Markov-chain Monte Carlo (MCMC) simulation**  
+- Performs a series of simulations along a Markov chain in the model parameter space. They can be used to obtain the Bayesian posterior distribution of the model parameters, given a statistical model, prior parameter distributions and data for which a likelihood function can be computed. The program handles hierarchical statistical models.
+
+<hr>
+
+**SetPoints simulation**   
+- Solves the model for a series of specified parameter sets. You can create these parameter sets yourself or use the output of a previous Monte Carlo or MCMC simulation.
+]
+
+---
+
+# Types of Simulation
+
+**"Optimal Design" procedure**
+
+Optimizes the number and location of observation times for experimental conditions, in order to minimize the variance of a parameter or an output you specify, given a structural model, a statistical model, and prior distributions for their parameters
+
+<hr>
+
+**Systems Biology Markup Language (SBML)**
+
+GNU MCSim can read SBML models, which provides a standard for representing biochemical pathway models. It can code for models of metabolism, cell-signaling, transcription, etc. SBML is maintained since the mid-2000 by an international community of software developers and users. [[source]](https://academic.oup.com/bioinformatics/article/25/11/1453/330661)
+
+---
+
+background-image: url(https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/mcmc_diagram.png)
+background-size: contain
+
+# Bayesian multilevel modeling
+
+[Sourcing from sbml.org](http://sbml.org/images/1/17/StatMeeting_F_Bois.pdf)
+
+---
+
+background-image: url(https://ars.els-cdn.com/content/image/1-s2.0-S0041008X09003238-gr3_lrg.jpg)
+background-size: 600px
+background-position: 50% 70% 
+
+# Population PBPK Model
+
+Characterizing PK parameters for populations
+
+Evaluating variability and uncertainty
+
+Cross-species comparisons of metabolism
+
+
+.footnote[
+.font50[
+Chiu et al. 2009.  
+https://doi.org/10.1016/j.taap.2009.07.032  
+]]
+
 ---
 
 # Advantages in MCSim and R
 
-.center[.font140[*"Free and Open Source Software"*]]
+.center[.font120[*"Free and Open Source Software"* under GNU General Public License]]
 
 .pull-left[
 ### GNU MCSim
@@ -105,14 +194,17 @@ calculated for model choice).
 
 ---
 
+background-image: url(https://i.ibb.co/VvsMMhD/Screen-Shot-2019-04-12-at-12-33-42-PM.png)
+background-size: 440px
+background-position: 80% 95% 
+
 class:clear
 
-.font150[
-Population pharmacokinetic reanalysis of a Diazepam PBPK model: a comparison of *Stan* and *GNU MCSim*
+.font120[
+<strong>Population pharmacokinetic reanalysis of a Diazepam PBPK model: a comparison of *Stan* and *GNU MCSim*</strong>
 ]
 
-
-.font90[
+.font80[
 Periklis Tsiros, Frederic Y. Bois, Aristides Dokoumetzidis, Georgia Tsiliki, Haralambos Sarimveis 
 
 - The aim of this study is to benchmark two Bayesian software tools, namely *Stan* and *GNU MCSim*, that use different Markov chain Monte Carlo (MCMC) methods for the estimation of physiologically based pharmacokinetic (PBPK) model parameters. 
@@ -125,7 +217,7 @@ Periklis Tsiros, Frederic Y. Bois, Aristides Dokoumetzidis, Georgia Tsiliki, Har
 ]
 
 
-.font70[
+.font60[
 Journal of Pharmacokinetics and Pharmacodynamics; https://doi.org/10.1007/s10928-019-09630-x
 
 Original Paper; First Online: 04 April 2019
@@ -135,37 +227,83 @@ Original Paper; First Online: 04 April 2019
 
 # Related publication from our group 
 
+### Before 2010
+
 Chiu and Bois (2006) - [Revisiting the population toxicokinetics of tetrachloroethylene](https://link.springer.com/article/10.1007/s00204-006-0061-9)
 
-Chiu and Bois (2007) - An approximate method for population toxicoki netic analysis with aggregated data 
-- Developed statistical methods for extracting information on inter-individual pharmacokinetic variability from aggregated data
+<hr>
 
-Chiu et al. (2007) - Toxicokinetics of Inhaled Trichloroethylene and Tetrachloroethylene in Humans at 1 ppm: Empirical Results and Comparisons with Previous Studies 
+Chiu and Bois (2007) - [An approximate method for population toxicoki netic analysis with aggregated data](https://link.springer.com/article/10.1198/108571107X229340) 
 
-Chiu et al. (2009) - Characterizing uncertainty and population variability in the toxicokinetics of trichloroethylene and metabolites in mice, rats, and humans using an updated database, physiologically based pharmacokinetic (PBPK) model, and Bayesian approach.
+<hr>
 
-- Development of physiologically-based pharmacokinetic (PBPK) models of mice, rats, and  humans for TCE and its metabolites, integrating data from over 40 studies (comprising over 800 time-courses) using a hierarchical Bayesian population approach. 
+Chiu et al. (2007) - [Toxicokinetics of Inhaled Trichloroethylene and Tetrachloroethylene in Humans at 1 ppm: Empirical Results and Comparisons with Previous Studies](https://academic.oup.com/toxsci/article/95/1/23/1690479)
 
-Chiu and Ginsberg (2011) - Development and evaluation of a harmonized physiologically based pharmacokinetic (PBPK) model for perchloroethylene toxicokinetics in mice, rats, and humans.
+<hr>
 
-- Development of physiologically-based pharmacokinetic (PBPK) models of mice, rats, and 
-humans for tetrachloroethylene and its metabolites, integrating data from over 25 studies (comprising over 200 time-courses) using a simplified Bayesian approach.
+Chiu et al. (2009) - [Characterizing uncertainty and population variability in the toxicokinetics of trichloroethylene and metabolites in mice, rats, and humans using an updated database, physiologically based pharmacokinetic (PBPK) model, and Bayesian approach](https://www.sciencedirect.com/science/article/pii/S0041008X09003238)
 
-Chiu et al. (2014) - Physiologically-Based Pharmacokinetic (PBPK) Modeling of Inter-strain Variability in Trichloroethylene Metabolism in the Mouse.
+<hr>
 
-Hsieh et al. (2018) - Applying a Global Sensitivity Analysis Workflow to Improve the Computational Efficiencies in Physiologically-Based Pharmacokinetic Modeling.
+Chiu and Ginsberg (2011) - [Development and evaluation of a harmonized physiologically based pharmacokinetic (PBPK) model for perchloroethylene toxicokinetics in mice, rats, and humans](https://www.sciencedirect.com/science/article/pii/S0041008X11001141)
 
-Luo et al. (2018) - Comparative analysis of metabolism of trichloroethylene and tetrachloroethylene among mouse tissues and strains
+---
 
-Dalaijamts et al. (2018) - Incorporation of the glutathione conjugation pathway in an updated physiologically-based pharmacokinetic model for perchloroethylene in mice.
+class:clear
+
+### After 2010
+
+Chiu et al. (2014) - [Physiologically-Based Pharmacokinetic (PBPK) Modeling of Inter-strain Variability in Trichloroethylene Metabolism in the Mouse](https://ehp.niehs.nih.gov/doi/full/10.1289/ehp.1307623?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%3dpubmed)
+
+<hr>
+
+Hsieh et al. (2018) - [Applying a Global Sensitivity Analysis Workflow to Improve the Computational Efficiencies in Physiologically-Based Pharmacokinetic Modeling](https://www.frontiersin.org/articles/10.3389/fphar.2018.00588/full)
+
+<hr>
+
+Luo et al. (2018) - [Comparative analysis of metabolism of trichloroethylene and tetrachloroethylene among mouse tissues and strains](https://www.sciencedirect.com/science/article/pii/S0300483X18301781)
+
+<hr>
+
+Dalaijamts et al. (2018) - [Incorporation of the glutathione conjugation pathway in an updated physiologically-based pharmacokinetic model for perchloroethylene in mice](https://www.sciencedirect.com/science/article/pii/S0041008X18302436)
+
+---
+
+# Upcoming publication
 
 Luo et al. (Accepted) - Using Collaborative Cross Mouse Population to Fill Data Gaps in Risk Assessment A Case Study of Population-based Analysis of Toxicokinetics and Kidney Toxicodynamics of Tetrachloroethylene
+
+<hr>
 
 Bois et al. (Submitted) - Well tempered MCMC simulations for population pharmacokinetic models
 
 ---
 
-# pkseni
+# MCSim related R package 
+
+**httk: R Package for High-Throughput Toxicokinetics**
+
+.font80[
+Robert G. Pearce, R. Woodrow Setzer, Cory L. Strope, Nisha S. Sipes, John F. Wambaugh
+]
+
+> MCSim (Bois and Maszle 1997) was used for converting the model equations into C code, which is used with deSolve (Soetaert et al. 2016) in solving each system of equations.
+
+.right[
+.font60[
+journal of statistical software; http://dx.doi.org/10.18637/jss.v079.i04
+]
+]
+
+<hr>
+
+**pksensi:  R Package for Global Sensitivity Analysis in Pharmacokinetic Modeling**
+
+.font80[ Nan-Hung Hsieh, Brad Reisfeld, Weihsueh A. Chiu]
+
+>pksensi implements the global sensitivity analysis workflow to investigate the parameter uncertainty and sensitivity in pharmacokinetic (PK) models, especially the physiologically based pharmacokinetic (PBPK) model with multivariate outputs. The package also provides some functions to check the convergence and sensitivity of model parameters.
+
+.right[[![CRAN\_Status\_Badge](http://www.r-pkg.org/badges/version-last-release/pksensi)](https://cran.r-project.org/package=pksensi)]
 
 ---
 
