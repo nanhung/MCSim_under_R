@@ -4,7 +4,6 @@
 .Ruserdata
 *.out
 *.exe
-*.o
 *.dll
 *.kernel
 *.perks
