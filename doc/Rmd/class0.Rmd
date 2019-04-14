@@ -22,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
 ```
 
-# Talk overview
+# Outline
 
 ## 1. GNU MCSim
 
@@ -36,21 +36,44 @@ knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
 
 ## 6. Example 
 
+???
+
+In today's talk, I will give you a brief introduction of GNU MCSim, what it can do and how we used this software in our previous and recent research. Then, I will provide some information about why we use MCSim with R rather than other programming languages. And I'll introduce two R packages that apply MCSim to in their package's workflow. Also, I'll provide some guidelines and workflow to explain how to use MCSim with R. I'll use an example to show how to write a write model code. 
+
 ---
 
 class: inverse, middle
 
-# What GNU MCSim is?
+# What is GNU MCSim?
 
 ---
 
-background-image: url(https://i.ibb.co/nPHgMrN/MCSim-JSS.png)
-background-size: 800px
-background-position: 50% 90% 
+class: clear, middle
+
+background-image: url(https://upload.wikimedia.org/wikipedia/commons/5/5a/Mcsimlogo.png)
+background-size: 100px
+background-position: 90% 20% 
+
+## What is GNU MCSim?
+
+> *GNU MCSim* is a simulation and statistical inference tool for algebraic or differential equation systems. Other programs, such as *GNU Octave*, have been created to the same end. Still, most available tools are not optimal for performing computer intensive and sophisticated Monte Carlo analyses. 
+
+> *GNU MCSim* was created specifically to this end:   
+> **to perform Monte Carlo analyses in an optimized, and easy to maintain environment.** 
+
+.footnote[https://www.gnu.org/software/mcsim/mcsim.html]
+
+???
+
+The GNU MCSim is simulation software. It allows us to use design and use our mathematical model that is written by the algebraic or differential equation to fit or describe the data. But the most potent tool in MCSim is it include the Monte Carlo approach to perform Monte Carlo simulations, and Bayesian inference through Markov chain Monte Carlo simulations.
+
+---
 
 # GNU MCSim Project
 
 - The project started by Don Maszle and [Frederic Y. Bois](https://en.wikipedia.org/wiki/Frédéric_Y._Bois) in UC Berkeley, 1991. 
+
+- First public release in 1993 (Straigth simulations with Monte Carlo modeling).
 
 - Discussions with Stuart Beal at UCSF School of Pharmacy, led the team to investigate the use of **Markov chain Monte Carlo** techniques for PBPK models' calibration. 
 
@@ -60,14 +83,28 @@ background-position: 50% 90%
 
 - At the time of these developments (around 1996) those capabilities were unique for a freely distributed, easily accessible, efficient and quite versatile software.
 
-- Published to *Journal of Statistical Software* in 1997 (version 4.2.0) . 
-
-</br>
-
-</br>
-
 .right[
 [(source)](https://en.wikipedia.org/wiki/MCSim)]
+
+???
+
+The GNU MCSim project started in 1991. In the very beginning, it's a part of the Ph.D. thesis of Frederic Y. Bois. The primary motivation for this work was to develop and easily maintain PBPK models quickly. So they can use the easily read model code to design the PBPK model and use MCSim to create the model program. They mainly used C language to write this software. The C language is the most computational efficient language at that time even in the modern world. The first public release version was available from a server at UC Berkeley. The early version focus on straightforward simulation with algebraic and first-order ordinary differential equations. It can perform a Monte Carlo simulation to understand the uncertainty in the given probability distribution of model parameters. After that, they continuously developed more functions in MCSim, and the most important feature is the Markov Chain Monte Carlo simulation. It brings this software to the next level to perform the hierarchical statistical modeling and Bayesian inference.
+
+---
+
+background-image: url(https://i.ibb.co/nPHgMrN/MCSim-JSS.png)
+background-size: 800px
+background-position: 50% 40% 
+
+# GNU MCSim Project
+
+## Published to *Journal of Statistical Software* in 1997 (version 4.2.0) 
+
+https://www.jstatsoft.org/article/view/v002i09
+
+???
+
+After the six years development, they published their software to the Journal of Statistical Software in 1997. Basically, the types of simulations in version 4.2 include straight simulation, Monte Carlo simulation, MCMC simulation and sepoint simulation. These simulation functions are still avaliable and useful in our modeling process.
 
 ---
 
@@ -112,6 +149,8 @@ calculated for model choice).
 - 4.0.0 (24 March 1997)
 ]
 
+???
+
 ---
 
 # Types of Simulation
@@ -139,19 +178,71 @@ calculated for model choice).
 
 ---
 
+background-image: url(https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/mcmc_diagram.png)
+background-size: 550px
+background-position: 50% 80% 
+
 # Types of Simulation
 
-**Markov-chain Monte Carlo (MCMC) simulation**  
-- Performs a series of simulations along a Markov chain in the model parameter space. They can be used to obtain the Bayesian posterior distribution of the model parameters, given a statistical model, prior parameter distributions and data for which a likelihood function can be computed. The program handles hierarchical statistical models.
+### Markov-chain Monte Carlo (MCMC) simulation
+- Performs a series of simulations along a Markov chain in the model parameter space. 
+- They can be used to obtain the Bayesian <font color="red">**posterior**</font> distribution of the model parameters, given a statistical model, <font color="blue">**prior**</font> parameter distributions and data for which a **likelihood function** can be computed. 
+- *GNU MCSim* can handle hierarchical statistical models as well.
+
+.footnote[
+[(Source)](http://sbml.org/images/1/17/StatMeeting_F_Bois.pdf)
+]
 
 ---
 
-background-image: url(https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/mcmc_diagram.png)
-background-size: contain
+class:clear
 
-# Bayesian multilevel modeling
+**Model calibration**
 
-[Sourcing from sbml.org](http://sbml.org/images/1/17/StatMeeting_F_Bois.pdf)
+.center[
+
+Prior knowledge (expertise or historical data)  
+<img src="https://image.ibb.co/fATCee/Screen_Shot_2018_09_03_at_10_19_27_AM.png" height="80px" />
+
+<i class="fa fa-arrow-down"></i>
+
+<font color="red">**Markov Chain Monte Carlo simulation**</font>
+
+<i class="fa fa-arrow-down"></i>
+
+Posterior knowledge  
+<img src="https://image.ibb.co/fQuKQK/Screen_Shot_2018_09_03_at_3_32_28_PM.png" height="80px" />
+
+]
+
+--
+
+.left[**Model validation**]
+
+.center[
+
+Compare the result of **"in-silico simulation"** and **"in-vivo observation"**
+
+]
+
+---
+
+background-image: url(https://res.cloudinary.com/dyd911kmh/image/upload/f_auto,q_auto:best/v1538685364/Ep._43_abbgvl.jpg)
+background-size: 550px
+background-position: 90% 70% 
+
+class:clear
+
+</br>
+
+## Bayesian statistics is a powerful tool, Because...
+
+>It gives us the opportunity to understand and quantify the .font120["uncertainty"] and .font120["variability"] from individuals to .font160[population] through **datal** and **model**.
+
+
+.footnote[
+[(source)](https://www.datacamp.com/community/blog/election-forecasting-polling)
+]
 
 ---
 
@@ -172,6 +263,49 @@ GNU MCSim can read SBML models, which provides a standard for representing bioch
 class: inverse, middle
 
 # What GNU MCSim can do in toxicology?
+
+---
+
+class:clear
+
+## Exchange of ideas between statistics and toxicology
+
+<hr>
+
+### From Statistics to Toxicology
+
+- Bayesian inference for combining prior and data
+
+- Hierarchical models for population variation
+
+
+### From Toxicology to Statistics
+
+- Models for constrained parameters
+
+- Hierarchical prior distributions
+
+- New ideas in understanding and checking models
+
+[(source)](http://www.stat.columbia.edu/~gelman/presentations/toxtalk.pdf)
+
+---
+
+# What we need?
+
+## 1. Physiological pharmacokinetic model
+
+## 2. Hierarchical population model
+
+## 3. Prior information
+
+## 4. Experimental data
+
+## 5. Bayesian inference
+
+## 6. Computation
+
+## 7. Model checking
 
 ---
 
@@ -1127,6 +1261,23 @@ Chiu and Bois (2006) - [Revisiting the population toxicokinetics of tetrachloroe
 
 ---
 
+# Content
+
+### Goal:
+
+- How much PERC is metabolized at high doses
+- Population distribution
+
+### Experimental data: 
+
+- Expose 6 healthy volunteers to PERC for four hours, then measure concentrations in blood and air for 2 weeks
+
+### Model:
+
+- 4-compartment model, metabolism in liver
+
+---
+
 class:clear
 
 background-image: url(https://i.ibb.co/xHYnFfh/PERC.png)
@@ -1443,18 +1594,18 @@ End.
 # Take away
 
 .font150[
+- There is plenty of room to apply **Bayesian statistics** in toxicology
+
 - *GNU MCSim* & *R* are powerful tool in statistical computing and modeling
 
 - We provide an alternative way to run *GNU MCSim* in **RStudio** that aim to help user learn and familiar with GNU MCSim workflow in R
 
 ] 
 
-</br>
+<hr>
 
 Meet problem? Please submit it to  
 
-- MCSim under R GitHub issues [[link](https://github.com/nanhung/MCSim_under_R/issues)]
-- Help-mcsim [[link](https://lists.gnu.org/mailman/listinfo/help-mcsim)][[archive](https://lists.gnu.org/archive/html/help-mcsim/)]
-- Bug-mcsim [[link](https://lists.gnu.org/mailman/listinfo/bug-mcsim)][[archive](https://lists.gnu.org/archive/html/bug-mcsim/)]
-
+- MCSim under R GitHub issues https://github.com/nanhung/MCSim_under_R/issues
+- My email: nhsieh@cvm.tamu.edu
 
