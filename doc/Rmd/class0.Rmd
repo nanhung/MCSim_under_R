@@ -10,17 +10,37 @@ output:
           highlightLines: true
 ---
 
+background-image: url(https://upload.wikimedia.org/wikipedia/commons/5/5a/Mcsimlogo.png)
+background-size: 200px
+background-position: 90% 10% 
+
 ```{r setup, include=FALSE}
 htmltools::tagList(rmarkdown::html_dependency_font_awesome())
 knitr::opts_chunk$set(echo = TRUE)
 #knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
 #knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
-knitr::opts_knit$set(root.dir =  "/home/nanhung/MCSim_under_R")
+knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
 ```
 
 # Talk overview
 
-- GNU MCSim
+## 1. GNU MCSim
+
+## 2. MCSim-related publication
+
+## 3. MCSim under R
+
+## 4. MCSim-related R package
+
+## 5. Workflow 
+
+## 6. Example 
+
+---
+
+class: inverse, middle
+
+# What GNU MCSim is?
 
 ---
 
@@ -135,27 +155,6 @@ background-size: contain
 
 ---
 
-background-image: url(https://ars.els-cdn.com/content/image/1-s2.0-S0041008X09003238-gr3_lrg.jpg)
-background-size: 600px
-background-position: 50% 70% 
-
-# Population PBPK Model
-
-Characterizing PK parameters for populations
-
-Evaluating variability and uncertainty
-
-Cross-species comparisons of metabolism
-
-
-.footnote[
-.font50[
-Chiu et al. 2009.  
-https://doi.org/10.1016/j.taap.2009.07.032  
-]]
-
----
-
 # Types of Simulation
 
 **"Optimal Design" procedure**
@@ -167,6 +166,124 @@ Optimizes the number and location of observation times for experimental conditio
 **Systems Biology Markup Language (SBML)**
 
 GNU MCSim can read SBML models, which provides a standard for representing biochemical pathway models. It can code for models of metabolism, cell-signaling, transcription, etc. SBML is maintained since the mid-2000 by an international community of software developers and users. [[source]](https://academic.oup.com/bioinformatics/article/25/11/1453/330661)
+
+---
+
+class: inverse, middle
+
+# What GNU MCSim can do in toxicology?
+
+---
+
+background-image: url(https://ars.els-cdn.com/content/image/1-s2.0-S027323000600095X-gr3.jpg)
+background-size: 280px
+background-position: 60% 80% 
+
+# Related publication 
+
+Chiu and Bois (2006) - [Revisiting the population toxicokinetics of tetrachloroethylene](https://link.springer.com/article/10.1007/s00204-006-0061-9)
+
+Hack et al. (2006) - [Bayesian population analysis of a harmonized physiologically based pharmacokinetic model of trichloroethylene and its metabolites](https://www.sciencedirect.com/science/article/pii/S027323000600095X)
+
+<hr>
+
+<img src="https://ars.els-cdn.com/content/image/1-s2.0-S027323000600095X-gr1.jpg" height="400px" />
+
+---
+
+# Related publication
+
+Chiu and Bois (2007) - [An approximate method for population toxicokinetic analysis with aggregated data](https://link.springer.com/article/10.1198/108571107X229340) 
+
+- Applied Hierarchical Bayesian approach to estimate inter-individual variability
+
+<img src="https://i.ibb.co/23QQ5Nz/Chiu-2017.png" height="260px" />
+
+---
+
+background-image: url(https://ars.els-cdn.com/content/image/1-s2.0-S0041008X09003238-gr3_lrg.jpg)
+background-size: 600px
+background-position: 50% 90% 
+
+# Related publication
+
+Chiu et al. (2009) - [Characterizing uncertainty and population variability in the toxicokinetics of trichloroethylene and metabolites in mice, rats, and humans using an updated database, physiologically based pharmacokinetic (PBPK) model, and Bayesian approach](https://www.sciencedirect.com/science/article/pii/S0041008X09003238)
+
+Chiu and Ginsberg (2011) - [Development and evaluation of a harmonized physiologically based pharmacokinetic (PBPK) model for perchloroethylene toxicokinetics in mice, rats, and humans](https://www.sciencedirect.com/science/article/pii/S0041008X11001141)
+
+---
+
+background-image: url(https://i.ibb.co/VHT9qZ3/chiu2019.jpg)
+background-size: 500px
+background-position: 50% 80% 
+
+# Related publication 
+
+- Characterizing PBPK parameters from individuals to population
+
+- Evaluating population **variability** and parameter **uncertainty**
+
+- Cross-species comparisons of metabolism in **risk assessment**
+
+.footnote[
+.font50[
+Chiu et al. 2009.  
+https://doi.org/10.1016/j.taap.2009.07.032  
+]]
+
+---
+
+background-image: url(https://i.ibb.co/tYDnPDb/chiu2014-2.png)
+background-size: 500px
+background-position: 80% 65% 
+
+# Related publication from our group 
+
+### Inter-strain & inter-individual variability
+
+Chiu et al. (2014) - [Physiologically-Based Pharmacokinetic (PBPK) Modeling of Inter-strain Variability in Trichloroethylene Metabolism in the Mouse](https://ehp.niehs.nih.gov/doi/full/10.1289/ehp.1307623?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%3dpubmed)
+
+<hr>
+
+<img src="https://i.ibb.co/DVWYytX/chiu2014.png" height="340px" />
+
+[(source)](https://www.toxicology.org/groups/ss/ophss/docs/OPHSS_Webinar_ZeiseChiu_30Oct2014.pdf)
+
+---
+
+background-image: url(https://ars.els-cdn.com/content/image/1-s2.0-S0300483X18301781-gr5_lrg.jpg)
+background-size: 400px
+background-position: 70% 80% 
+
+# Related publication
+
+Dalaijamts et al. (2018) - [Incorporation of the glutathione conjugation pathway in an updated physiologically-based pharmacokinetic model for perchloroethylene in mice](https://www.sciencedirect.com/science/article/pii/S0041008X18302436)
+
+Luo et al. (2018) - [Comparative analysis of metabolism of trichloroethylene and tetrachloroethylene among mouse tissues and strains](https://www.sciencedirect.com/science/article/pii/S0300483X18301781)
+
+Luo et al. (Accepted) - Using Collaborative Cross Mouse Population to Fill Data Gaps in Risk Assessment A Case Study of Population-based Analysis of Toxicokinetics and Kidney Toxicodynamics of Tetrachloroethylene
+
+<img src= "https://ars.els-cdn.com/content/image/1-s2.0-S0300483X18301781-gr2_lrg.jpg" height="300px" />
+
+---
+
+# Related publication
+
+*U.S. Food and Drug Administration. Enhancing the reliability, efficiency, and usability of Bayesian population PBPK modeling - Create, implement, and evaluate a robust Global Sensitivity Analysis algorithm to reduce PBPK model parameter dimensionality.*
+
+<hr>
+
+Hsieh et al. (2018) - [Applying a Global Sensitivity Analysis Workflow to Improve the Computational Efficiencies in Physiologically-Based Pharmacokinetic Modeling](https://www.frontiersin.org/articles/10.3389/fphar.2018.00588/full)
+
+Bois et al. (Submitted) - Well tempered MCMC simulations for population pharmacokinetic models
+
+- Based on the latest version 6.1.0
+
+---
+
+class: inverse, middle
+
+# Why we use GNU MCSim with R(Studio)?
 
 ---
 
@@ -228,8 +345,6 @@ background-position: 90% 1%
 
 # Advantages in MCSim and R
 
-
-
 .font120[*"Parallel computing"*]  
 <img src="http://lcolladotor.github.io/figs/2016-03-07-BiocParallel/cloud.jpg" height="220px" />
 
@@ -273,62 +388,6 @@ Journal of Pharmacokinetics and Pharmacodynamics; https://doi.org/10.1007/s10928
 
 Original Paper; First Online: 04 April 2019
 ]
-
----
-
-# Related publication from our group 
-
-### Before 2010
-
-Chiu and Bois (2006) - [Revisiting the population toxicokinetics of tetrachloroethylene](https://link.springer.com/article/10.1007/s00204-006-0061-9)
-
-<hr>
-
-Chiu and Bois (2007) - [An approximate method for population toxicokinetic analysis with aggregated data](https://link.springer.com/article/10.1198/108571107X229340) 
-
-<hr>
-
-Chiu et al. (2007) - [Toxicokinetics of Inhaled Trichloroethylene and Tetrachloroethylene in Humans at 1 ppm: Empirical Results and Comparisons with Previous Studies](https://academic.oup.com/toxsci/article/95/1/23/1690479)
-
-<hr>
-
-Chiu et al. (2009) - [Characterizing uncertainty and population variability in the toxicokinetics of trichloroethylene and metabolites in mice, rats, and humans using an updated database, physiologically based pharmacokinetic (PBPK) model, and Bayesian approach](https://www.sciencedirect.com/science/article/pii/S0041008X09003238)
-
-<hr>
-
-Chiu and Ginsberg (2011) - [Development and evaluation of a harmonized physiologically based pharmacokinetic (PBPK) model for perchloroethylene toxicokinetics in mice, rats, and humans](https://www.sciencedirect.com/science/article/pii/S0041008X11001141)
-
----
-
-class:clear
-
-### After 2010
-
-Chiu et al. (2014) - [Physiologically-Based Pharmacokinetic (PBPK) Modeling of Inter-strain Variability in Trichloroethylene Metabolism in the Mouse](https://ehp.niehs.nih.gov/doi/full/10.1289/ehp.1307623?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%3dpubmed)
-
-<hr>
-
-Hsieh et al. (2018) - [Applying a Global Sensitivity Analysis Workflow to Improve the Computational Efficiencies in Physiologically-Based Pharmacokinetic Modeling](https://www.frontiersin.org/articles/10.3389/fphar.2018.00588/full)
-
-<hr>
-
-Luo et al. (2018) - [Comparative analysis of metabolism of trichloroethylene and tetrachloroethylene among mouse tissues and strains](https://www.sciencedirect.com/science/article/pii/S0300483X18301781)
-
-<hr>
-
-Dalaijamts et al. (2018) - [Incorporation of the glutathione conjugation pathway in an updated physiologically-based pharmacokinetic model for perchloroethylene in mice](https://www.sciencedirect.com/science/article/pii/S0041008X18302436)
-
----
-
-# Upcoming publication
-
-Luo et al. (Accepted) - Using Collaborative Cross Mouse Population to Fill Data Gaps in Risk Assessment A Case Study of Population-based Analysis of Toxicokinetics and Kidney Toxicodynamics of Tetrachloroethylene
-
-<hr>
-
-Bois et al. (Submitted) - Well tempered MCMC simulations for population pharmacokinetic models
-
-- Based on the latest version 6.1.0
 
 ---
 
@@ -448,6 +507,11 @@ background-position: 50% 70%
 # GNU MCSim under R 
 
 An open R project that aim to help beginner (especially Windows user) run GNU MCSim in **RStudio IDE**. All resources are stored in GitHub repo .font80[(https://github.com/nanhung/MCSim_under_R)]. 
+---
+
+class: inverse, middle
+
+# How to use GNU MCSim with R(Studio)?
 
 ---
 
