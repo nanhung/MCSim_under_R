@@ -1,6 +1,3 @@
-## Pre-setting and load functions ####
-source("function.R") 
-
 ## Linear modeling ####
 mName <- "linear.model.R" # model file
 inName <- "linear.in.R" # input file; simple simulation w/ given parameters

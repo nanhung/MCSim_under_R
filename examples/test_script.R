@@ -1,8 +1,3 @@
-## Pre-setting and load functions ####
-# clear() # use to clear the exe and out file
-# make sure to put the model and input files to "input folder"
-source("function.R") 
-
 ## Digoxin MCMC ####
 # Define the input variable
 mName <- "digoxin.model.R" # the model file put in the model folder
