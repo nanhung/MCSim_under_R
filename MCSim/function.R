@@ -48,6 +48,9 @@ makemcsim <- function(model, deSolve = F){
   }
   if (deSolve == T){
     system(paste("./MCSim/mod.exe -R modeling/", model, " ", model, ".c", sep = "")) 
+    system (paste0("R CMD SHLIB ", model, ".c")) # create *.dll files
+    dyn.load(paste(model, .Platform$dynlib.ext, sep="")) # load *.dll
+    source(paste0(model,"_inits.R"))
   } else {
     system(paste("./MCSim/mod.exe modeling/", model, " ", model, ".c", sep = "")) 
     system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", model, ".exe ", model, ".c ./MCSim/sim/*.c -lm ", sep = ""))  
@@ -100,7 +103,10 @@ mcsim <- function(model, input){
 
 clear <- function(){
   files <- c(dir(pattern = c("*.out")), 
-             dir(pattern = c("*.exe")),
+             dir(pattern = c("*.R.exe")),
+             dir(pattern = c("*.R.so")),
+             dir(pattern = c("*.R.o")),
+             dir(pattern = c("*.R.dll")),
              dir(pattern = c("*.R.c")),
              dir(pattern = c("*.R_inits.R")),
              dir(pattern = c("*.perks")))
