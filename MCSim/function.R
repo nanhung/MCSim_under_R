@@ -39,18 +39,21 @@ makemod <- function(){
 set_PATH()
 makemod()
 
-makemcsim <- function(model){
+makemcsim <- function(model, deSolve = F){
   exe_file <- paste0("mcsim.", model, ".exe")
   #if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
   if(file.exists(model)) {
     invisible(file.copy(from = paste0(getwd(),"/", model), to = paste0(getwd(),"/modeling/", model)))
     invisible(file.remove(model))
   }
-  system(paste("./MCSim/mod.exe modeling/", model, " ", model, ".c", sep = "")) 
-  system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", model, ".exe ", model, ".c ./MCSim/sim/*.c -lm ", sep = ""))
-  
-  if(file.exists(exe_file)) message(paste0("* Created executable program '", exe_file, "'."))
-  invisible(file.remove(paste0(model, ".c")))
+  if (deSolve == T){
+    system(paste("./MCSim/mod.exe -R modeling/", model, " ", model, ".c", sep = "")) 
+  } else {
+    system(paste("./MCSim/mod.exe modeling/", model, " ", model, ".c", sep = "")) 
+    system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", model, ".exe ", model, ".c ./MCSim/sim/*.c -lm ", sep = ""))  
+    invisible(file.remove(paste0(model, ".c")))
+    if(file.exists(exe_file)) message(paste0("* Created executable program '", exe_file, "'.")) 
+  }
 }
 
 mcsim <- function(model, input){
@@ -96,8 +99,20 @@ mcsim <- function(model, input){
 }
 
 clear <- function(){
-  files <- c(dir(pattern = c("*.out")), dir(pattern = c("*.exe")), dir(pattern = c("*.perks")))
+  files <- c(dir(pattern = c("*.out")), 
+             dir(pattern = c("*.exe")),
+             dir(pattern = c("*.R.c")),
+             dir(pattern = c("*.R_inits.R")),
+             dir(pattern = c("*.perks")))
   invisible(file.remove(files))
+}
+
+report <- function(){
+  cat("\n\n-----Report started line-----\n\n")
+  cat(Sys.getenv("PATH"), "\n")
+  print(Sys.which("gcc"))
+  system('gcc -v')
+  cat("\n-----Report ended line-----\n\n")
 }
 
 ## The following is test function ####
@@ -117,11 +132,4 @@ plotmcsim <- function(filename, sim = 1, ...){
   plot(x, y, ...)
 }
 
-mcsim_report <- function(){
-  cat("\n\n-----Report started line-----\n\n")
-  cat(Sys.getenv("PATH"), "\n")
-  print(Sys.which("gcc"))
-  system('gcc -v')
-  cat("\n-----Report ended line-----\n\n")
-}
 
