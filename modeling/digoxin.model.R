@@ -3,9 +3,9 @@
 #---------------
 
 # Variables
-States = {A_central, A_periph};
-Inputs = {Dose};
-Outputs = {C_central};
+States = {A_central, A_periph}
+Inputs = {Dose}
+Outputs = {C_central}
 
 # Structural model parameters
 k_12 = 1.02;
@@ -17,8 +17,9 @@ V_central = 58.2;
 Ve_C_central = 1;
 
 # Initalization
-Initialize {A_central = Dose;
-};
+Initialize {
+  A_central = Dose;
+}
 
 # Dynamics
 Dynamics {
@@ -26,12 +27,10 @@ Dynamics {
   dt(A_central) = k_21 * A_periph - k_12 * A_central - k_10 * A_central;
   # Peripheral compartment quantity 
   dt(A_periph) = k_12 * A_central - k_21 * A_periph;
-  # Concentration
-  C_central = A_central / V_central;
-};
+}
 
 CalcOutputs { 
-	C_central = (C_central < 1.0e-15 ? 1.0e-15 : C_central) ; 
-};
+	C_central = A_central / V_central ; 
+}
 
 End.
