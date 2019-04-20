@@ -27,6 +27,7 @@ plot(out$A.1., type = "l")
 plot(out$B.1., type = "l")
 
 # Density plot
+i <- c(ceiling(nrow(out)/2):nrow(out))
 plot(density(out$A.1.[i]))
 plot(density(out$B.1.[i]))
 

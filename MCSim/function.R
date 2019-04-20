@@ -39,27 +39,30 @@ makemod <- function(){
 set_PATH()
 makemod()
 
-makemcsim <- function(model, deSolve = F){
+makemcsim <- function(model, deSolve = F, dir = "modeling"){
   exe_file <- paste0("mcsim.", model, ".exe")
   #if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
-  if(file.exists(model)) {
+  
+  if(file.exists(model)) { # Move model file from working directory to modeling folder
     invisible(file.copy(from = paste0(getwd(),"/", model), to = paste0(getwd(),"/modeling/", model)))
     invisible(file.remove(model))
+    message(paste0("* The '", model, "' has been moved to modeling folder."))
   }
+  
   if (deSolve == T){
-    system(paste("./MCSim/mod.exe -R modeling/", model, " ", model, ".c", sep = "")) 
+    system(paste("./MCSim/mod.exe -R ", dir, "/", model, " ", model, ".c", sep = "")) 
     system (paste0("R CMD SHLIB ", model, ".c")) # create *.dll files
     dyn.load(paste(model, .Platform$dynlib.ext, sep="")) # load *.dll
     source(paste0(model,"_inits.R"))
   } else {
-    system(paste("./MCSim/mod.exe modeling/", model, " ", model, ".c", sep = "")) 
+    system(paste("./MCSim/mod.exe ", dir, "/", model, " ", model, ".c", sep = "")) 
     system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", model, ".exe ", model, ".c ./MCSim/sim/*.c -lm ", sep = ""))  
     invisible(file.remove(paste0(model, ".c")))
     if(file.exists(exe_file)) message(paste0("* Created executable program '", exe_file, "'.")) 
   }
 }
 
-mcsim <- function(model, input){
+mcsim <- function(model, input, dir = "modeling"){
   exc = paste0("mcsim.", model, ".exe")
   if (file.exists(exc) == F) {
     makemcsim(model)
@@ -72,14 +75,15 @@ mcsim <- function(model, input){
     invisible(file.copy(from = paste0(getwd(),"/", input), to = paste0(getwd(),"/modeling/", input)))
     invisible(file.remove(input))
   }
-  tx  <- readLines(paste0("modeling/", input))
+  
+  tx  <- readLines(paste0(dir, "/", input))
   MCMC_line <- grep("MCMC", x=tx)
   if (length(MCMC_line) != 0){
     #file_defore <- list.files()
     RandomSeed <- runif(1, 0, 2147483646)
     tx2 <- gsub(pattern = "10101010", replace = paste(RandomSeed), x = tx)
-    writeLines(tx2, con=paste0("modeling/", input))
-    system(paste("./mcsim.", model, ".exe ", "modeling/", input, sep = ""))
+    writeLines(tx2, con=paste0(dir, "/", input))
+    system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     #file_after <- list.files() # exist a bug if file had been created
     #outfile <- setdiff(file_after,file_defore)[1]
     outfile <- "sim.out"
@@ -88,14 +92,14 @@ mcsim <- function(model, input){
     tx3 <- gsub(pattern = paste0("\"", outfile, "\",\"\""), 
                 replace = paste0("\"", checkfile, "\",\"", outfile, "\""), 
                 x = tx2)
-    writeLines(tx3, con=paste0("modeling/", input))
-    system(paste("./mcsim.", model, ".exe ", "modeling/", input, sep = ""))
-    writeLines(tx, con=paste0("modeling/", input))
+    writeLines(tx3, con=paste0(dir, "/", input))
+    system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
+    writeLines(tx, con=paste0(dir, "/", input))
     message(paste0("* Create '", checkfile, "' from the last iteration."))
     #invisible(file.remove(paste0(outfile, ".kernel")))
     df <- read.delim("sim.out")
   } else {
-    system(paste("./mcsim.", model, ".exe ", "modeling/", input, sep = ""))
+    system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     df <- read.delim("sim.out", skip = 1)
   }
   return(df)

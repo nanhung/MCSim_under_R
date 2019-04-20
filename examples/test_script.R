@@ -32,11 +32,11 @@ mName <- "simple.model.R" # the model file put in the model folder
 inName <- "simple.in.R" # the input file put in the infile folder
 
 # Create the executable file
-makemcsim(mName)
+makemcsim(mName, dir = "modeling/simple") # the files are located in modeling/simple 
 # file.exists("mcsim_simple.model.R.exe") # check if you create the "mcsim_simple.model.exe" file successfully
 
 # Run!!
-out <- mcsim(mName, inName)
+out <- mcsim(mName, inName, dir = "modeling/simple")
 
 # Print result
 out
