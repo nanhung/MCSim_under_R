@@ -9,11 +9,10 @@ makemcsim(mName)
 out <- mcsim(mName, inName) #'./mcsim.linear.model.R.exe linear.in.R'
 out # check result
 
-i = 1:31
-# i = 34:36
-x <- as.numeric(as.character(out$Time[i]))
-y <- as.numeric(as.character(out$y[i]))
-plot(x, y, type = "b") # 
+x <- as.numeric(as.character(out$Time))
+y <- as.numeric(as.character(out$y))
+plot(x, y) # 
+abline(1,2)
 
 ## Linear mcmc ####
 # Assign the input file
@@ -51,11 +50,11 @@ n.iters <- nrow(out)
 n.chains <- 4
 n.parms <- 2
 parms_name <- c("A.1.","B.1.")
-sims = array(0, c(n.iters, n.chains, n.parms))
-sims[,1,] = as.matrix(out[, parms_name])
-sims[,2,] = as.matrix(out2[, parms_name])
-sims[,3,] = as.matrix(out3[, parms_name])
-sims[,4,] = as.matrix(out4[, parms_name])
+sims <- array(0, c(n.iters, n.chains, n.parms))
+sims[,1,] <- as.matrix(out[, parms_name])
+sims[,2,] <- as.matrix(out2[, parms_name])
+sims[,3,] <- as.matrix(out3[, parms_name])
+sims[,4,] <- as.matrix(out4[, parms_name])
 report <- monitor(sims, digit=4)
 row.names(report) <- parms_name
 report
