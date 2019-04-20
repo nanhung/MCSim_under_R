@@ -2,15 +2,9 @@
 # Check the chek whether the compiler is in the PATH by using
 # Sys.getenv("PATH") 
 
-if(!require(pkgbuild)) install.packages("pkgbuild")
-library(pkgbuild)
-
 set_PATH <- function(PATH = "c:/Rtools/mingw_32/bin"){
-
-    if (Sys.info()[['sysname']] == "Windows") {
-    if(!pkgbuild::find_rtools()){
-      warning("Please make sure you had installed Rtools. Or, assign the PATH to Rtools.")
-    }
+  
+  if (Sys.info()[['sysname']] == "Windows") {
     if(Sys.which("gcc") == ""){
       Sys.setenv(PATH = paste(PATH, Sys.getenv("PATH"), sep=";"))
     }
@@ -21,7 +15,7 @@ set_PATH <- function(PATH = "c:/Rtools/mingw_32/bin"){
   # port select --list gcc
   # sudo port select --set gcc mp-gcc8
   
-  # Check the GNU compiler 
+  # Check the GCC compiler 
   Sys.which("gcc")
   system('gcc -v')
 }
@@ -36,8 +30,6 @@ makemod <- function(){
     message("The mod.exe had been created.")
   }
 }
-set_PATH()
-makemod()
 
 makemcsim <- function(model, deSolve = F, dir = "modeling"){
   exe_file <- paste0("mcsim.", model, ".exe")
