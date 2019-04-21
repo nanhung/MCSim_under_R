@@ -117,7 +117,7 @@ report <- function(){
   cat("\n-----Report ended line-----\n\n")
 }
 
-sims <- function(x, exp = 1){
+readsims <- function(x, exp = 1){
   ncols <- ncol(x)
   index <- which(x[,1] == "Time")
   str <- ifelse(exp == 1, 1, index[exp-1]+1)
