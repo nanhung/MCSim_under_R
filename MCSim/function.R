@@ -117,21 +117,15 @@ report <- function(){
   cat("\n-----Report ended line-----\n\n")
 }
 
-## The following is test function ####
-plotmcsim <- function(filename, sim = 1, ...){
-  ncols <- max(count.fields(filename, sep = "\t"))
-  tmp <- read.delim(filename, col.names=1:ncols, sep="\t", fill=T, header=F)
-  index <- which(tmp[,1] == "Time")
-  tmp$simulation <- ""
-  for(i in seq(index)){
-    str <- index[i]+1
-    end <- ifelse(i == length(index), nrow(tmp),index[i+1]-2)
-    tmp$simulation[c(str:end)] <- i
-  }
-  df <- (subset(tmp, simulation == sim))
-  x <- as.numeric(as.character(df$X1))
-  y <- as.numeric(as.character(df$X2))
-  plot(x, y, ...)
+sims <- function(x, exp = 1){
+  ncols <- ncol(x)
+  index <- which(x[,1] == "Time")
+  str <- ifelse(exp == 1, 1, index[exp-1]+1)
+  end <- ifelse(exp == length(index)+1, nrow(x), index[exp]-2)
+  X <- x[c(str:end),]
+  ncolX <- ncol(X) 
+  X <- as.data.frame(matrix(as.numeric(as.matrix(X)), ncol = ncolX))
+  if (exp > 1) names(X) <- as.matrix(x[index[exp-1],])[1:ncols] else names(X) <- names(x)
+  X <- X[, colSums(is.na(X)) != nrow(X)]
+  return(X)  
 }
-
-
