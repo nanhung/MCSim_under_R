@@ -5,9 +5,9 @@
 set_PATH <- function(PATH = "c:/Rtools/mingw_32/bin"){
   
   if (Sys.info()[['sysname']] == "Windows") {
-    if(Sys.which("gcc") == ""){
+    if(Sys.which("gcc") == ""){ # echo $PATH
       Sys.setenv(PATH = paste(PATH, Sys.getenv("PATH"), sep=";"))
-    }
+    } # PATH=$PATH:c:/Rtools/mingw_32/bin; export PATH
   }
   
   # The macos used clang as default, the following command is used to switch to GCC
