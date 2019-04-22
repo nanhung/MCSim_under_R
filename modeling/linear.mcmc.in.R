@@ -1,7 +1,6 @@
 #-------------------
 # linear.mcmc.in
 #-------------------
-Integrate (Lsodes, 1e-4, 1e-6, 1);
 
 MCMC("sim.out","", # name of output and restart file
      "",           # name of data file
