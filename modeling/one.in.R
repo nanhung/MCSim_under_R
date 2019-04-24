@@ -9,13 +9,13 @@ Pct_M_central = 1;
 Simulation { # 1
   OralDose = 100; 
   BW = 60;
-  PrintStep (Oral_input, A_central, A_elim, A_total, C_central, 0, 96, 0.5);
+  PrintStep (Oral_input, A_central, A_elim, A_total, C_central, 0, 24, 1);
 }
 
 Simulation { # 2
   OralDose = 150;
   BW = 80;
-  PrintStep (Oral_input, A_central, A_elim, A_total, C_central, 0, 96, 0.5);
+  PrintStep (Oral_input, A_central, A_elim, A_total, C_central, 0, 24, 1);
 }
 
 End.
