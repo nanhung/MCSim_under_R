@@ -1,10 +1,12 @@
 ## Description ####
-# EB.model.R
+# EB_v2.model.R
 #
 # A PBPK model for Ethylbenzene toxicokinetics in male rats.
 # 
-# Version: 1
-# 
+# Version: 2
+# - Add state variable of metabolized in liver, lung, and richly perfused tissue 
+# - Add oral ingestion route
+#
 # Units:
 # - time in h
 # - volumes in L
@@ -21,6 +23,9 @@ States = {
   Abr,        # Amount of bronchial ethylbenzene
   AUCvtot,    # AUC of blood ethylbenzene (mol-hr/L)
   Ain,        # Amount of inhaled ethylbenzene
+  Amet_Rl,    # Amount metabolized in liver (moles)
+  Amet_Rlu,   # Amount metabolized in lung (moles)
+  Amet_Rvrg,  # Amount metabolized in richly perfused tissue (moles)
   Amet        # Amount metabolized (moles)
 };
 
@@ -33,11 +38,15 @@ Outputs = {
 };
 
 ## Inputs ####
-Inputs = { Cppm };    # Concentration (inhaled)
+Inputs = { 
+  Dmgkg,      # Ingested dose (mg/kg)        
+  Cppm        # Concentration (ppm)
+  };    
 
 ## Parameters ####
 # Exposure parameter
-Cppm = 75;
+Cppm = 75;        # Inhalation conc. (ppm)
+Dmgkg = 0.0;      # Ingested dose (mg/kg)
 
 # Physiologocal parameter
 BW = 0.043;  # male rat BW
@@ -96,7 +105,8 @@ Kmvr;
 
 ## Initialize ####
 Initialize {
-  # Body weight scaling
+  
+  # body weight scaling
   BW74 = pow(BW, 0.74);
   
   # conversion factor
@@ -136,6 +146,9 @@ Dynamics {
   Cmpl = Cppm * 1E-6 / 24.45;
   Cair = Cmpl;
   
+  # ingested dose converted to mol
+  Aing = Dmgkg * BW * Cfac;
+  
   # calculated concentrations of ethylbenzene
   Cvpu = Apu / (Vpu * Ppu);
   Cvbr = Abr / (Vbr * Pbr);
@@ -159,13 +172,16 @@ Dynamics {
   # ethylbenzene uptake and metabolism
   dt(Apu) = Qpu * (Cvipu - Cvpu);
   dt(Abr) = Qbr * (Cart - Cvbr) - Rlu;
-  dt(Al) = Ql * (Cart - Cvl) - Rl;
+  dt(Al) = Aing + Ql * (Cart - Cvl) - Rl;
   dt(Af) = Qf * (Cart - Cvf);
   dt(Avrg) = Qvrg * (Cart - Cvvrg) - Rvrg;
   dt(Am) = Qm * (Cart - Cvm);
   dt(AUCvtot) = Cvtot;
   
   # amount of ethylbenzene metabolize
+  dt(Amet_Rl) = Rl;
+  dt(Amet_Rlu) = Rlu;
+  dt(Amet_Rvrg) = Rvrg;
   dt(Amet) = Rl + Rlu + Rvrg;
   
   # mass Balance

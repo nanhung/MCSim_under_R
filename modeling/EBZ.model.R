@@ -21,23 +21,23 @@ Outputs = {
 };
 
 ## Inputs ####
-Inputs = { 
+Inputs = {
   
 };  
 
 ## Parameters ####
-# Exposure Parameter -
+# Exposure parameter
 
-# Physiologocal Parameter -
+# Physiologocal parameter
 
-# Substance-specific Parameter -
+# substance-specific parameter
 # molecular weight
 
 # blood/air and tissue/blood partition coefficients
 
 # metabolic parameters
 
-# Scaling Parameter -
+# Scaling parameter - 
 # body weight scaling
 
 # conversion factor
@@ -50,8 +50,7 @@ Inputs = {
 
 ## Initialize ####
 Initialize {
-
-  # body weight scaling 
+  # Body weight scaling
 
   # conversion factor
 
@@ -65,7 +64,6 @@ Initialize {
 
 ## Dynamics ####
 Dynamics {
-  
   # exposure concentration converted to mol/L
 
   # calculated concentrations of ethylbenzene
@@ -78,17 +76,15 @@ Dynamics {
 
   # amount of ethylbenzene metabolize
 
-  # amount of ethylbenzene intake
-
+  # mass Balance
 }
 
 ## CalcOutputs ####
 CalcOutputs {
   
-  # concentration
-
-  # mass Balance
+  # Concentration
   
+  # Mass Balance
 }
 
 End.
