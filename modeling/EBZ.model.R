@@ -12,40 +12,45 @@
 
 ## States ####
 States = {
-
+  
 };
 
 ##  Outputs ####
 Outputs = {
+  
 };
 
 ## Inputs ####
-Inputs = {  };  # Concentration (inhaled)
+Inputs = { 
+  
+};  
 
 ## Parameters ####
-# Exposure parameter
+# Exposure Parameter -
 
-# Physiologocal parameter
+# Physiologocal Parameter -
 
-# substance-specific parameter
+# Substance-specific Parameter -
 # molecular weight
 
 # blood/air and tissue/blood partition coefficients
 
 # metabolic parameters
 
-# Scaling parameter
+# Scaling Parameter -
+# body weight scaling
+
+# conversion factor
+
 # tissue flows, L/hr
 
 # tissue volumes, L
 
 # the Michaelis–Menten kinetics
 
-# conversion factor
-
-
 ## Initialize ####
 Initialize {
+
   # body weight scaling 
 
   # conversion factor
@@ -60,6 +65,7 @@ Initialize {
 
 ## Dynamics ####
 Dynamics {
+  
   # exposure concentration converted to mol/L
 
   # calculated concentrations of ethylbenzene
@@ -72,7 +78,7 @@ Dynamics {
 
   # amount of ethylbenzene metabolize
 
-  # mass Balance
+  # amount of ethylbenzene intake
 
 }
 
@@ -82,7 +88,7 @@ CalcOutputs {
   # concentration
 
   # mass Balance
-
+  
 }
 
 End.
