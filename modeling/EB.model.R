@@ -11,21 +11,21 @@
 
 ## States ####
 States = {
-  Af, 		  # Amount of ethylbenzene in fat (moles)
-  Al,			  # Amount of ethylbenzene in liver
-  Am,			  # Amount of ethylbenzene in muscle
-  Avrg,		  # Amount of ethylbenzene in richly perfused tissues
-  Apu,		  # Amount of pulmonary ethylbenzene
-  Abr,		  # Amount of bronchial ethylbenzene
-  AUCvtot,	# AUC of blood ethylbenzene (mol-hr/L)
-  Ain,		  # Amount of inhaled ethylbenzene
+  Af,           # Amount of ethylbenzene in fat (moles)
+  Al,              # Amount of ethylbenzene in liver
+  Am,              # Amount of ethylbenzene in muscle
+  Avrg,          # Amount of ethylbenzene in richly perfused tissues
+  Apu,          # Amount of pulmonary ethylbenzene
+  Abr,          # Amount of bronchial ethylbenzene
+  AUCvtot,    # AUC of blood ethylbenzene (mol-hr/L)
+  Ain,          # Amount of inhaled ethylbenzene
   Amet      # Amount metabolized (moles)
-};	
+};
 
 ##  Outputs ####
 Outputs = {
-  Cart,	# Concentration in arterial blood (mol/L)
-  # Cf,	
+  Cart,    # Concentration in arterial blood (mol/L)
+  # Cf,
   # Cl,
   # Cvrg,
   # Cm,
@@ -41,6 +41,7 @@ Outputs = {
 Inputs = { Cppm };    # Concentration (inhaled)
 
 ## Parameters ####
+# Exposure parameter
 Cppm = 0;
 
 # Physiologocal parameter
@@ -68,21 +69,21 @@ VmaxCvr = 17.4;   #richly perfused
 # tissue flows, L/hr
 Qtot;
 Qalv; # alveolar
-Qpu;	# pulmonary
-Qbr;	# bronchial
-Qf;		# fat
-Qvrg;	# richly perfused
-Ql;		# liver
-Qm;		# muscle
+Qpu;    # pulmonary
+Qbr;    # bronchial
+Qf;        # fat
+Qvrg;    # richly perfused
+Ql;        # liver
+Qm;        # muscle
 
 # tissue volumes, L
-Vf;		# fat
-Vl;		# liver
-Vm;		# muscle
+Vf;        # fat
+Vl;        # liver
+Vm;        # muscle
 Vvrg; # richly perfused
 Vlu;  # lung
-Vpu;	# pulmonary
-Vbr;	# bronchial
+Vpu;    # pulmonary
+Vbr;    # bronchial
 
 # Michaelis–Menten kinetics
 Vmax;
@@ -97,6 +98,7 @@ Cfac;    #mg to mol
 
 ## Initialize ####
 Initialize {
+  # Body weight scaling
   BW74 = pow(BW, 0.74);
   
   # conversion factor
@@ -113,13 +115,13 @@ Initialize {
   Qm = 0.15 * Qpu;
   
   # tissue volumes, L
-  Vf = 0.06 * BW;		#fat
-  Vl = 0.04 * BW;		#liver
-  Vm = 0.76 * BW;		#muscle
-  Vvrg = 0.05 * BW;		#richly perfused
-  Vlu = 0.014 * BW;		#lung
-  Vpu = 0.454 * Vlu;	#pulmonary
-  Vbr = 0.545 * Vlu;	#bronchial
+  Vf = 0.06 * BW;        #fat
+  Vl = 0.04 * BW;        #liver
+  Vm = 0.76 * BW;        #muscle
+  Vvrg = 0.05 * BW;        #richly perfused
+  Vlu = 0.014 * BW;        #lung
+  Vpu = 0.454 * Vlu;    #pulmonary
+  Vbr = 0.545 * Vlu;    #bronchial
   
   # Michaelis–Menten kinetics
   Vmax = VmaxC * BW74 / Cfac;
@@ -134,7 +136,7 @@ Initialize {
 Dynamics {
   # exposure concentration converted to mol/L
   Cmpl = Cppm * 1E-6 / 24.45;
-  Cair = Cmpl; 
+  Cair = Cmpl;
   
   # calculated concentrations of ethylbenzene
   Cvpu = Apu / (Vpu * Ppu);
