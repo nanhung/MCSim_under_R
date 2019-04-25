@@ -57,7 +57,7 @@ makemcsim <- function(model, deSolve = F, dir = "modeling"){
 mcsim <- function(model, input, dir = "modeling"){
   exc = paste0("mcsim.", model, ".exe")
   if (file.exists(exc) == F) {
-    makemcsim(model)
+    makemcsim(model, dir = dir)
     if (file.exists(exc) == F) {
     stop("* '", exc, "' is not exist .")
     }
