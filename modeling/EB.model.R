@@ -11,15 +11,15 @@
 
 ## States ####
 States = {
-  Af, 		# Amount of ethylbenzene in fat (moles)
-  Al,			# Amount of ethylbenzene in liver
-  Am,			# Amount of ethylbenzene in muscle
-  Avrg,		# Amount of ethylbenzene in richly perfused tissues
-  Apu,		# Amount of pulmonary ethylbenzene
-  Abr,		# Amount of bronchial ethylbenzene
+  Af, 		  # Amount of ethylbenzene in fat (moles)
+  Al,			  # Amount of ethylbenzene in liver
+  Am,			  # Amount of ethylbenzene in muscle
+  Avrg,		  # Amount of ethylbenzene in richly perfused tissues
+  Apu,		  # Amount of pulmonary ethylbenzene
+  Abr,		  # Amount of bronchial ethylbenzene
   AUCvtot,	# AUC of blood ethylbenzene (mol-hr/L)
-  Ain,		# Amount of inhaled ethylbenzene
-  Amet        # Amount metabolized (moles)
+  Ain,		  # Amount of inhaled ethylbenzene
+  Amet      # Amount metabolized (moles)
 };	
 
 ##  Outputs ####
@@ -58,7 +58,6 @@ Pm = 0.609;
 Pvrg = 1.96;
 Ppu = 1.96;
 Pbr = 1.96;
-Ain = 0;
 
 # metabolic parameters
 VmaxC = 6.39;     #liver
@@ -68,7 +67,7 @@ VmaxCvr = 17.4;   #richly perfused
 # Scaling parameter
 # tissue flows, L/hr
 Qtot;
-Qalv;   # alveolar
+Qalv; # alveolar
 Qpu;	# pulmonary
 Qbr;	# bronchial
 Qf;		# fat
@@ -80,8 +79,8 @@ Qm;		# muscle
 Vf;		# fat
 Vl;		# liver
 Vm;		# muscle
-Vvrg;   # richly perfused
-Vlu;    # lung
+Vvrg; # richly perfused
+Vlu;  # lung
 Vpu;	# pulmonary
 Vbr;	# bronchial
 
