@@ -1,0 +1,110 @@
+METHOD RK4
+STARTTIME = 0
+STOPTIME= 168
+DT = 0.001
+
+{ethylbenzene moles}
+init Af = 0
+Limit Af >= 0
+init Al = 0
+Limit Al >= 0
+init Am = 0
+Limit Am >= 0
+init Avrg = 0
+Limit Avrg >= 0
+init Apu = 0
+Limit Apu >= 0
+init Abr = 0
+Limit Abr >= 0
+init AUCvtot = 0
+
+{moles, metabolized}
+init Amet = 0
+limit Amet>=0
+
+{tissue flows L/hr}
+Qtot = 15*BW^0.74
+Qalv = 15*BW^0.74
+Qf = 0.09*Qpu
+Qvrg = 0.51*Qpu
+Ql = 0.25*Qpu
+Qm = 0.15*Qpu
+Qpu = 0.928*Qtot
+Qbr = 0.072*Qtot
+
+{tissue volumes L}
+Vf = 0.06*BW	;fat
+Vl = 0.04*BW	;liver
+Vm = 0.76*BW	;muscle
+Vvrg = 0.05*BW	;richly perfused
+Vlu = 0.014*BW	;lung
+Vpu = 0.454*Vlu	;pulmonary
+Vbr = 0.545*Vlu	;bronchial
+BW = 0.043
+MW = 106.16
+Cfac = 1000*106.16	{mg to mol conversion factor}
+
+{blood/air and tissue/blood partition coefficients}
+Pb = 42.7
+Pl = 1.96
+Pf = 36.4
+Pm = 0.609
+Pvrg = 1.96
+Ppu = 1.96
+Pbr = 1.96
+
+{ethylbenzene metabolic parameters, CLh, Vmax mol/hr, Km, M}
+VmaxC = 6.39			;liver
+Vmax = VmaxC*BW^0.74/Cfac
+Km = 1.04/Cfac
+VmaxClu = 13.4			;lung
+Vmaxlu = VmaxClu*BW^0.74/Cfac
+Kmlu = 5.57/Cfac
+VmaxCvr = 17.4			;richly perfused
+Vmaxvr = VmaxCvr*BW^0.74/Cfac
+Kmvr = 2.33/Cfac
+
+{metabolism}
+Rlu = Vmaxlu*Cvbr/(Kmlu + Cvbr)
+Rl = Vmax*Cvl/(Km + Cvl)
+Rvrg = Vmaxvr*Cvvrg/(Kmvr + Cvvrg)
+
+{exposure in ppm converted to moles/L}
+Cppm = 75
+Cmpl = Cppm*1E-6/24.45	  { Exp conc, mol/L }
+Cair = If (Mod(Time,24)<=6.25 and Mod(Time,168.25)<=120) Then Cmpl Else 0
+
+{calculated concentrations of ethylbenzene}
+Cart = (Qpu*Cvpu + Qbr*Cvbr)/Qtot
+Cvf = Af/(Vf*Pf)
+Cvl = Al/(Vl*Pl)
+Cvvrg = Avrg/(Vvrg*Pvrg)
+Cvm = Am/(Vm*Pm)
+Cvpu = Apu/(Vpu*Ppu)
+Cvbr = Abr/(Vbr*Pbr)
+Cvipu = Pb*(Qalv*Cair + Qpu*Cvtot)/(Pb*Qpu + Qalv)
+Cvtot = (Ql*Cvl + Qf*Cvf + Qm*Cvm + Qvrg*Cvvrg)/Qpu
+
+{differential equations for ethylbenzene uptake and metabolism}
+d/dt(Apu) = Qpu*(Cvipu - Cvpu)
+d/dt(Abr) = Qbr*(Cart - Cvbr) - Rlu
+d/dt(Al) = Ql*(Cart - Cvl) - Rl
+d/dt(Af) = Qf*(Cart - Cvf)
+d/dt(Avrg) = Qvrg*(Cart - Cvvrg) - Rvrg
+d/dt(Am) = Qm*(Cart - Cvm)
+d/dt(AUCvtot) = Cvtot
+
+{amount of ethylbenzene metabolized}
+d/dt(Amet) = Rl + Rlu + Rvrg
+
+{Intake rate}
+Calv = Cvipu/Pb
+RI = Qalv*(Cair-Calv)
+
+{mass balance}
+
+init Ain=0
+d/dt(Ain) = RI
+
+At = Abr+Apu+Al+Af+Avrg+Am
+MBal = (1+At+Amet)/(1+Ain)
