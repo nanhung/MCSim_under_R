@@ -114,7 +114,6 @@ report <- function(){
   cat(Sys.getenv("PATH"), "\n")
   print(Sys.which("gcc"))
   system('gcc -v')
-  cat("\n-----Report ended line-----\n\n")
 }
 
 readsims <- function(x, exp = 1){
