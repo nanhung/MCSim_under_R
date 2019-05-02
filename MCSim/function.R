@@ -70,6 +70,8 @@ mcsim <- function(model, input, dir = "modeling"){
   
   tx  <- readLines(paste0(dir, "/", input))
   MCMC_line <- grep("MCMC", x=tx)
+  MonteCarlo_line <- grep("MonteCarlo", x=tx)
+  
   if (length(MCMC_line) != 0){
     #file_defore <- list.files()
     RandomSeed <- runif(1, 0, 2147483646)
@@ -89,6 +91,9 @@ mcsim <- function(model, input, dir = "modeling"){
     writeLines(tx, con=paste0(dir, "/", input))
     message(paste0("* Create '", checkfile, "' from the last iteration."))
     #invisible(file.remove(paste0(outfile, ".kernel")))
+    df <- read.delim("sim.out")
+  } else if (length(MonteCarlo_line) != 0){
+    system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     df <- read.delim("sim.out")
   } else {
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
