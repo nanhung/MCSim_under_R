@@ -49,8 +49,416 @@ plot(out$Time, out$y1, log = "x", type = "b")
 plot(out$Time, out$y2, log = "x", type = "b")
 
 
+#
+library(httk)
+params <- parameterize_1comp(chem.name = "Bisphenol A")
+MW <- params$MW
+Vdist <- params$Vdist
+kelim <- params$kelim
+kgutabs <- params$kgutabs
+Fgutabs <- params$Fgutabs * params$hepatic.bioavailability
+
+#
+t <- seq(0, 20, 0.1) # d
+out <- solve_1comp(chem.name = "Bisphenol A", days = 50, doses.per.day = 1, daily.dose = 1, times = t)
+data <- as.data.frame(out)
+head(data)
+dose <- 1 / 1000 * MW # mg -> uM
+css <- dose * Fgutabs / kelim / Vdist 
+httk_css <- calc_analytic_css(chem.name = "Bisphenol A", model = "1compartment")
+plot(data$time, data$Ccompartment, type = "l")
+abline(h = css)
+abline(h = httk_css)
+
+#
+out_mcsim <- mcsim("pbtk1cpt.model.R", "pbtk1cpt.in.R")
+head(out_mcsim)
+lines(out_mcsim$Time / 24, out_mcsim$Ccompartment, type = "l", col="red")
+
+# 
+Vdist_dist <- rnorm(n = 1000, Vdist, Vdist * 0.2)
+kelim_dist <- rnorm(n = 1000, kelim, kelim * 0.2)
+Fgutabs_dist <- runif(n = 1000, 0.8, 1)
+
+css_dist <- dose * Fgutabs_dist / kelim_dist / Vdist_dist 
+hist(css_dist)
+summary(css_dist)
+
+out <- mcsim("pbtk1cpt_css.model.R", "pbtk1cpt_css.in.R")
+head(out)
+hist(out$css_1.1)
+summary(out$css_1.1)
+
+plot(density(css_dist))
+lines(density(out$css_1.1), col = "red")
+
+# Reverse
+# serum BPA levels were 2.84 μg/L (arithmetic mean) and 0.18 μg/L (geometric mean) (He et al. 2009)
+#  https://doi.org/10.1016/j.envres.2009.04.003
+# The detectable rate was 17% for serum samples
+# the detection limit of 0.31 μg/L for urine and 0.39 μg/L for serum
+Css <- rlnorm(1000, log(0.18/1000), log(7)) # μg/L to mg/l
+exp(sd(log(Css))) # Geometric Standard deviation
+
+oral_equiv_dist <- Css * kelim_dist * Vdist_dist / Fgutabs_dist
+hist(oral_equiv_dist)
+boxplot(oral_equiv_dist, log = "y")
+
+plot(Css, oral_equiv_dist, log = "xy", xlab = "Css (uM)", ylab = "oral equivalent dose (mg/kg-d)")
+abline(v = 0.31/1000) # detection limit
+x <- subset(Css, Css > 0.31/1000)
+length(x)/1000 # Detection rate
+mean(x) * 1000 # arithmetic mean
+
+set.seed(1234)
+out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R")
+plot(out$Css, out$Dose_1.1, log = "xy", xlab = "Css (uM)", ylab = "oral equivalent dose (mg/kg-d)")
+abline(v = 0.31/1000) # detection limit
+x <- subset(out$Css, out$Css > 0.31/1000)
+length(x)/1000 # Detection rate
+mean(x) * 1000 # arithmetic mean
+hist(out$Dose_1.1)
+boxplot(out$Dose_1.1, oral_equiv_dist, log = "y")
+
+
+for (i in 1:10)
+{
+  out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R")
+  x <- subset(out$Css, out$Css > 0.31/1000)
+  Detect.rate <- length(x)/1000 # Detection rate
+  Observ.mean <- mean(x) * 1000 # arithmetic mean
+  plot(out$Css, out$Dose_1.1, log = "xy", 
+       xlab = "Css (uM)", ylab = "oral equivalent dose (mg/kg-d)",
+       main = paste("Detection rate: ", round(Detect.rate, digit = 2), 
+                    "Observation mean: ", round(Observ.mean, digit = 2)))
+  abline(v = 0.31/1000) # detection limit
+  date_time<-Sys.time()
+  while((as.numeric(Sys.time()) - as.numeric(date_time))<1){} 
+}
+
+#
+library(tidyverse)
+library(sensitivity)
+library(EnvStats)
+
+easy_1 <- function (X) 
+{
+  X[, 1] + X[, 2] + X[, 3]
+}
+easy_2 <- function (X) 
+{
+  X[, 1] * X[, 2] / X[, 3]
+}
+
+x <- morris(model = easy_1, factors = 3, r = 64, 
+            design = list(type = "oat", levels = 6, grid.jump = 3),  # grid.jump = levels/2
+            binf = c(1, 1, 1), bsup = c(2, 4, 6))
+
+par(mfrow = c(1,3))
+for(i in 1:3){
+  cor <- cor(x$X[,i], x$y)
+  plot(x$X[,i], x$y, 
+       xlab = colnames(x$X)[i],
+       main = paste("r = ", round(cor, digits = 2)))
+}
+
+par(mfrow = c(1,1))
+plot(x)
+x
+
+q <- "qunif"
+q.arg <- list(list(min = 1,  max = 2),
+              list(min = 1,  max = 4),
+              list(min = 1,  max = 6))
+x <- fast99(model = easy_1, factors = 3, n = 512,
+            q = q, q.arg = q.arg)
+par(mfrow = c(1,3))
+for(i in 1:3){
+  cor <- cor(x$X[,i], x$y)
+  plot(x$X[,i], x$y, 
+       xlab = colnames(x$X)[i],
+       main = paste("r = ", round(cor, digits = 2)))
+}
+par(mfrow = c(1,1))
+plot(x)
+x
+
+# Analytical solution
+Total <- 1^2 + 3^2 + 5^2
+S1 <- 1^2 / 35
+S1
+S2 <- 3^2 / 35
+S2
+S3 <- 5^2 / 35
+S3
+
+
+# easy 2
+x <- morris(model = easy_2, factors = 3, r = 64, 
+            design = list(type = "oat", levels = 6, grid.jump = 3),
+            binf = c(1,1,1), bsup = c(2,6,7))
+plot(x, xlim = c(0,5), ylim = c(0,5))
+x
+
+x <- fast99(model = easy_2, factors = 3, n = 512,
+            q = q, q.arg = q.arg)
+plot(x)
+x
+
+#
+Css_fun <- function (X) 
+{
+  Dose <- 0.228291 # uM
+  Dose * X[, 1] / X[, 2] / X[, 3] # Fgutabs_dist / kelim_dist / Vdist_dist 
+}
+
+binf <- c(min(Fgutabs_dist), min(kelim_dist), min(Vdist_dist))
+bsup <- c(max(Fgutabs_dist), max(kelim_dist), max(Vdist_dist))
+
+set.seed(1234)
+x <- morris(model = Css_fun, factors = c("Fgutabs", "kelim", "Vdist"), r = 64, 
+            design = list(type = "oat", levels = 6, grid.jump = 3), # grid.jump = levels/2
+            binf = binf, bsup = bsup)
+head(x$X)
+
+par(mfrow = c(1,3))
+for(i in 1:3){
+  cor <- cor(x$X[,i], x$y)
+  plot(x$X[,i], x$y, 
+       xlab = colnames(x$X)[i],
+       main = paste("r = ", round(cor, digits = 2)))
+}
+
+par(mfrow = c(1,1))
+plot(x, xlim = c(0, 5), ylim = c(0, 5))
+abline(0,1) # non-linear and/or non-monotonic
+abline(0,0.5, lty = 2) # monotonic
+abline(0,0.1, lty = 3) # almost linear
+legend("topleft", legend = c("non-linear and/or non-monotonic",
+                             "monotonic", "linear"), lty = c(1:3))
+
+for (i in 1:10)
+{
+  x <- morris(model = Css_fun, factors = c("Fgutabs", "kelim", "Vdist"), r = 8, # test r = 8
+              design = list(type = "oat", levels = 6, grid.jump = 3), 
+              binf = binf, bsup = bsup)
+  plot(x, xlim = c(0, 6), ylim = c(0, 6))
+  abline(0,1) # non-linear and/or non-monotonic
+  abline(0,0.5, lty = 2) # monotonic
+  abline(0,0.1, lty = 3) # almost linear
+  legend("topleft", legend = c("non-linear and/or non-monotonic",
+                               "monotonic", "linear"), lty = c(1:3))
+  date_time<-Sys.time()
+  while((as.numeric(Sys.time()) - as.numeric(date_time))<1){} 
+}
+
+
+q <- "qunif"
+q.arg <- list(list(min = min(Fgutabs_dist),  max = max(Fgutabs_dist)),
+              list(min = min(kelim_dist),  max = max(kelim_dist)),
+              list(min = min(Vdist_dist),  max = max(Vdist_dist)))
+x <- fast99(model = Css_fun, factors = c("Fgutabs", "kelim", "Vdist"), n = 512,
+            q = q, q.arg = q.arg)
+x
+
+par(mfrow = c(1,3))
+for(i in 1:3){
+  cor <- cor(x$X[,i], x$y)
+  plot(x$X[,i], x$y, 
+       xlab = colnames(x$X)[i],
+       main = paste("r = ", round(cor, digits = 2)))
+}
+
+par(mfrow = c(1,1))
+plot(x)
+
+# Monte Carlo
+model <- "pbtk1cpt.model.R"
+out <- mcsim(model, "pbtk1cpt.mtc.in.R")
+head(out)
+str <- which(names(out) == "Ccompartment_1.1")
+end <- which(names(out) == "Ccompartment_1.24")
+
+X <- apply(out[,str:end], 2, quantile,  c(0.5, 0.025, 0.975))
+dat <- t(X)
+colnames(dat) <- c("median", "LCL", "UCL")
+df <- as.data.frame(dat)
+df$time <- seq(0, 23, 1)
+p <- ggplot(df, aes(x = time, y = median)) +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL), fill = "grey70", alpha = 0.5) + 
+  geom_line()
+
+# 
+
+library(pksensi)
+n <- 1000
+parameters <- c("Vdist","kelim", "kgutabs", "Fgutabs")  
+outputs <- c("Ccompartment")
+times <- seq(0, 480, 1)
+dist<-c("Normal_cv", "Normal_cv", "Normal_cv", "Uniform") # MCSim definition
+q.arg<-list(list(6.137241, 0.2),
+            list(0.02283233, 0.2),
+            list(2.18, 0.2),
+            list(0.8, 1.0))
+condition <- c("MW = 228.291", "Period = 24", "IngDose = 1.0")
+
+set.seed(2222)
+y<-solve_mcsim(mName = model, params = parameters, vars = outputs, monte_carlo = n,
+               dist = dist, q.arg = q.arg, time = times, condition = condition)
+pksim(y)
+summary(y)
+
+# Sensitivity
+q <- "qunif"
+q.arg <- list(list(min =  Vdist * 0.8, max = Vdist * 1.2),
+              list(min = kelim * 0.8, max = kelim * 1.2),
+              list(min = kgutabs * 0.8, max = kgutabs * 1.2),
+              list(min = 0.8, max = 1)) 
+set.seed(1234)
+params <- parameters
+x <- rfast99(params, n = 400, q = q, q.arg = q.arg, replicate = 10)
+times <- seq(400, 480, 1)
+x$a
+
+y <- solve_mcsim(x, mName = model,  params = parameters, time = times,  vars = outputs, condition = condition)
+tell2(x,y)
+
+plot(x)
+
+check(x)
+
+pksim(y)
 
 
 
 
 
+
+
+## Monte Carlo ####
+model <- "perc.model.R"
+inName <- "perc.mtc.in.R" 
+out <- mcsim(model, inName)
+
+
+## Sensitivity ####
+library(pksensi)
+model <- "pbtk1cpt_v2.model.R"
+makemcsim(model)
+parms <- c(vdist = 0.5, ke = 0.2, km = 0.5, kgutabs = 2.0)
+params <- names(parms)
+
+# Generate parameter matrix
+LL <- 0.5 
+UL <- 1.5
+q <- "qunif"
+q.arg <- list(list(min = parms["vdist"] * LL, max = parms["vdist"] * UL),
+              list(min = parms["ke"] * LL, max = parms["ke"] * UL),
+              list(min = parms["km"] * LL, max = parms["km"] * UL),
+              list(min = parms["kgutabs"] * LL, max = parms["kgutabs"] * UL)) 
+set.seed(1234)
+x <- rfast99(params, n = 800, q = q, q.arg = q.arg, replicate = 20)
+
+cex <- 0.2
+par(mfrow=c(4,4),mar=c(0,0,0,0),oma=c(3,3,2,1));
+plot(x$a[,1,"vdist"], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,2,"vdist"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,3,"vdist"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,4,"vdist"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,1,"ke"], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,2,"ke"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,3,"ke"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,4,"ke"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,1,"km"], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,2,"km"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,3,"km"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,4,"km"], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,1,"kgutabs"], ylab = "", cex = cex)
+plot(x$a[,2,"kgutabs"], ylab = "", yaxt="n", cex = cex)
+plot(x$a[,3,"kgutabs"], ylab = "", yaxt="n", cex = cex)
+plot(x$a[,4,"kgutabs"], ylab = "", yaxt="n", cex = cex)
+
+# PK modeling (decoupling simulation)
+Outputs <- c("Agutlument", "Aelimination", "Acompartment", "Ccompartment", "AUC", "Ametabolized")
+times <- seq(from = 0.01, to = 24.01, by = 1)
+conditions <- c("Agutlument = 10") # Set the initial state of Agutlument = 10 
+y<-solve_mcsim(x, mName = model, 
+               params = params,
+               vars = Outputs,
+               time = times,
+               condition = conditions)
+tell2(x,y)
+
+# Uncertainty analysis
+par(mfrow = c(2,3), mar = c(2,2,2,1), oma = c(2,2,0,0))
+pksim(y, vars = "Agutlument", main = "Agutlument")
+pksim(y, vars = "Aelimination", legend = F, main = "Aelimination")
+pksim(y, vars = "Acompartment", legend = F, main = "Acompartment")
+pksim(y, vars = "Ccompartment", legend = F, main = "Ccompartment")
+pksim(y, vars = "Ametabolized", legend = F, main = "Ametabolized")
+pksim(y, vars = "AUC", legend = F, main = "AUC")
+mtext("Time", SOUTH<-1, line=0.4, outer=TRUE)
+mtext("Quantity", WEST<-2, line=0.4, outer=TRUE)
+
+# Heatmap
+heat_check(x)
+heat_check(x, index = "CI")
+
+# Time-course sensitivity and convergene indices
+plot(x, var = 4)
+plot(x, var = 6)
+
+# Scatter plot of parameter influence on model ouptuts
+r <- 1 # specific replication
+var <- "Ccompartment"
+par(mfrow=c(5,4),mar=c(0,0,0,0),oma=c(3,3,2,1));
+plot(x$a[,r,"vdist"], y[,r,"0.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"1.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"2.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"4.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"12.01",var], ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
+plot(x$a[,r,"km"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
+mtext(var, NORTH<-3, line=0.4, adj=0, cex=1.5, outer=TRUE)
+
+var <- "Ametabolized"
+par(mfrow=c(5,4),mar=c(0,0,0,0),oma=c(3,3,2,1));
+plot(x$a[,r,"vdist"], y[,r,"0.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"1.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"2.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"4.01",var], xaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"km"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
+plot(x$a[,r,"vdist"], y[,r,"12.01",var], ylab = "", cex = cex)
+plot(x$a[,r,"ke"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
+plot(x$a[,r,"km"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
+plot(x$a[,r,"kgutabs"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
+mtext(var, NORTH<-3, line=0.4, adj=0, cex=1.5, outer=TRUE)
+
+# Decision making
+check(x, SI.cutoff = 0.05, vars = "Ccompartment")
+check(x, SI.cutoff = 0.05, vars = "Ametabolized")
+check(x, SI.cutoff = 0.05)

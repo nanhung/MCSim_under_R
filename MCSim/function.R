@@ -93,7 +93,11 @@ mcsim <- function(model, input, dir = "modeling"){
     #invisible(file.remove(paste0(outfile, ".kernel")))
     df <- read.delim("sim.out")
   } else if (length(MonteCarlo_line) != 0){
+    RandomSeed <- runif(1, 0, 2147483646)
+    tx2 <- gsub(pattern = "10101010", replace = paste(RandomSeed), x = tx)
+    writeLines(tx2, con=paste0(dir, "/", input))
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
+    writeLines(tx, con=paste0(dir, "/", input))
     df <- read.delim("sim.out")
   } else {
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
