@@ -71,7 +71,7 @@ abline(h = css)
 abline(h = httk_css)
 
 #
-out_mcsim <- mcsim("pbtk1cpt.model.R", "pbtk1cpt.in.R")
+out_mcsim <- mcsim("pbtk1cpt.model.R", "pbtk1cpt.in.R", dir = "modeling/pbtk1cpt")
 head(out_mcsim)
 lines(out_mcsim$Time / 24, out_mcsim$Ccompartment, type = "l", col="red")
 
@@ -84,7 +84,7 @@ css_dist <- dose * Fgutabs_dist / kelim_dist / Vdist_dist
 hist(css_dist)
 summary(css_dist)
 
-out <- mcsim("pbtk1cpt_css.model.R", "pbtk1cpt_css.in.R")
+out <- mcsim("pbtk1cpt_css.model.R", "pbtk1cpt_css.in.R", dir = "modeling/pbtk1cpt")
 head(out)
 hist(out$css_1.1)
 summary(out$css_1.1)
@@ -111,7 +111,7 @@ length(x)/1000 # Detection rate
 mean(x) * 1000 # arithmetic mean
 
 set.seed(1234)
-out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R")
+out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R", dir = "modeling/pbtk1cpt")
 plot(out$Css, out$Dose_1.1, log = "xy", xlab = "Css (uM)", ylab = "oral equivalent dose (mg/kg-d)")
 abline(v = 0.31/1000) # detection limit
 x <- subset(out$Css, out$Css > 0.31/1000)
@@ -123,7 +123,7 @@ boxplot(out$Dose_1.1, oral_equiv_dist, log = "y")
 
 for (i in 1:10)
 {
-  out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R")
+  out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R", dir = "modeling/pbtk1cpt")
   x <- subset(out$Css, out$Css > 0.31/1000)
   Detect.rate <- length(x)/1000 # Detection rate
   Observ.mean <- mean(x) * 1000 # arithmetic mean
@@ -140,6 +140,7 @@ for (i in 1:10)
 library(tidyverse)
 library(sensitivity)
 library(EnvStats)
+library(pksensi)
 
 easy_1 <- function (X) 
 {
@@ -274,23 +275,20 @@ plot(x)
 
 # Monte Carlo
 model <- "pbtk1cpt.model.R"
-out <- mcsim(model, "pbtk1cpt.mtc.in.R")
+out <- mcsim(model, "pbtk1cpt.mtc.in.R", dir = "modeling/pbtk1cpt")
 head(out)
-str <- which(names(out) == "Ccompartment_1.1")
-end <- which(names(out) == "Ccompartment_1.24")
+index <- which(names(out) == "Ccompartment_1.1" | names(out) == "Ccompartment_1.24")
 
-X <- apply(out[,str:end], 2, quantile,  c(0.5, 0.025, 0.975))
+X <- apply(out[,index[1]:index[2]], 2, quantile,  c(0.5, 0.025, 0.975))
 dat <- t(X)
 colnames(dat) <- c("median", "LCL", "UCL")
 df <- as.data.frame(dat)
 df$time <- seq(0, 23, 1)
-p <- ggplot(df, aes(x = time, y = median)) +
+ggplot(df, aes(x = time, y = median)) +
   geom_ribbon(aes(ymin = LCL, ymax = UCL), fill = "grey70", alpha = 0.5) + 
   geom_line()
 
 # 
-
-library(pksensi)
 n <- 1000
 parameters <- c("Vdist","kelim", "kgutabs", "Fgutabs")  
 outputs <- c("Ccompartment")
@@ -330,16 +328,102 @@ check(x)
 pksim(y)
 
 
-
-
-
-
-
 ## Monte Carlo ####
 model <- "perc.model.R"
-inName <- "perc.mtc.in.R" 
-out <- mcsim(model, inName)
+input <- "perc.mtc.in.R" 
+out <- mcsim(model, input, dir = "modeling/perc")
+head(out)
 
+last.param <- which(names(out) == "Flow_pul")
+
+par(mfrow = c(4, 4), mar = c(2,2,4,1))
+for (i in 2:last.param){
+  hist(out[,i], main = names(out[i]), xlab = "")
+}
+
+vars <- names(out)
+sim1.1 <- which(vars == "C_exh_ug_1.1" | vars == "C_exh_ug_1.10")
+sim1.2 <- which(vars == "C_ven_1.1" | vars == "C_ven_1.8") 
+sim2.1 <- which(vars == "C_exh_ug_2.1" | vars == "C_exh_ug_2.10")
+sim2.2 <- which(vars == "C_ven_2.1" | vars == "C_ven_2.8")
+
+ggPK <- function(data, index, time){
+  X <- apply(data[,index[1]:index[2]], 2, quantile,  c(0.5, 0.025, 0.975))
+  dat <- t(X)
+  colnames(dat) <- c("median", "LCL", "UCL")
+  df <- as.data.frame(dat)
+  df$time <- time
+  ggplot(df, aes(x = time, y = median)) +
+    geom_ribbon(aes(ymin = LCL, ymax = UCL), fill = "grey70", alpha = 0.5) + 
+    geom_line() +
+    scale_y_log10()
+}
+
+t_exh_ug <- c(239.9, 245, 270, 360, 1320, 2760, 4260, 5700, 8580, 10020)
+t_Ven <- c(239.9, 360, 1320, 2760, 4260, 5700, 8580, 10020)
+ggPK(data = out, index = sim1.1, time = t_exh_ug)
+ggPK(data = out, index = sim1.2, time = t_Ven)
+ggPK(data = out, index = sim2.1, time = t_exh_ug)
+ggPK(data = out, index = sim2.2, time = t_Ven)
+
+# pksensi (PERC) - Monte Carlo
+n <- 1000
+parameters <- c("LeanBodyWt","Pct_M_fat", "Pct_LM_liv", "Pct_LM_wp",
+                "Pct_Flow_fat", "Pct_Flow_liv", "Pct_Flow_pp",
+                "PC_fat", "PC_liv", "PC_wp", "PC_pp", "PC_art",
+                "Vent_Perf", "sc_Vmax", "Km", "Flow_pul")  
+outputs <- c("C_exh_ug", "C_ven")
+times <- c(239.9, 245, 270, 360, 1320, 2760, 4260, 5700, 8580, 10020)
+dist <- rep("Uniform", 16) # MCSim definition
+q.arg<-list(list(50, 70),
+            list(0.2, 0.3),
+            list(0.03, 0.04),
+            list(0.25, 0.3),
+            list(0.06, 0.08),
+            list(0.2, 0.3),
+            list(0.2, 0.25),
+            list(110, 150),
+            list(5.0, 8.0),
+            list(5.0, 8.5),
+            list(1.6, 1.8),
+            list(12, 15),
+            list(0.8, 1.3),
+            list(0.04, 0.06),
+            list(7, 13),
+            list(7.4, 7.6))
+condition <- c("InhMag = 72", "Period = 1e10", "Exposure = 240")
+
+set.seed(2222)
+y<-solve_mcsim(mName = model, params = parameters, vars = outputs, monte_carlo = n,
+               dist = dist, q.arg = q.arg, time = times, condition = condition)
+
+par(mfrow = c(1, 2), mar = c(2,3,1,1))
+pksim(y, vars = "C_exh_ug", log = T)
+pksim(y, vars = "C_ven", log = T)
+
+# pksensi (PERC) - Sensitivity
+q <- rep("qunif", 16)
+x <- rfast99(params = parameters, n = 1024, q = q, q.arg = q.arg, replicate = 10)
+dim(x$a)
+
+par(mfrow = c(4, 4), mar = c(2,2,4,1))
+for(i in 1:16){
+  hist(x$a[,,i])  
+}
+
+y <- solve_mcsim(x, mName = model, params = parameters, vars = outputs,
+                 time = times, condition = condition)
+
+dim(y)
+
+tell2(x,y)
+
+check(x)
+
+plot(x)
+
+heat_check(x) 
+heat_check(x, index = "CI") 
 
 ## Sensitivity ####
 library(pksensi)
