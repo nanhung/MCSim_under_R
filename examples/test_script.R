@@ -51,6 +51,10 @@ plot(out$Time, out$y2, log = "x", type = "b")
 
 #
 library(httk)
+library(tidyverse)
+library(sensitivity)
+library(pksensi)
+
 params <- parameterize_1comp(chem.name = "Bisphenol A")
 MW <- params$MW
 Vdist <- params$Vdist
@@ -100,9 +104,12 @@ lines(density(out$css_1.1), col = "red")
 Css <- rlnorm(1000, log(0.18/1000), log(7)) # μg/L to mg/l
 exp(sd(log(Css))) # Geometric Standard deviation
 
-oral_equiv_dist <- Css * kelim_dist * Vdist_dist / Fgutabs_dist
+oral_equiv_dist <- Css * kelim_dist * Vdist_dist / Fgutabs_dist # mg/kg-d
+summary(oral_equiv_dist)
 hist(oral_equiv_dist)
+plot(density(oral_equiv_dist))
 boxplot(oral_equiv_dist, log = "y")
+
 
 plot(Css, oral_equiv_dist, log = "xy", xlab = "Css (uM)", ylab = "oral equivalent dose (mg/kg-d)")
 abline(v = 0.31/1000) # detection limit
@@ -113,14 +120,19 @@ mean(x) * 1000 # arithmetic mean
 set.seed(1234)
 out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R", dir = "modeling/pbtk1cpt")
 plot(out$Css, out$Dose_1.1, log = "xy", xlab = "Css (uM)", ylab = "oral equivalent dose (mg/kg-d)")
+summary(out$Dose_1.1)
 abline(v = 0.31/1000) # detection limit
+DL <- quantile(x, prob = 0.13)
+abline(v = DL, col = "red") # 13 %
+
 x <- subset(out$Css, out$Css > 0.31/1000)
 length(x)/1000 # Detection rate
 mean(x) * 1000 # arithmetic mean
 hist(out$Dose_1.1)
-boxplot(out$Dose_1.1, oral_equiv_dist, log = "y")
+boxplot(out$Dose_1.1, oral_equiv_dist, log = "y", names = c("R","MCSim"))
 
 
+#
 for (i in 1:10)
 {
   out <- mcsim("pbtk1cpt_rtk.model.R", "pbtk1cpt_rtk.in.R", dir = "modeling/pbtk1cpt")
@@ -132,16 +144,13 @@ for (i in 1:10)
        main = paste("Detection rate: ", round(Detect.rate, digit = 2), 
                     "Observation mean: ", round(Observ.mean, digit = 2)))
   abline(v = 0.31/1000) # detection limit
+  DL <- quantile(x, prob = 0.13)
+  abline(v = DL, col = "red") # 13 %
   date_time<-Sys.time()
   while((as.numeric(Sys.time()) - as.numeric(date_time))<1){} 
 }
 
 #
-library(tidyverse)
-library(sensitivity)
-library(EnvStats)
-library(pksensi)
-
 easy_1 <- function (X) 
 {
   X[, 1] + X[, 2] + X[, 3]
@@ -151,9 +160,15 @@ easy_2 <- function (X)
   X[, 1] * X[, 2] / X[, 3]
 }
 
-x <- morris(model = easy_1, factors = 3, r = 64, 
+set.seed(123)
+x <- morris(model = easy_1, factors = 3, r = 18, 
             design = list(type = "oat", levels = 6, grid.jump = 3),  # grid.jump = levels/2
-            binf = c(1, 1, 1), bsup = c(2, 4, 6))
+            binf = c(1, 1, 1), bsup = c(2, 4, 7))
+
+par(mfrow = c(1,3))
+for(i in 1:3){
+  hist(x$X[,i], main = colnames(x$X)[i])
+}
 
 par(mfrow = c(1,3))
 for(i in 1:3){
@@ -165,14 +180,26 @@ for(i in 1:3){
 
 par(mfrow = c(1,1))
 plot(x)
+
 x
+
+# Analytical solution (first order)
+2 - 1 # X1
+4 - 1 # X2
+7 - 1 # X3
 
 q <- "qunif"
 q.arg <- list(list(min = 1,  max = 2),
               list(min = 1,  max = 4),
-              list(min = 1,  max = 6))
-x <- fast99(model = easy_1, factors = 3, n = 512,
+              list(min = 1,  max = 7))
+x <- fast99(model = easy_1, factors = 3, n = 192,
             q = q, q.arg = q.arg)
+
+par(mfrow = c(1,3))
+for(i in 1:3){
+  hist(x$X[,i], main = colnames(x$X)[i])
+}
+
 par(mfrow = c(1,3))
 for(i in 1:3){
   cor <- cor(x$X[,i], x$y)
@@ -180,22 +207,23 @@ for(i in 1:3){
        xlab = colnames(x$X)[i],
        main = paste("r = ", round(cor, digits = 2)))
 }
+
 par(mfrow = c(1,1))
 plot(x)
 x
 
 # Analytical solution
 Total <- 1^2 + 3^2 + 5^2
-S1 <- 1^2 / 35
+S1 <- 1^2 / Total
 S1
-S2 <- 3^2 / 35
+S2 <- 3^2 / Total
 S2
-S3 <- 5^2 / 35
+S3 <- 5^2 / Total
 S3
 
-
 # easy 2
-x <- morris(model = easy_2, factors = 3, r = 64, 
+set.seed(123)
+x <- morris(model = easy_2, factors = 3, r = 18, 
             design = list(type = "oat", levels = 6, grid.jump = 3),
             binf = c(1,1,1), bsup = c(2,6,7))
 plot(x, xlim = c(0,5), ylim = c(0,5))
@@ -209,15 +237,17 @@ x
 #
 Css_fun <- function (X) 
 {
-  Dose <- 0.228291 # uM
+  Dose <- 0.228291 # Ingestion dose (uM)
   Dose * X[, 1] / X[, 2] / X[, 3] # Fgutabs_dist / kelim_dist / Vdist_dist 
 }
 
 binf <- c(min(Fgutabs_dist), min(kelim_dist), min(Vdist_dist))
 bsup <- c(max(Fgutabs_dist), max(kelim_dist), max(Vdist_dist))
+binf
+bsup
 
 set.seed(1234)
-x <- morris(model = Css_fun, factors = c("Fgutabs", "kelim", "Vdist"), r = 64, 
+x <- morris(model = Css_fun, factors = c("Fgutabs", "kelim", "Vdist"), r = 32, 
             design = list(type = "oat", levels = 6, grid.jump = 3), # grid.jump = levels/2
             binf = binf, bsup = bsup)
 head(x$X)
@@ -240,7 +270,7 @@ legend("topleft", legend = c("non-linear and/or non-monotonic",
 
 for (i in 1:10)
 {
-  x <- morris(model = Css_fun, factors = c("Fgutabs", "kelim", "Vdist"), r = 8, # test r = 8
+  x <- morris(model = Css_fun, factors = c("Fgutabs", "kelim", "Vdist"), r = 32, # test r = 32
               design = list(type = "oat", levels = 6, grid.jump = 3), 
               binf = binf, bsup = bsup)
   plot(x, xlim = c(0, 6), ylim = c(0, 6))
