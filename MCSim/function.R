@@ -71,6 +71,7 @@ mcsim <- function(model, input, dir = "modeling"){
   tx  <- readLines(paste0(dir, "/", input))
   MCMC_line <- grep("MCMC", x=tx)
   MonteCarlo_line <- grep("MonteCarlo", x=tx)
+  SetPoints_line <- grep("SetPoints", x=tx)
   
   if (length(MCMC_line) != 0){
     #file_defore <- list.files()
@@ -98,6 +99,8 @@ mcsim <- function(model, input, dir = "modeling"){
     writeLines(tx2, con=paste0(dir, "/", input))
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     writeLines(tx, con=paste0(dir, "/", input))
+    df <- read.delim("sim.out")
+  } else if (length(SetPoints_line) != 0){
     df <- read.delim("sim.out")
   } else {
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
