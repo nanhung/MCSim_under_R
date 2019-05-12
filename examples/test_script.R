@@ -322,7 +322,7 @@ ggplot(df, aes(x = time, y = median)) +
 n <- 1000
 parameters <- c("Vdist","kelim", "kgutabs", "Fgutabs")  
 outputs <- c("Ccompartment")
-times <- seq(0, 480, 1)
+times <- seq(0.1, 480.1, 1)
 dist<-c("Normal_cv", "Normal_cv", "Normal_cv", "Uniform") # MCSim definition
 q.arg<-list(list(6.137241, 0.2),
             list(0.02283233, 0.2),
@@ -333,7 +333,7 @@ condition <- c("MW = 228.291", "Period = 24", "IngDose = 1.0")
 set.seed(2222)
 y<-solve_mcsim(mName = model, params = parameters, vars = outputs, monte_carlo = n,
                dist = dist, q.arg = q.arg, time = times, condition = condition)
-pksim(y)
+pksim(y, log = T)
 summary(y)
 
 # Sensitivity
@@ -349,11 +349,11 @@ times <- seq(400, 480, 1)
 x$a
 
 y <- solve_mcsim(x, mName = model,  params = parameters, time = times,  vars = outputs, condition = condition)
-tell2(x,y)
+#tell2(x,y$y)
 
-plot(x)
+plot(y)
 
-check(x)
+check(y)
 
 pksim(y)
 
