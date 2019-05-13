@@ -3,7 +3,7 @@
 
 Integrate (Lsodes, 1e-06, 1e-06 , 1);
 
-MonteCarlo ("sim.out",1000,11920);
+MonteCarlo ("",1000,11920);
 
 Distrib ( Vdist,Normal_cv,6.137241,0.2);
 Distrib ( kelim,Normal_cv,0.02283233,0.2);

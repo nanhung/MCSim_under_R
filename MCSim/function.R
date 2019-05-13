@@ -99,9 +99,9 @@ mcsim <- function(model, input, dir = "modeling"){
     writeLines(tx2, con=paste0(dir, "/", input))
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     writeLines(tx, con=paste0(dir, "/", input))
-    df <- read.delim("sim.out")
+    df <- read.delim("simmc.out")
   } else if (length(SetPoints_line) != 0){
-    df <- read.delim("sim.out")
+    df <- read.delim("simmc.out")
   } else {
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     df <- read.delim("sim.out", skip = 1)

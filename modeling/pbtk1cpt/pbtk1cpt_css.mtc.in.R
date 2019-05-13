@@ -1,4 +1,4 @@
-MonteCarlo ("sim.out", 1000, 10101010);
+MonteCarlo ("", 1000, 10101010);
 
 Distrib (Fgutabs, Uniform, 0.8, 1.0);
 Distrib (kelim, Normal_cv, 0.02283233, 0.2);

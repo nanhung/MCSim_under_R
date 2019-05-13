@@ -88,7 +88,7 @@ css_dist <- dose * Fgutabs_dist / kelim_dist / Vdist_dist
 hist(css_dist)
 summary(css_dist)
 
-out <- mcsim("pbtk1cpt_css.model.R", "pbtk1cpt_css.in.R", dir = "modeling/pbtk1cpt")
+out <- mcsim("pbtk1cpt_css.model.R", "pbtk1cpt_css.mtc.in.R", dir = "modeling/pbtk1cpt")
 head(out)
 hist(out$css_1.1)
 summary(out$css_1.1)
@@ -446,133 +446,9 @@ y <- solve_mcsim(x, mName = model, params = parameters, vars = outputs,
 
 dim(y)
 
-tell2(x,y)
+check(y)
 
-check(x)
+plot(y)
 
-plot(x)
-
-heat_check(x) 
-heat_check(x, index = "CI") 
-
-## Sensitivity ####
-library(pksensi)
-model <- "pbtk1cpt_v2.model.R"
-makemcsim(model)
-parms <- c(vdist = 0.5, ke = 0.2, km = 0.5, kgutabs = 2.0)
-params <- names(parms)
-
-# Generate parameter matrix
-LL <- 0.5 
-UL <- 1.5
-q <- "qunif"
-q.arg <- list(list(min = parms["vdist"] * LL, max = parms["vdist"] * UL),
-              list(min = parms["ke"] * LL, max = parms["ke"] * UL),
-              list(min = parms["km"] * LL, max = parms["km"] * UL),
-              list(min = parms["kgutabs"] * LL, max = parms["kgutabs"] * UL)) 
-set.seed(1234)
-x <- rfast99(params, n = 800, q = q, q.arg = q.arg, replicate = 20)
-
-cex <- 0.2
-par(mfrow=c(4,4),mar=c(0,0,0,0),oma=c(3,3,2,1));
-plot(x$a[,1,"vdist"], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,2,"vdist"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,3,"vdist"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,4,"vdist"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,1,"ke"], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,2,"ke"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,3,"ke"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,4,"ke"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,1,"km"], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,2,"km"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,3,"km"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,4,"km"], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,1,"kgutabs"], ylab = "", cex = cex)
-plot(x$a[,2,"kgutabs"], ylab = "", yaxt="n", cex = cex)
-plot(x$a[,3,"kgutabs"], ylab = "", yaxt="n", cex = cex)
-plot(x$a[,4,"kgutabs"], ylab = "", yaxt="n", cex = cex)
-
-# PK modeling (decoupling simulation)
-Outputs <- c("Agutlument", "Aelimination", "Acompartment", "Ccompartment", "AUC", "Ametabolized")
-times <- seq(from = 0.01, to = 24.01, by = 1)
-conditions <- c("Agutlument = 10") # Set the initial state of Agutlument = 10 
-y<-solve_mcsim(x, mName = model, 
-               params = params,
-               vars = Outputs,
-               time = times,
-               condition = conditions)
-tell2(x,y)
-
-# Uncertainty analysis
-par(mfrow = c(2,3), mar = c(2,2,2,1), oma = c(2,2,0,0))
-pksim(y, vars = "Agutlument", main = "Agutlument")
-pksim(y, vars = "Aelimination", legend = F, main = "Aelimination")
-pksim(y, vars = "Acompartment", legend = F, main = "Acompartment")
-pksim(y, vars = "Ccompartment", legend = F, main = "Ccompartment")
-pksim(y, vars = "Ametabolized", legend = F, main = "Ametabolized")
-pksim(y, vars = "AUC", legend = F, main = "AUC")
-mtext("Time", SOUTH<-1, line=0.4, outer=TRUE)
-mtext("Quantity", WEST<-2, line=0.4, outer=TRUE)
-
-# Heatmap
-heat_check(x)
-heat_check(x, index = "CI")
-
-# Time-course sensitivity and convergene indices
-plot(x, var = 4)
-plot(x, var = 6)
-
-# Scatter plot of parameter influence on model ouptuts
-r <- 1 # specific replication
-var <- "Ccompartment"
-par(mfrow=c(5,4),mar=c(0,0,0,0),oma=c(3,3,2,1));
-plot(x$a[,r,"vdist"], y[,r,"0.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"1.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"2.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"4.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"12.01",var], ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
-plot(x$a[,r,"km"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
-mtext(var, NORTH<-3, line=0.4, adj=0, cex=1.5, outer=TRUE)
-
-var <- "Ametabolized"
-par(mfrow=c(5,4),mar=c(0,0,0,0),oma=c(3,3,2,1));
-plot(x$a[,r,"vdist"], y[,r,"0.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"0.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"1.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"1.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"2.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"2.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"4.01",var], xaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"km"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"4.01",var], xaxt="n", yaxt="n", ylab = "", cex = cex)
-plot(x$a[,r,"vdist"], y[,r,"12.01",var], ylab = "", cex = cex)
-plot(x$a[,r,"ke"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
-plot(x$a[,r,"km"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
-plot(x$a[,r,"kgutabs"], y[,r,"12.01",var], ylab = "", yaxt="n", cex = cex)
-mtext(var, NORTH<-3, line=0.4, adj=0, cex=1.5, outer=TRUE)
-
-# Decision making
-check(x, SI.cutoff = 0.05, vars = "Ccompartment")
-check(x, SI.cutoff = 0.05, vars = "Ametabolized")
-check(x, SI.cutoff = 0.05)
+heat_check(y) 
+heat_check(y, index = "CI") 

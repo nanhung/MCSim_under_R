@@ -17,7 +17,7 @@
 
 Integrate (Lsodes, 1e-6, 1e-6, 1);
 
-MonteCarlo ("sim.out", 1000, -56761.1164);
+MonteCarlo ("", 1000, -56761.1164);
 
 Distrib (LeanBodyWt,   Uniform, 50,     70);
 

@@ -1,4 +1,4 @@
-MonteCarlo ("sim.out", 1000, 10101010); # Use RandomSeed = 10101010 to apply set.seed() in R
+MonteCarlo ("", 1000, 10101010); # Use RandomSeed = 10101010 to apply set.seed() in R
 
 Distrib (Css, LogNormal, 0.00018, 7);
 Distrib (Fgutabs, Uniform, 0.8, 1.0);

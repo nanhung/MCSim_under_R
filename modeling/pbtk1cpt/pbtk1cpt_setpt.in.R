@@ -1,7 +1,7 @@
 # Description ####
 ## ./mcsim.pbtk1cpt.model.R.exe pbtk1cpt.setpt.in.R 
 
-SetPoints ("sim.out", "setpt.out", 0, Vdist, kelim, kgutabs, Fgutabs);
+SetPoints ("", "setpt.out", 0, Vdist, kelim, kgutabs, Fgutabs);
 
 #---------------------------------------- 
 # Simulation scenario
