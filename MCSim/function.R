@@ -97,12 +97,16 @@ mcsim <- function(model, input, dir = "modeling"){
     RandomSeed <- runif(1, 0, 2147483646)
     tx2 <- gsub(pattern = "10101010", replace = paste(RandomSeed), x = tx)
     writeLines(tx2, con=paste0(dir, "/", input))
+    message(paste("Execute:", " ./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     writeLines(tx, con=paste0(dir, "/", input))
     df <- read.delim("simmc.out")
   } else if (length(SetPoints_line) != 0){
+    message(paste("Execute:", " ./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
+    system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     df <- read.delim("simmc.out")
   } else {
+    message(paste("Execute:", " ./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     df <- read.delim("sim.out", skip = 1)
   }
