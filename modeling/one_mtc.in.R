@@ -1,4 +1,4 @@
-## ./mcsim.one.model.R.exe one.mtc.in.R ####
+## ./mcsim.one.model.R.exe one_mtc.in.R ####
 ## Monte Carlo simulation input file for one compartment model
 
 MonteCarlo ("", 10, 95814);
