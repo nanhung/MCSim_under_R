@@ -1,5 +1,7 @@
 # Description ####
-## ./mcsim.pbtk1cpt.model.R.exe pbtk1cpt.setpt.in.R 
+## ./mcsim.pbtk1cpt.model.R.exe pbtk1cpt_setpt.in.R 
+
+Integrate (Lsodes, 1e-9, 1e-9, 1);
 
 SetPoints ("", "setpts.out", 0, Vdist, kelim, kgutabs, Fgutabs);
 
