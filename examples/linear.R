@@ -1,63 +1,56 @@
-## Linear modeling ####
-mName <- "linear.model.R" # model file
-inName <- "linear.in.R" # input file; simple simulation w/ given parameters
-
-# Create the executable file 'mcsim.linear.model.R.exe'
-makemcsim(mName)
-
-# Run!!
-out <- mcsim(mName, inName) #'./mcsim.linear.model.R.exe linear.in.R'
-out # check result
-
-x <- as.numeric(as.character(out$Time))
-y <- as.numeric(as.character(out$y))
-plot(x, y) # 
-abline(1,2)
+library(rstan)
+library(bayesplot)
 
 ## Linear mcmc ####
 # Assign the input file
+model <- "linear.model.R"
 inName <- "linear.mcmc.in.R"
 
 # Generate the first chain
 set.seed(1111) 
-out <- mcsim(mName, inName) #'./mcsim.linear.model.R.exe linear.mcmc.in.R'
+out <- mcsim(model, inName) #'./mcsim.linear.model.R.exe linear.mcmc.in.R'
 out # check result
 
 plot(out$A.1., type = "l")
 plot(out$B.1., type = "l")
+
+plot(out$A.1., out$B.1., type = "b")
 
 # Density plot
 i <- c(ceiling(nrow(out)/2):nrow(out))
 plot(density(out$A.1.[i]))
 plot(density(out$B.1.[i]))
 
+plot(out$A.1.[i], out$B.1.[i], type = "b")
+cor(out$A.1.[i], out$B.1.[i])
+
+
 # Visualizing the fitting result 
-chk <- read.delim("chk.out")
+chk <- read.delim("MCMC.check.out")
 chk
 plot(chk$Time, chk$Data)
 lines(chk$Time, chk$Prediction)
 
 # Check convergence
 set.seed(2234) 
-out2 <- mcsim(mName, inName) # Generate the 2nd chain
+out2 <- mcsim(model, inName) # Generate the 2nd chain
 set.seed(3234) 
-out3 <- mcsim(mName, inName) # Generate the 3rd chain
+out3 <- mcsim(model, inName) # Generate the 3rd chain
 set.seed(4234) 
-out4 <- mcsim(mName, inName) # Generate the 4th chain
+out4 <- mcsim(model, inName) # Generate the 4th chain
 
-# Use rstan package to check result
-library(rstan)
-n.iters <- nrow(out)
-n.chains <- 4
-n.parms <- 2
+sims <- mcmc_array(data = list(out,out2,out3,out4))
+
 parms_name <- c("A.1.","B.1.")
-sims <- array(0, c(n.iters, n.chains, n.parms))
-sims[,1,] <- as.matrix(out[, parms_name])
-sims[,2,] <- as.matrix(out2[, parms_name])
-sims[,3,] <- as.matrix(out3[, parms_name])
-sims[,4,] <- as.matrix(out4[, parms_name])
-report <- monitor(sims, digit=4)
-row.names(report) <- parms_name
-report
+
+
+mcmc_trace(sims, pars = parms_name, facet_args = list(ncol = 1, strip.position = "left"))
+mcmc_dens_overlay(x = sims[i,,], pars = parms_name)
+mcmc_dens_overlay(x = sims[i,,], pars = "LnData")
+
+mcmc_pairs(sims[i,,], pars = parms_name, off_diag_fun = "hex")
+
+monitor(sims[,,parms_name], digit=4) 
+
 
 

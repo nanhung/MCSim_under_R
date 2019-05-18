@@ -81,18 +81,22 @@ mcsim <- function(model, input, dir = "modeling"){
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     #file_after <- list.files() # exist a bug if file had been created
     #outfile <- setdiff(file_after,file_defore)[1]
-    outfile <- "sim.out"
+    outfile <- "MCMC.default.out"
     tx2 <- gsub(pattern = ",0,", replace = ",1,", x = tx)
-    checkfile <- "chk.out"
+    checkfile <- "MCMC.check.out"
     tx3 <- gsub(pattern = paste0("\"", outfile, "\",\"\""), 
                 replace = paste0("\"", checkfile, "\",\"", outfile, "\""), 
                 x = tx2)
     writeLines(tx3, con=paste0(dir, "/", input))
+    
     system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
     writeLines(tx, con=paste0(dir, "/", input))
-    message(paste0("* Create '", checkfile, "' from the last iteration."))
+    
+    if(file.exists(checkfile)){
+      message(paste0("* Create '", checkfile, "' from the last iteration."))
+    }
     #invisible(file.remove(paste0(outfile, ".kernel")))
-    df <- read.delim("sim.out")
+    df <- read.delim("MCMC.default.out")
   } else if (length(MonteCarlo_line) != 0){
     RandomSeed <- runif(1, 0, 2147483646)
     tx2 <- gsub(pattern = "10101010", replace = paste(RandomSeed), x = tx)
@@ -143,4 +147,18 @@ readsims <- function(x, exp = 1){
   if (exp > 1) names(X) <- as.matrix(x[index[exp-1],])[1:ncols] else names(X) <- names(x)
   X <- X[, colSums(is.na(X)) != nrow(X)]
   return(X)  
+}
+
+mcmc_array <- function(data, start_sampling = 0){
+  n_chains <- length(data)
+  sample_number <- dim(data[[1]])[1] - start_sampling
+  dim <- c(sample_number, n_chains, dim(data[[1]])[2])
+  n_iter <- dim(data[[1]])[1]
+  n_param <- dim(data[[1]])[2]
+  x <- array(sample_number:(n_iter * n_chains * n_param), dim = dim)
+  for (i in 1:n_chains) {
+    x[, i, ] <- as.matrix(data[[i]][(start_sampling + 1):n_iter, ])
+  }
+  dimnames(x)[[3]] <- names(data[[1]])
+  x
 }

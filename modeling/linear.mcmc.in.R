@@ -2,7 +2,7 @@
 # linear.mcmc.in
 #-------------------
 
-MCMC("sim.out","", # name of output and restart file
+MCMC("MCMC.default.out","", # name of output and restart file
      "",           # name of data file
      2000,0,      # iterations, print predictions flag,
      1,2000,     # printing frequency, iters to print
@@ -10,8 +10,8 @@ MCMC("sim.out","", # name of output and restart file
 
 Level {
   
-  Distrib(A, Normal, 0, 10); # prior of intercept coefficient
-  Distrib(B, Normal, 1, 10); # prior of slope coefficient
+  Distrib(A, Normal, 0, 2); # prior of intercept coefficient
+  Distrib(B, Normal, 1, 2); # prior of slope coefficient
   
   Likelihood(y, Normal, Prediction(y), 0.05); #  # exact SD
   
