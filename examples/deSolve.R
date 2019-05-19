@@ -1,7 +1,7 @@
 ## simple model ####
 library(deSolve)
 model <- "simple.model.R"
-makemcsim(model = model, deSolve = T)
+makemcsim(model = model, deSolve = T, dir = "modeling/simple")
 times <- c(0, 0.4*10^(0:11)) # define parameter values
 Y <- c(y1 = 1.0, y2 = 0.0, y3 = 0.0) # define initial state values
 parms <- c(k1 = 0.04, k2 = 1e4, k3=3e7) 
