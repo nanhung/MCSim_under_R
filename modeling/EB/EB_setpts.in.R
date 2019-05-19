@@ -1,8 +1,9 @@
 # Description ####
 ## ./mcsim.EB.model.R.exe EB_setpt.in.R 
-Integrate (Lsodes, 1e-11, 1e-13 , 1);
+Integrate (Lsodes, 1e-9, 1e-11 , 1);
 
-SetPoints ("", "setpts.out", 0, BW, Pb, Pl, Pf, Pm, Pvrg, Ppu, Pbr, VmaxC, VmaxClu, VmaxCvr);
+#SetPoints("", "setpts.out", 0, BW, Pb, Pl, Pf, Pm, Pvrg, Ppu, Pbr, VmaxC, VmaxClu, VmaxCvr);
+SetPoints("", "MCMC.default.out", 0, BW, Pb, Pl, Pf, Pm, Pvrg, Ppu, Pbr, VmaxC, VmaxClu, VmaxCvr);
 
 #---------------------------------------- 
 # Simulation scenario
