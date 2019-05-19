@@ -1,6 +1,6 @@
 Integrate (Lsodes, 1e-9, 1e-11 , 1);
 
-MonteCarlo ("", 10, 95814);
+MonteCarlo ("", 1000, 95814);
 
 Distrib (BW, Uniform, 0.035, 0.055);
 
