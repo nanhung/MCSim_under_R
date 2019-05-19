@@ -69,9 +69,9 @@ mcsim <- function(model, input, dir = "modeling"){
   }
   
   tx  <- readLines(paste0(dir, "/", input))
-  MCMC_line <- grep("MCMC\\(", x=tx)
-  MonteCarlo_line <- grep("MonteCarlo\\(", x=tx)
-  SetPoints_line <- grep("SetPoints\\(", x=tx)
+  MCMC_line <- grep("MCMC \\(", x=tx)
+  MonteCarlo_line <- grep("MonteCarlo \\(", x=tx)
+  SetPoints_line <- grep("SetPoints \\(", x=tx)
   
   if (length(MCMC_line) != 0){
     #file_defore <- list.files()
