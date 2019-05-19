@@ -18,7 +18,7 @@ plot(out$k_21.1., type = "l")
 plot(out$k_10.1., type = "l")
 plot(out$V_central.1., type = "l")
 
-check_df <- read.delim("chk.out")
+check_df <- read.delim("MCMC.check.out")
 par(mfrow= c(1,1))
 plot(check_df$Time, check_df$Data)
 lines(check_df$Time, check_df$Prediction)
