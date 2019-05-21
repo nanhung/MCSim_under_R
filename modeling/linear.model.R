@@ -1,14 +1,4 @@
-#------------------------------------------------------------------------------
-# linear.model
-#
-# Linear Model with random noise added.
-# P = A + B * time + Normal (0, SD_true)
-# Setting SD_true to zero gives the deterministic version, which can be used
-# as link function in statistical models.
-#
-# Copyright (c) 1993-2008 Free Software Foundation, Inc.
-#------------------------------------------------------------------------------
-
+## linear.model.R ####
 Outputs = {y}
 
 # Model Parameters

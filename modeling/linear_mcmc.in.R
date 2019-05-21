@@ -1,7 +1,4 @@
-#-------------------
-# linear_mcmc.in
-#-------------------
-
+## linear_mcmc.in.R ####
 MCMC ("MCMC.default.out","", # name of output and restart file
      "",           # name of data file
      4000,0,       # iterations, print predictions flag,
@@ -13,15 +10,12 @@ Level {
   Distrib(A, Normal, 0, 2); # prior of intercept coefficient
   Distrib(B, Normal, 1, 2); # prior of slope coefficient
   
-  Likelihood(y, Normal, Prediction(y), 0.05); #  # exact SD
+  Likelihood(y, Normal, Prediction(y), 0.5); #  # exact SD
   
   Simulation {
     PrintStep (y, 0, 10, 1); #seq(0, 10 1)
-    Data  (y, -0.0289654, 1.15968, 2.32502, 3.33289, 4.61105, 5.6818, 
-           6.89044, 8.13242, 9.27033, 10.4522, 11.6703);
+    Data  (y, 0.0, 0.15, 2.32, 4.33, 4.61, 6.68, 7.89, 7.13, 7.27, 9.4, 10.0);
   }
 }
 
-
 End.
-  

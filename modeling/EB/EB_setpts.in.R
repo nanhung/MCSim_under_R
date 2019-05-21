@@ -1,5 +1,4 @@
-# Description ####
-## ./mcsim.EB.model.R.exe EB_setpt.in.R 
+## ./mcsim.EB.model.R.exe EB_setpt.in.R ####
 Integrate (Lsodes, 1e-9, 1e-11 , 1);
 
 SetPoints ("", "setpts.out", 0, BW, Pb, Pl, Pf, Pm, Pvrg, Ppu, Pbr, VmaxC, VmaxClu, VmaxCvr);
