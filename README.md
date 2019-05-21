@@ -9,7 +9,7 @@ This MCSim sandbox aim to help the beginner (especially Windows user) run GNU MC
 
 ## Instruction 
 
-(1) Download all files from this repository.
+(1) Download all files from this repository or [HERE](http://filr.cvm.tamu.edu:8080/ssf/s/readFile/share/1947/7338824215326083511/publicLink/MCSim_under_R_beta_1.zip).
 
 (2) Open `"MCSim_under_R.Rproj"`.
 
