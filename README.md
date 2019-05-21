@@ -34,6 +34,8 @@ Here are the R functions that can help you run MCSim in R environment more easil
 
 - Welcome to submit your problem in [issues](https://github.com/nanhung/MCSim_under_R/issues)
 
+- For more detail, please see [this tutorial slide](https://nanhung.rbind.io/slide/190418_tutorial.html#1)
+
 ### Reference
 
 - [GNU MCSim website](https://www.gnu.org/software/mcsim/)
