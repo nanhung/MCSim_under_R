@@ -1,7 +1,7 @@
 ---
 title: "Using MCSim on Windows with RStudio"
 author: "Nan-Hung Hsieh"
-date: "`r Sys.Date()`"
+date: "2019/04/18 (update: `r Sys.Date()`)"
 output: 
   html_document:
   fig_caption: yes  
@@ -9,8 +9,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir =  "/Users/nanhung/Rproj/MCSim_under_R")
 #knitr::opts_knit$set(root.dir = "C:/MinGW/msys/1.0/home/nhsieh/MCSim_under_R")
-knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
+#knitr::opts_knit$set(root.dir = "C:/Users/lenovo/MCSim_under_R")
 ```
 
 ### 0. Background
@@ -150,16 +151,20 @@ makemod()
 - Creating MCSim program `mod.exe`. This process will automatically execute.
 
 ```{r, eval=F}
-makemcsim(model)
+makemcsim(model, dir = "modeling", deSolve = F)
 ```
 
-- Preprocessing and compiling the model-file to the executable file as `makemcsim` in GNU MCSim. The `model` assignment is a string giving the name of the model-file (e.g., `"linear.model.R"`). 
+- Preprocessing and compiling the model-file to the executable file as `makemcsim` in GNU MCSim. The `model` assignment is a string giving the name of the model-file (e.g., `"linear.model.R"`). The *deSolve* assignment is a logical factor to use **deSolve** package as an ODE solver.
+
+- The default location of modeling files are setting at `modeling` folder. The loaction can change by re-assign `dir`.
 
 ```{r, eval=F}
-mcsim(model, input)
+mcsim(model, input, dir = "modeling", parallel = F)
 ```
 
-- Using the compiled program with the input-file to run the simulation. The `input` assignment is a string giving the name of the input-file (e.g., `"linear.in.R"`). This function can also automatically compile the model, if you forgot to use `makemcsim()` to create model program.
+- Using the compiled program with the input-file to run the simulation. The `input` assignment is a string giving the name of the input-file (e.g., `"linear.in.R"`). This function can also automatically compile the model, if you forgot to use `makemcsim()` to create model program. Besides, this function can also automatically compile the model.
+
+- Can use `parallel = T` if using parallel computing in MCMC model calibration.
 
 ```{r, eval=F}
 clear()
