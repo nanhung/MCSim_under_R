@@ -3,11 +3,11 @@
 #-------------------
 Integrate (Lsodes, 1e-4, 1e-6, 1);
 
-MCMC("MCMC.default.out","", # name of output and restart file
-     "",           # name of data file
-     2000,0,      # iterations, print predictions flag,
-     1,2000,     # printing frequency, iters to print
-     10101010);    # random seed (default )
+MCMC ("MCMC.default.out","", # name of output and restart file
+      "",           # name of data file
+      2000,0,      # iterations, print predictions flag,
+      1,2000,     # printing frequency, iters to print
+      10101010);    # random seed (default )
 
 Level { # top
   Distrib(k_12, LogUniform, 0.01, 10);
