@@ -93,17 +93,19 @@ mcsim <- function(model, input, dir = "modeling", parallel = F){
       system(paste("./mcsim.", model, ".exe ", mcmc_input, sep = ""))
       
     } else{ 
-      writeLines(tx2, con=paste0(dir, "/", input))
-      system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
+      tmp <- "tmp_mcmc.in.R"
+      writeLines(tx, con=paste0(dir, "/", input))
+      writeLines(tx2, con=paste0(dir, "/", tmp))
+      system(paste("./mcsim.", model, ".exe ", dir, "/", tmp, sep = ""))
       outfile <- "MCMC.default.out"
       tx2 <- gsub(pattern = ",0,", replace = ",1,", x = tx)
       tx3 <- gsub(pattern = paste0("\"", outfile, "\",\"\""), 
                   replace = paste0("\"", checkfile, "\",\"", outfile, "\""), 
                   x = tx2)
-      writeLines(tx3, con=paste0(dir, "/", input))
+      writeLines(tx3, con=paste0(dir, "/", tmp))
       
-      system(paste("./mcsim.", model, ".exe ", dir, "/", input, sep = ""))
-      writeLines(tx, con=paste0(dir, "/", input))
+      system(paste("./mcsim.", model, ".exe ", dir, "/", tmp, sep = ""))
+      file.remove(paste0(dir, "/", tmp))
     }
     
     if(file.exists(checkfile)){
