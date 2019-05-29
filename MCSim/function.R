@@ -137,7 +137,8 @@ mcsim <- function(model, input, dir = "modeling", parallel = F){
 }
 
 clear <- function(){
-  files <- c(dir(pattern = c("*.out")), 
+  files <- c(dir(pattern = c("*.out")),
+             dir(pattern = c("sim.in")),
              dir(pattern = c("*.R.exe")),
              dir(pattern = c("*.R.so")),
              dir(pattern = c("*.R.o")),
