@@ -21,7 +21,7 @@ This MCSim sandbox aim to help the beginner (especially Windows user) run GNU MC
 
 The workflow of MCSim under R can separate into three levels as following diagram,
 
-![](https://raw.githubusercontent.com/nanhung/MCSim_under_R/master/doc/fig/flowchart.png)
+![](https://i.ibb.co/bb9xS38/flowchart.png)
 
 ## Functions
 
