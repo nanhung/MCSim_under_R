@@ -35,6 +35,10 @@ makemcsim <- function(model, deSolve = F, dir = "modeling"){
   exe_file <- paste0("mcsim.", model, ".exe")
   #if(file.exists(exe_file)) stop(paste0("* '", exe_file, "' had been created."))
   
+  if(file.exists("modeling") == F){
+    dir.create("modeling")
+  }
+  
   if(file.exists(model)) { # Move model file from working directory to modeling folder
     invisible(file.copy(from = paste0(getwd(),"/", model), to = paste0(getwd(),"/modeling/", model)))
     invisible(file.remove(model))
@@ -55,6 +59,11 @@ makemcsim <- function(model, deSolve = F, dir = "modeling"){
 }
 
 mcsim <- function(model, input, dir = "modeling", parallel = F){
+  
+  if(file.exists("modeling") == F){
+    dir.create("modeling")
+  }
+  
   exc = paste0("mcsim.", model, ".exe")
   if (file.exists(exc) == F) {
     makemcsim(model, dir = dir)
