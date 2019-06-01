@@ -3,7 +3,7 @@ library(doParallel)
 
 detectCores()
 cores <- 3
-cl <- makeCluster(3)                   
+cl <- makeCluster(cores)
 registerDoParallel(cl)
 
 # Create executable program
