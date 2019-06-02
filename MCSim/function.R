@@ -84,7 +84,7 @@ mcsim <- function(model, input, dir = "modeling", parallel = F){
   
   if (length(MCMC_line) != 0){
     #file_defore <- list.files()
-    RandomSeed <- runif(1, 0, 2147483646)
+    RandomSeed <- exp(runif(1, min = 0, max = log(2147483646.0)))
     tx2 <- gsub(pattern = "10101010", replace = paste(RandomSeed), x = tx)
     checkfile <- "MCMC.check.out"
     
