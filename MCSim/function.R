@@ -2,7 +2,7 @@
 # Check the chek whether the compiler is in the PATH by using
 # Sys.getenv("PATH") 
 
-set_PATH <- function(PATH = "c:/Rtools/mingw_32/bin"){
+set_PATH <- function(PATH = "c:/rtools40/mingw32/bin;c:/Rtools/mingw_32/bin"){
   
   if (Sys.info()[['sysname']] == "Windows") {
     if(Sys.which("gcc") == ""){ # echo $PATH
