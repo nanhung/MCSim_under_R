@@ -4,7 +4,7 @@ library(bayesplot)
 ## Linear mcmc ####
 # Assign the input file
 model <- "linear.model.R"
-inName <- "linear.mcmc.in.R"
+inName <- "linear_mcmc.in.R"
 
 # Generate the first chain
 set.seed(1111) 
