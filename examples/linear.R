@@ -1,3 +1,6 @@
+# Create mod.exe in MCSim (only need to do when the mod.exe doesn;t exist)
+# makemod() 
+
 library(rstan)
 library(bayesplot)
 
