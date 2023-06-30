@@ -24,7 +24,8 @@ makemod <- function(){
   if(Sys.which("gcc") == ""){
     stop("Please setting the PATH of compiler")
   }
-  system(paste("gcc -o ./MCSim/mod.exe ./MCSim/mod/*.c ", sep = "")) 
+  mod_c_files <- paste(paste0("./MCSim/mod/", list.files("MCSim/mod", "*\\.c$")), collapse = ' ')
+  system(paste0("gcc -o ./MCSim/mod.exe ", mod_c_files))
   
   if(file.exists("MCSim/mod.exe")){
     message("The mod.exe had been created.")
@@ -52,7 +53,10 @@ makemcsim <- function(model, deSolve = F, dir = "modeling"){
     source(paste0(model,"_inits.R"))
   } else {
     system(paste("./MCSim/mod.exe ", dir, "/", model, " ", model, ".c", sep = "")) 
-    system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", model, ".exe ", model, ".c ./MCSim/sim/*.c -lm ", sep = ""))  
+    
+    sim_c_files <- paste(paste0("./MCSim/sim/", list.files("MCSim/sim", pattern = "*\\.c$")), collapse = ' ')
+    system(paste("gcc -O3 -I.. -I./MCSim/sim -o mcsim.", model, ".exe ", model, ".c ", sim_c_files,
+                 " -lm ", sep = ""))  
     invisible(file.remove(paste0(model, ".c")))
     if(file.exists(exe_file)) message(paste0("* Created executable program '", exe_file, "'.")) 
   }
@@ -68,7 +72,7 @@ mcsim <- function(model, input, dir = "modeling", parallel = F){
   if (file.exists(exc) == F) {
     makemcsim(model, dir = dir)
     if (file.exists(exc) == F) {
-    stop("* '", exc, "' is not exist .")
+      stop("* '", exc, "' is not exist .")
     }
   }
   
