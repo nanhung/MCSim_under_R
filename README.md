@@ -5,7 +5,7 @@ This MCSim sandbox aim to help the beginner (especially Windows user) run GNU MC
 ## Prerequisites
 - R (<https://cran.r-project.org/>)  
 - RStudio (<https://www.rstudio.com/>)  
-- Rtools (<https://cran.r-project.org/bin/windows/Rtools/>; NOTE: The current version was tested in Rtools v4.0) 
+- Rtools (<https://cran.r-project.org/bin/windows/Rtools/>) 
 
 ## Instruction 
 
